@@ -23,6 +23,15 @@ class Collector:
     imputation_method: str = "ninguno"
     status: str = "implementado"             # or "pendiente"
     run_by_default: bool = True              # False: only runs when named in --only (slow per-cell fallbacks)
+    countries: set[str] | None = None        # only for these countries (None = any)
+    climate_key: str | None = None           # daily climate source: runs only if project.climate matches
+
+    @classmethod
+    def applies(cls, cfg) -> bool:
+        p = cfg["project"]
+        if cls.countries and p["country_iso3"] not in cls.countries:
+            return False
+        return cls.climate_key is None or cls.climate_key == p.get("climate")
 
     def __init__(self, lake, cfg):
         self.lake = lake
@@ -43,7 +52,7 @@ class Collector:
         base = {"source": self.source, "source_url": self.source_url, "license": self.license,
                 "is_synthetic": self.is_synthetic, "imputation_method": self.imputation_method,
                 "confidence": self.confidence, "spatial_resolution_m": self.spatial_resolution_m,
-                "crs": "EPSG:4326 (lat/lon) / EPSG:3035 (distancias)",
+                "crs": f"EPSG:4326 (lat/lon) / {self.cfg['project']['crs_equal_area']} (distancias)",
                 "pipeline_version": self.cfg["project"]["pipeline_version"]}
         base.update(overrides or {})
         info = {}

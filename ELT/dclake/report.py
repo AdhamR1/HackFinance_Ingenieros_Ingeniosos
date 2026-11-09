@@ -8,13 +8,19 @@ from .schema import _read, load_schemas
 
 def coverage_report(lake, cfg, registry) -> pd.DataFrame:
     specs = load_schemas(cfg.dictionary_path)
-    lin_p = lake.tables / "field_lineage.parquet"
-    lin = pd.read_parquet(lin_p) if lin_p.exists() else pd.DataFrame(columns=["table", "field", "coverage_pct", "collector"])
+    lin = lake.read_table("field_lineage")
+    if lin is None:
+        lin = pd.DataFrame(columns=["table", "field", "coverage_pct", "collector"])
+    else:   # a big country has one lineage file per part (parts of equal size): mean coverage
+        lin = lin.groupby(["table", "field"], as_index=False).agg(coverage_pct=("coverage_pct", "mean"),
+                                                                    collector=("collector", "first"))
     lin = lin.set_index(["table", "field"])
     dic, daily = _read(str(cfg.dictionary_path))
 
     declared = {}
     for cls in registry:
+        if not cls.applies(cfg):
+            continue
         c = cls(lake, cfg)
         for t, fl in c.declared_fields().items():
             for f in fl:

@@ -45,12 +45,14 @@ def make_session(total_retries: int = 5) -> requests.Session:
 class Lake:
     """root = cache (downloads, intermediates, logs); tables = the final dataset folder."""
 
-    def __init__(self, root: Path, tables: Path | None = None):
+    def __init__(self, root: Path, tables: Path | None = None, iso: str = "ESP"):
         self.root = Path(root)
+        self.iso = iso
+        self.part = None                     # None = whole country; with_part(k) = one strip of cells
         self.raw = self.root / "raw"
         self.manual = self.raw / "manual"
         self.processed = self.root / "processed"
-        self.staging = self.root / "staging"
+        self.staging = self.root / "staging" / "part-00"
         self.tables = Path(tables) if tables else self.root / "tables"
         self.reports = self.root / "reports"
         self.metadata = self.root / "metadata"
@@ -105,8 +107,16 @@ class Lake:
         return dest
 
     def get_json(self, url: str, dest: Path, **kw):
+        """Cached JSON. Answers that are not JSON (HTML error pages served with 200) are not cached."""
+        kw.setdefault("validate", lambda b: b.lstrip()[:1] in (b"{", b"["))
         p = self.cached_get(url, dest, **kw)
-        return None if p is None else json.loads(Path(p).read_text(encoding="utf-8"))
+        if p is None:
+            return None
+        try:
+            return json.loads(Path(p).read_text(encoding="utf-8"))
+        except ValueError:
+            self.log.warning("JSON no válido en la caché, se ignora: %s", Path(p).name)
+            return None
 
     # ---------- staging (outputs of each collector) ----------
     def stage_dir(self, collector: str) -> Path:
@@ -163,4 +173,43 @@ class Lake:
         p = self.processed / "grid" / "sample_cells.parquet"
         if not p.exists():
             raise FileNotFoundError("No hay muestra de celdas. Ejecuta primero: python -m dclake grid")
-        return gpd.read_parquet(p)
+        g = gpd.read_parquet(p)
+        if self.part is not None and "part" in g:
+            g = g[g["part"] == self.part].reset_index(drop=True)
+        return g
+
+    # ---------- parts: big countries are processed in strips of cells (memory) ----------
+    def n_parts(self) -> int:
+        import pyarrow.parquet as pq
+        p = self.processed / "grid" / "sample_cells.parquet"
+        if not p.exists() or "part" not in pq.read_schema(p).names:
+            return 1
+        return int(pd.read_parquet(p, columns=["part"])["part"].max()) + 1
+
+    def with_part(self, part: int) -> "Lake":
+        """Same cache, but sites() and staging restricted to one part (strip) of the grid."""
+        import copy
+        other = copy.copy(self)
+        other.part = int(part)
+        other.staging = self.root / "staging" / f"part-{int(part):02d}"
+        other.staging.mkdir(parents=True, exist_ok=True)
+        return other
+
+    @property
+    def out_name(self) -> str:
+        """Name of this country/part in the dataset tables, e.g. ESP-p00."""
+        return f"{self.iso}-p{(self.part or 0):02d}"
+
+    def read_table(self, name: str, filters=None) -> pd.DataFrame | None:
+        """All files of this country for one dataset table (layout in assemble.py)."""
+        d = self.tables / name
+        if name == "country_context":
+            files = [self.tables / "country_context.parquet"]
+        elif name == "sites_weekly":
+            files = sorted(d.glob(f"year=*/{self.iso}-p*.parquet"))
+        else:
+            files = sorted(d.glob(f"{self.iso}*.parquet"))
+        files = [f for f in files if f.exists()]
+        if not files:
+            return None
+        return pd.concat([pd.read_parquet(f, filters=filters) for f in files], ignore_index=True)

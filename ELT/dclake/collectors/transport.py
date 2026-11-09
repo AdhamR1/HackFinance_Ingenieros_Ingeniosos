@@ -30,7 +30,7 @@ class AirportsCollector(Collector):
         ap = pd.read_csv(self.lake.cached_get(OA.format(f="airports.csv"), self.lake.raw / "ourairports" / "airports.csv"))
         rw = pd.read_csv(self.lake.cached_get(OA.format(f="runways.csv"), self.lake.raw / "ourairports" / "runways.csv"))
         self.lake.catalog("ourairports", self.source, self.source_url, self.license)
-        ap = ap[ap["iso_country"].isin(["ES", "PT", "FR", "AD", "GI", "MA"])]
+        ap = ap[ap["iso_country"].isin(self.cfg["project"].get("neighbours_iso2") or ["ES"])]
         comm = ap[ap["type"].isin(["large_airport", "medium_airport"]) & (ap["scheduled_service"] == "yes")]
         pts = geo.site_points(sites)
         df = pd.DataFrame({"site_id": sites["site_id"].values})
@@ -90,7 +90,8 @@ class CablesCollector(Collector):
                  "lon": f["geometry"]["coordinates"][0], "lat": f["geometry"]["coordinates"][1]}
                 for f in lp["features"]]
         lp = pd.DataFrame(rows)
-        lp = lp[lp["lon"].between(-20, 10) & lp["lat"].between(25, 48)].reset_index(drop=True)
+        w, s, e, n = geo.bbox_union(self.cfg, 10)
+        lp = lp[lp["lon"].between(w, e) & lp["lat"].between(s, n)].reset_index(drop=True)
         info, year_cache = [], {}
         this_year = date.today().year
         for _, r in lp.iterrows():
@@ -112,7 +113,7 @@ class CablesCollector(Collector):
         lpg = geo.points_from_lonlat(lp)
         pts = geo.site_points(sites)
         nn = geo.nearest(pts, lpg, ["n_cables", "newest", "planned"])
-        es = lp[lp["name"].str.contains("Spain", case=False, na=False)]
+        es = lp[lp["name"].str.contains(self.cfg["project"].get("name", "Spain"), case=False, na=False)]
         n_country = len({c for ids in es["cable_ids"] for c in ids})
         df = pd.DataFrame({"site_id": sites["site_id"].values,
                            "dist_cable_landing_km": nn["dist_km"].values,
@@ -136,7 +137,8 @@ class CoastCollector(Collector):
     def run(self, sites):
         import geopandas as gpd
         p = self.lake.cached_get(NE_COAST, self.lake.raw / "naturalearth" / "ne_10m_coastline.zip")
-        coast = gpd.read_file(f"zip://{p}").cx[-25:10, 20:50].to_crs(geo.EQUAL_AREA)
+        w, s, e, n = geo.bbox_union(self.cfg, 5)
+        coast = gpd.read_file(f"zip://{p}").cx[w:e, s:n].to_crs(geo.EQUAL_AREA)
         coast.to_parquet(self.lake.processed / "coastline.parquet")
         self.lake.catalog("naturalearth_coastline", self.source, NE_COAST, self.license)
         nn = geo.nearest(geo.site_points(sites), coast)

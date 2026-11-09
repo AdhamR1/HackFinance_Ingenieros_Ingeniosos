@@ -1,4 +1,12 @@
-"""Merge staged collector outputs into the final tables defined by the dictionary."""
+"""Merge staged collector outputs into the final tables defined by the dictionary.
+
+Dataset layout: one folder per table and one file per country (and part, for the per-cell tables),
+so the countries add up in the same tables:
+  sites_static/ESP-p00.parquet   sites_yearly/ESP-p00.parquet   field_lineage/ESP-p00.parquet
+  sites_weekly/year=2025/ESP-p00-2025.parquet    (ISO year of the week; -2025 = calendar year processed)
+  country_daily/ESP.parquet   stations/ESP.parquet   signal_features/ESP.parquet
+  country_context.parquet     (the same 8 countries whatever the run)
+"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -79,6 +87,24 @@ def merge_staged(lake, cfg, spec: TableSpec, collectors: list[str], year: int | 
     return base.reset_index()
 
 
+def clear_outputs(lake) -> int:
+    """Remove this country's per-cell files from the dataset (before rebuilding all its parts)."""
+    files = list(lake.tables.glob(f"*/{lake.iso}-p*.parquet")) + \
+        list(lake.tables.glob(f"sites_weekly/year=*/{lake.iso}-p*.parquet"))
+    for f in files:
+        f.unlink()
+    return len(files)
+
+
+def _out_path(lake, name: str):
+    if name == "country_context":
+        return lake.tables / "country_context.parquet"
+    d = lake.tables / name
+    d.mkdir(parents=True, exist_ok=True)
+    per_part = name in ("sites_static", "sites_yearly", "field_lineage")
+    return d / f"{lake.out_name if per_part else lake.iso}.parquet"
+
+
 def assemble(lake, cfg, collectors: list[str] | None = None):
     specs = load_schemas(cfg.dictionary_path)
     collectors = collectors or lake.staged_collectors()
@@ -107,19 +133,17 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
         prov = {}
         df = merge_staged(lake, cfg, spec, collectors, provenance=prov)
         df = conform(df, spec, log, strict=False)
-        df.to_parquet(lake.tables / f"{name}.parquet", index=False)
+        df.to_parquet(_out_path(lake, name), index=False)
         add_lineage(spec, df, prov)
         log.info("Tabla %-16s %8d filas x %3d columnas", name, len(df), df.shape[1])
 
     # sites_weekly (what goes to the data lake): built from the merged daily data, one calendar year at a time.
     # The week that straddles New Year is completed with the first days of the next year (carry).
-    import shutil
-
     from .weekly import aggregate, iso_year, week_start, weekly_rules
     dspec, wspec = specs["sites_daily"], specs["sites_weekly"]
     rules = weekly_rules(wspec)
-    for old in ("sites_daily", "sites_weekly"):        # outputs of previous runs are rebuilt from staging
-        shutil.rmtree(lake.tables / old, ignore_errors=True)
+    for old in lake.tables.glob(f"sites_weekly/year=*/{lake.out_name}-*.parquet"):   # rebuilt from staging
+        old.unlink()
     p = cfg["period"]
     years = list(range(pd.Timestamp(p["start"]).year, pd.Timestamp(p["end"]).year + 1))
     prov, n_total, nn, carry = {}, 0, {}, None
@@ -137,7 +161,7 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
         for iy, part in w.groupby(iso_year(w["week_start"])):
             out = lake.tables / "sites_weekly" / f"year={iy}"
             out.mkdir(parents=True, exist_ok=True)
-            part.to_parquet(out / f"part-{y}.parquet", index=False)
+            part.to_parquet(out / f"{lake.out_name}-{y}.parquet", index=False)
         n_total += len(w)
         for f in wspec.fields:
             nn[f] = nn.get(f, 0) + int(w[f].notna().sum())
@@ -162,5 +186,5 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
     lin["reference_year"] = np.where(lin["table"].isin(["sites_weekly", "sites_yearly", "country_context", "country_daily"]),
                                      np.nan, now.year)
     lin = conform(lin, specs["field_lineage"], log, strict=False)
-    lin.to_parquet(lake.tables / "field_lineage.parquet", index=False)
+    lin.to_parquet(_out_path(lake, "field_lineage"), index=False)
     return lin

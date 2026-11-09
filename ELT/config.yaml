@@ -1,11 +1,12 @@
-# Configuración del data lake de viabilidad de data centers (España, rejilla 5x5 km)
+# Configuración del data lake de viabilidad de data centers (rejilla 3,5 x 3,5 km; España, Japón y EEUU)
 # Las rutas relativas se resuelven desde la carpeta de este archivo.
 
 project:
-  country_iso3: ESP
-  crs_equal_area: "EPSG:3035"      # ETRS89-LAEA: celdas de exactamente 25 km²
-  cell_size_m: 5000
+  country_iso3: ESP                 # país por defecto; otro con --country JPN o DCLAKE_COUNTRY (ver country_profiles)
+  crs_equal_area: "EPSG:3035"       # lo fija el perfil de cada país (proyección de igual área, en metros)
+  cell_size_m: 3500                 # celdas de 3,5 x 3,5 km = 12,25 km²
   min_land_fraction: 0.5            # una celda entra si al menos la mitad es tierra
+  max_cells_per_part: 25000         # los países grandes se procesan por franjas para no agotar la memoria
   seed: 42
   pipeline_version: "0.1.0"
 
@@ -18,7 +19,7 @@ sampling:
   # Un número (p. ej. 500) = muestra estratificada. Se puede cambiar en .env con DCLAKE_N_CELLS.
   n_cells: all
   n_positive_max: 100               # celdas con data center conocido (OSM + PeeringDB)
-  focus_regions: ["madrid", "aragon"]   # se comparan sin tildes ni mayúsculas con ADM1
+  focus_regions: ["madrid", "aragon"]   # (por país en country_profiles) sin tildes contra ADM1; "=x" exige el nombre exacto
   n_focus: 150                      # celdas extra en las regiones de la demo
   # el resto, aleatorias en toda España
 
@@ -29,10 +30,50 @@ paths:
 
 countries: [ESP, USA, MYS, IND, AUS, CHN, JPN, GBR]   # tabla country_context
 
-# Cajas de España: [oeste, sur, este, norte]
+# Cajas del país [oeste, sur, este, norte]: las fija el perfil de cada país (abajo)
 bboxes:
   peninsula_baleares: [-9.6, 35.8, 4.6, 43.9]
   canarias: [-18.3, 27.5, -13.3, 29.5]
+
+# Un perfil por país con rejilla; se elige con --country o DCLAKE_COUNTRY. Cada país tiene su caché
+# (.cache/ISO) y sus archivos en el dataset (dataset/<tabla>/ISO-pNN.parquet).
+# Sus claves sustituyen a las de project, bboxes y sampling.focus_regions.
+country_profiles:
+  ESP:
+    name: Spain                      # nombre en los archivos de NASA FIRMS y TeleGeography
+    iso2: ES
+    crs_equal_area: "EPSG:3035"      # ETRS89-LAEA Europa
+    climate: eobs                    # E-OBS 0,1° (observaciones, solo Europa)
+    neighbours_iso2: [ES, PT, FR, AD, GI, MA]   # aeropuertos y PeeringDB también al otro lado de la frontera
+    main_hub: madrid
+    focus_regions: ["madrid", "aragon"]
+    bboxes:
+      peninsula_baleares: [-9.6, 35.8, 4.6, 43.9]
+      canarias: [-18.3, 27.5, -13.3, 29.5]
+  JPN:
+    name: Japan
+    iso2: JP
+    crs_equal_area: "+proj=laea +lat_0=36 +lon_0=137 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
+    climate: nasapower               # NASA POWER (MERRA-2 0,5°, global, sin clave)
+    neighbours_iso2: [JP]
+    main_hub: tokyo
+    focus_regions: ["tokyo", "osaka"]
+    skip_collectors: [osm]           # Overpass es lento: se lanza aparte con --only osm
+    bboxes:
+      japon: [122.9, 24.0, 146.0, 45.6]
+  USA:
+    name: United States
+    firms_name: United_States
+    iso2: US
+    crs_equal_area: "EPSG:5070"      # NAD83 / Conus Albers
+    climate: gridmet                 # gridMET 4 km (EEUU continental, sin clave)
+    adm1_exclude: [alaska, hawaii, puerto rico, guam, virgin islands, american samoa, northern mariana]
+    neighbours_iso2: [US, CA, MX]
+    main_hub: ashburn
+    focus_regions: ["=virginia", "texas", "arizona"]
+    skip_collectors: [osm]           # Overpass no puede con EEUU entero
+    bboxes:
+      conus: [-124.9, 24.4, -66.9, 49.5]
 
 hubs:                               # para distancias y latencias
   madrid: [-3.70, 40.42]

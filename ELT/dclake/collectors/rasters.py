@@ -105,17 +105,127 @@ def dem_stats_bounds(lon0, lat0, lon1, lat1, target_px: int = 100) -> dict:
     return {k: float(np.average([s[k] for s, _ in stats], weights=w)) for k in stats[0][0]}
 
 
+DEM_FACTOR = 2          # each 1 deg tile is read at half resolution (~60 m), the same in every country
+
+
+def dem_tile_sums(lat: int, lon: int, crs: str, cell_m: float, factor: int = DEM_FACTOR) -> pd.DataFrame:
+    """Terrain sums per grid cell (cell indices ix, iy as in the site_id) for one 1 deg Copernicus tile.
+
+    One remote read per tile instead of one per cell: what makes big countries feasible. Empty for sea tiles.
+    """
+    import rasterio
+    from pyproj import Transformer
+    from rasterio.enums import Resampling
+    cols = ["ix", "iy", "n_z", "z", "n_s", "slope", "n_t", "tri", "n_a", "sin", "cos"]
+    with rasterio.Env(**GDAL_ENV):
+        try:
+            with rasterio.open("/vsicurl/" + dem_tile_url(lat, lon)) as ds:
+                h, w = ds.height // factor, ds.width // factor
+                z = ds.read(1, out_shape=(h, w), resampling=Resampling.average, masked=True)
+                z = z.astype("float32").filled(np.nan)
+                t = ds.transform
+                a, e = t.a * ds.width / w, t.e * ds.height / h
+                c, f = t.c, t.f
+        except rasterio.errors.RasterioIOError:
+            return pd.DataFrame(columns=cols)
+    lons = c + (np.arange(w) + 0.5) * a
+    lats = f + (np.arange(h) + 0.5) * e
+    gy, gx = np.gradient(z)
+    gx /= (abs(a) * 111320.0 * np.cos(np.radians(lats))).astype("float32")[:, None]
+    gy /= np.float32(abs(e) * 110540.0)
+    slope = np.hypot(gx, gy) * 100
+    aspect = np.arctan2(-gx, gy)
+    del gx, gy
+    pad = np.pad(z, 1, mode="edge")
+    tri = np.zeros_like(z)
+    for di in (-1, 0, 1):
+        for dj in (-1, 0, 1):
+            if di or dj:
+                tri += (pad[1 + di:pad.shape[0] - 1 + di, 1 + dj:pad.shape[1] - 1 + dj] - z) ** 2
+    tri = np.sqrt(tri)
+    del pad
+    X, Y = Transformer.from_crs("EPSG:4326", crs, always_xy=True).transform(*np.meshgrid(lons, lats))
+    ix = np.floor(np.asarray(X).ravel() / cell_m).astype(np.int64)
+    iy = np.floor(np.asarray(Y).ravel() / cell_m).astype(np.int64)
+    del X, Y
+    x0, y0 = ix.min(), iy.min()
+    ny = int(iy.max() - y0 + 1)
+    uk, inv = np.unique((ix - x0) * ny + (iy - y0), return_inverse=True)
+    inv = inv.ravel()
+
+    def sums(v, mask=None):
+        v = v.ravel()
+        ok = np.isfinite(v) if mask is None else np.isfinite(v) & mask
+        return (np.bincount(inv[ok], weights=v[ok].astype(float), minlength=len(uk)),
+                np.bincount(inv[ok], minlength=len(uk)))
+
+    zs, zn = sums(z)
+    ss, sn = sums(slope)
+    ts, tn = sums(tri)
+    steep = slope.ravel() > 1
+    sin_s, an = sums(np.sin(aspect), steep)
+    cos_s, _ = sums(np.cos(aspect), steep)
+    out = pd.DataFrame({"ix": uk // ny + x0, "iy": uk % ny + y0, "n_z": zn, "z": zs, "n_s": sn, "slope": ss,
+                        "n_t": tn, "tri": ts, "n_a": an, "sin": sin_s, "cos": cos_s})
+    return out[out["n_z"] > 0].reset_index(drop=True)
+
+
 class DEMCollector(Collector):
     name = "copernicus_dem"
     description = "Altitud, pendiente, orientación y rugosidad (Copernicus DEM GLO-30)"
     source = "Copernicus DEM GLO-30 (AWS Open Data)"
     source_url = "https://registry.opendata.aws/copernicus-dem/"
     license = "Copernicus DEM licence (uso libre con atribución)"
-    spatial_resolution_m = 50
+    spatial_resolution_m = 60       # GLO-30 read at half resolution (DEM_FACTOR)
     confidence = 0.9
     fields = {"sites_static": ["elevation_m", "slope_pct", "aspect_deg", "terrain_ruggedness"]}
 
     def run(self, sites):
+        """Tile by tile: each 1 deg tile is read once and summed into the cells it covers (cached per tile)."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        import geopandas as gpd
+        from tqdm import tqdm
+        pj = self.cfg["project"]
+        cell_m = float(pj["cell_size_m"])
+        b = gpd.GeoSeries(sites.geometry.values, crs=geo.EQUAL_AREA).to_crs(4326).bounds
+        tiles = sorted({(la, lo) for r in b.itertuples()
+                        for la in range(math.floor(r.miny), math.floor(r.maxy) + 1)
+                        for lo in range(math.floor(r.minx), math.floor(r.maxx) + 1)})
+        cache = self.lake.processed / "dem_tiles" / f"{int(cell_m)}m_f{DEM_FACTOR}"
+        cache.mkdir(parents=True, exist_ok=True)
+
+        def path(t):
+            return cache / f"{t[0]:+03d}_{t[1]:+04d}.parquet"
+
+        todo = [t for t in tiles if not path(t).exists()]
+        self.log.info("  DEM: %d teselas de 1° (%d ya calculadas)", len(tiles), len(tiles) - len(todo))
+
+        def one(t):
+            try:
+                dem_tile_sums(t[0], t[1], geo.EQUAL_AREA, cell_m).to_parquet(path(t), index=False)  # empty = sea
+            except Exception as e:      # retried in the next run
+                self.log.warning("  DEM tesela %s: %s", t, e)
+
+        with ThreadPoolExecutor(max_workers=6) as ex:   # GDAL and numpy release the GIL
+            list(tqdm(ex.map(one, todo), total=len(todo), desc="DEM teselas"))
+        frames = [pd.read_parquet(path(t)) for t in tiles if path(t).exists()]
+        frames = [f for f in frames if len(f)]
+        self.lake.catalog("copernicus_dem_glo30", self.source, self.source_url, self.license)
+        if not frames:
+            return
+        s = pd.concat(frames, ignore_index=True).groupby(["ix", "iy"], as_index=False).sum()
+        s["site_id"] = pj["country_iso3"] + "_" + s["ix"].astype(str) + "_" + s["iy"].astype(str)
+        s = s[s["site_id"].isin(set(sites["site_id"]))]
+        self.stage("sites_static", pd.DataFrame({
+            "site_id": s["site_id"].values,
+            "elevation_m": (s["z"] / s["n_z"]).values,
+            "slope_pct": (s["slope"] / s["n_s"].where(s["n_s"] > 0)).values,
+            "aspect_deg": (np.degrees(np.arctan2(s["sin"], s["cos"])) % 360).where(s["n_a"] > 0).values,
+            "terrain_ruggedness": (s["tri"] / s["n_t"].where(s["n_t"] > 0)).values}))
+
+    def run_per_cell(self, sites):
+        """Former method (one remote read per cell): kept for comparison on a few cells."""
         from concurrent.futures import ThreadPoolExecutor
 
         import geopandas as gpd
@@ -228,7 +338,7 @@ class ManualLayersCollector(Collector):
         df = pd.DataFrame({"site_id": sites["site_id"].values})
         self._done = []
         bb = self.cfg["bboxes"]
-        area = gpd.GeoSeries([box(*bb["peninsula_baleares"]).buffer(1), box(*bb["canarias"]).buffer(1)], crs=4326)
+        area = gpd.GeoSeries([box(*b).buffer(1) for b in bb.values()], crs=4326)   # the country's boxes
         for layer in self.cfg.get("manual_layers", []):
             path = self.lake.manual / layer["file"]
             if not path.exists():

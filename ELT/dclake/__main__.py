@@ -2,7 +2,7 @@
 
   init       crea carpetas y .env, y muestra qué claves y archivos faltan
   status     igual que init pero sin crear nada
-  grid       rejilla 5x5 km de España y muestra estratificada de celdas
+  grid       rejilla del país (--country ESP|JPN|USA) y etiquetas de las celdas
   collect    ejecuta los colectores (--only / --skip / --limit-sites)
   assemble   une todo en las tablas del diccionario
   report     informe de cobertura por campo y bloque
@@ -21,12 +21,16 @@ from pathlib import Path
 
 
 def _setup(args):
+    from . import geo
     from .config import load_config
     from .lake import Lake
     cfg = load_config(args.config, overrides={"period.start": args.start, "period.end": args.end,
-                                              "paths.lake_dir": args.lake_dir})
-    lake = Lake(cfg.lake, cfg.dataset)
-    lake.log.info("Dataset: %s | periodo %s a %s", lake.tables, cfg["period"]["start"], cfg["period"]["end"])
+                                              "paths.lake_dir": args.lake_dir,
+                                              "project.country_iso3": args.country.upper() if args.country else None})
+    geo.set_equal_area(cfg["project"]["crs_equal_area"])
+    lake = Lake(cfg.lake, cfg.dataset, iso=cfg.iso)
+    lake.log.info("País %s | dataset: %s | periodo %s a %s", cfg.iso, lake.tables, cfg["period"]["start"],
+                  cfg["period"]["end"])
     return cfg, lake
 
 
@@ -80,11 +84,18 @@ def cmd_collect(cfg, lake, only=None, skip=None, limit=None, ids=None):
     if unknown:
         lake.log.warning("Colectores desconocidos: %s. Disponibles: %s", sorted(unknown), [c.name for c in REGISTRY])
     results = {}
+    skip_cfg = set(cfg["project"].get("skip_collectors") or [])
     for cls in REGISTRY:
         if only and cls.name not in only:
             continue
+        if not cls.applies(cfg):          # e.g. E-OBS only in Europe, OMIE/REE only in Spain
+            continue
         if not only and not cls.run_by_default:
             lake.log.info("[%s] no se ejecuta por defecto (pídelo con --only %s)", cls.name, cls.name)
+            continue
+        if not only and cls.name in skip_cfg:
+            lake.log.info("[%s] se salta en %s (skip_collectors en config.yaml; pídelo con --only %s)",
+                          cls.name, cfg.iso, cls.name)
             continue
         if skip and cls.name in skip:
             continue
@@ -121,6 +132,8 @@ def main(argv=None):
     ap.add_argument("--start", help="inicio del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_START)")
     ap.add_argument("--end", help="fin del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_END)")
     ap.add_argument("--lake-dir", help="carpeta del data lake (por defecto config.yaml o DCLAKE_LAKE_DIR)")
+    ap.add_argument("--country", help="país con rejilla: ESP, JPN o USA (por defecto config.yaml o DCLAKE_COUNTRY)")
+    ap.add_argument("--part", type=int, help="solo esta parte (franja de celdas) del país; por defecto todas")
     args = ap.parse_args(argv)
     only = set(args.only.split(",")) if args.only else None
     skip = set(args.skip.split(",")) if args.skip else None
@@ -137,11 +150,19 @@ def main(argv=None):
     if args.command in ("grid", "all"):
         from .grid import run_grid
         run_grid(lake, cfg)
+    parts = [args.part] if args.part is not None else list(range(lake.n_parts()))
     if args.command in ("collect", "all"):
-        cmd_collect(cfg, lake, only, skip, args.limit_sites, args.sites.split(",") if args.sites else None)
+        for k in parts:
+            if len(parts) > 1 or args.part is not None:
+                lake.log.info("===== %s: parte %d de %d =====", cfg.iso, k + 1, lake.n_parts())
+            cmd_collect(cfg, lake.with_part(k), only, skip, args.limit_sites,
+                        args.sites.split(",") if args.sites else None)
     if args.command in ("assemble", "all"):
-        from .assemble import assemble
-        assemble(lake, cfg)
+        from .assemble import assemble, clear_outputs
+        if args.part is None:
+            clear_outputs(lake)
+        for k in parts:
+            assemble(lake.with_part(k), cfg)
     if args.command in ("report", "all", "assemble"):
         from .report import coverage_report
         coverage_report(lake, cfg, REGISTRY)

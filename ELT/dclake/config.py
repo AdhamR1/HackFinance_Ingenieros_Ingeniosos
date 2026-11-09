@@ -27,8 +27,13 @@ class Config(dict):
         return Path(self["_root"])
 
     @property
+    def iso(self) -> str:
+        return self["project"]["country_iso3"]
+
+    @property
     def lake(self) -> Path:
-        return self.root / self["paths"]["lake_dir"]
+        """Cache of one country (downloads and intermediates): <lake_dir>/<ISO3>."""
+        return self.root / self["paths"]["lake_dir"] / self.iso
 
     @property
     def dataset(self) -> Path:
@@ -52,6 +57,7 @@ class Config(dict):
 # Environment variables (or .env) that override config.yaml without editing it.
 # Precedence: explicit overrides (CLI, demo) > environment > config.yaml
 ENV_OVERRIDES = {
+    "DCLAKE_COUNTRY": "project.country_iso3",   # country of the run (its profile is in config.yaml)
     "DCLAKE_LAKE_DIR": "paths.lake_dir",     # cache of downloads and intermediates
     "DCLAKE_DATASET_DIR": "paths.dataset_dir",
     "DCLAKE_START": "period.start",
@@ -76,4 +82,21 @@ def load_config(path: str | Path = "config.yaml", overrides: dict | None = None)
     for k, v in merged.items():
         sec, _, key = k.partition(".")
         data.setdefault(sec, {})[key] = v
+    apply_country_profile(data)
     return Config(data)
+
+
+def apply_country_profile(data: dict) -> None:
+    """Overlay country_profiles[<country_iso3>] on project, bboxes and sampling.focus_regions."""
+    iso = str(data["project"]["country_iso3"]).upper()
+    data["project"]["country_iso3"] = iso
+    profiles = data.get("country_profiles") or {}
+    if profiles and iso not in profiles:
+        raise ValueError(f"No hay perfil para {iso} en config.yaml (country_profiles: {', '.join(profiles)})")
+    for k, v in (profiles.get(iso) or {}).items():
+        if k == "bboxes":
+            data["bboxes"] = v
+        elif k == "focus_regions":
+            data.setdefault("sampling", {})["focus_regions"] = v
+        else:
+            data["project"][k] = v

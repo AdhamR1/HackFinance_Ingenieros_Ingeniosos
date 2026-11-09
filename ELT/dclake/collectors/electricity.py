@@ -29,6 +29,7 @@ def parse_omie_marginal(text: str, es_index: int = 5) -> list[float]:
 
 
 class ElectricityESCollector(Collector):
+    countries = {"ESP"}
     name = "electricity_es"
     description = "Precio diario OMIE, mix de generación REE y tipo de cambio BCE"
     source = "OMIE / REE REData / BCE"

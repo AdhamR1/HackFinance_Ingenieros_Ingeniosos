@@ -15,7 +15,7 @@ from .base import Collector
 # ([timeout:1200][maxsize:4e9]) are rejected with 504 when the server is busy.
 # So we ask for modest limits and, if the whole-country query fails, split it in tiles.
 HEADER = "[out:json][timeout:{timeout}][maxsize:{maxsize}];"
-AREA = 'area["ISO3166-1"="ES"][admin_level=2]->.a;'
+AREA = 'area["ISO3166-1"="{iso2}"][admin_level=2]->.a;'
 AREA_LIMITS = (600, 1024 ** 3)          # whole Spain: 10 min, 1 GiB
 TILE_LIMITS = (300, 512 * 1024 ** 2)    # each tile: 5 min, 512 MiB
 TILE_DEG = 4.0
@@ -100,9 +100,9 @@ def overpass_elements(lake, cfg, name: str, body: str, out: str) -> list[dict]:
     """Elements of one layer: whole-Spain area query, or bbox tiles if that fails."""
     tail = "out center tags;" if out == "center" else "out tags geom;"
     raw = lake.raw / "osm" / f"{name}.json"
-    if not raw.exists():
+    if not raw.exists() and not (lake.raw / "osm" / name).is_dir():   # already being fetched in tiles: go on
         t, m = AREA_LIMITS
-        _overpass_fetch(lake, cfg, HEADER.format(timeout=t, maxsize=m) + AREA + "(" + body + ");" + tail, raw, t, name)
+        _overpass_fetch(lake, cfg, HEADER.format(timeout=t, maxsize=m) + AREA.format(iso2=cfg["project"].get("iso2", "ES")) + "(" + body + ");" + tail, raw, t, name)
     if raw.exists():
         return json.loads(raw.read_text(encoding="utf-8")).get("elements", [])
 

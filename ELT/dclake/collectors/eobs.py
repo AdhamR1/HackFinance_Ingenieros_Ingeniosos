@@ -89,8 +89,22 @@ def daily_fields(v: dict[str, np.ndarray], ccfg: dict) -> dict[str, np.ndarray]:
     return out
 
 
+def stage_daily_climate(collector, ids, dy, vals: dict) -> None:
+    """vals: {E-OBS variable: array (days x cells)} for the days dy of one year -> staged sites_daily fields."""
+    flat = {k: v.T.reshape(-1).astype(float) for k, v in vals.items()}   # site-major order
+    out = daily_fields(flat, collector.cfg["climate"])
+    df = pd.DataFrame({"site_id": np.repeat(ids, len(dy)), "date": np.tile(dy.values, len(ids)), **out})
+    for c in df.columns:
+        if c.endswith("_flag"):
+            df[c] = df[c].astype("boolean") if df[c].isna().any() else df[c].astype(bool)
+        elif c not in ("site_id", "date"):
+            df[c] = df[c].astype("float32")
+    collector.stage("sites_daily", df, year=int(dy[0].year))
+
+
 class EOBSCollector(Collector):
     name = "eobs"
+    climate_key = "eobs"
     description = "Clima diario observado E-OBS (rejilla 0,1°, sin clave) para todas las celdas"
     source = "E-OBS ensemble mean 0.1° (Copernicus C3S / ECA&D, KNMI)"
     source_url = "https://surfobs.climate.copernicus.eu/dataaccess/access_eobs.php"
@@ -212,15 +226,7 @@ class EOBSCollector(Collector):
                         self.log.warning("  E-OBS %s %d: solo %.0f %% de los días; se deja vacío ese año", var, y, 100 * cov)
                         vals[var][:] = np.nan
                         self._coverage[var] = 0.0
-            flat = {k: v.T.reshape(-1).astype(float) for k, v in vals.items()}   # site-major order
-            out = daily_fields(flat, self.cfg["climate"])
-            df = pd.DataFrame({"site_id": np.repeat(ids, len(dy)), "date": np.tile(dy.values, len(ids)), **out})
-            for c in df.columns:
-                if c.endswith("_flag"):
-                    df[c] = df[c].astype("boolean") if df[c].isna().any() else df[c].astype(bool)
-                elif c not in ("site_id", "date"):
-                    df[c] = df[c].astype("float32")
-            self.stage("sites_daily", df, year=int(y))
+            stage_daily_climate(self, ids, dy, vals)
             self.log.info("  E-OBS %d: %d celdas x %d días; celdas con píxel válido: %s", y, len(ids), len(dy),
                           {k: f"{v:.0%}" for k, v in self._coverage.items()})
         self.lake.catalog("eobs_" + self.version, self.source, self.source_url, self.license)

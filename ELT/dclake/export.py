@@ -16,12 +16,11 @@ def _meta(cfg) -> pd.DataFrame:
 
 
 def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: int = 3) -> Path:
-    t = lake.tables
-    static = pd.read_parquet(t / "sites_static.parquet")
+    static = lake.read_table("sites_static")
     if not site_ids:  # cells that have the most data
         site_ids = static.set_index("site_id").notna().sum(axis=1).sort_values(ascending=False).index[:n_default].tolist()
     meta = _meta(cfg)
-    lin = pd.read_parquet(t / "field_lineage.parquet")
+    lin = lake.read_table("field_lineage")
     src = lin.drop_duplicates("field").set_index("field")["source"]
 
     def transpose(df: pd.DataFrame, key: str) -> pd.DataFrame:
@@ -37,17 +36,17 @@ def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: i
     sheets = {}
     st = static[static["site_id"].isin(site_ids)]
     sheets["celdas_estatico"] = transpose(st, "site_id")
-    yearly = pd.read_parquet(t / "sites_yearly.parquet")
+    yearly = lake.read_table("sites_yearly", filters=[("site_id", "in", site_ids)])
     y = yearly[yearly["site_id"].isin(site_ids)].copy()
     y["site_id"] = y["site_id"] + " " + y["year"].astype(str)
     y = y[y.drop(columns=["site_id", "year"]).notna().any(axis=1)]
     sheets["celdas_anual"] = transpose(y.drop(columns="year"), "site_id")
-    daily = pd.read_parquet(t / "sites_weekly", filters=[("site_id", "in", site_ids)])
+    daily = lake.read_table("sites_weekly", filters=[("site_id", "in", site_ids)])
     daily = daily.dropna(axis=1, how="all").sort_values(["site_id", "week_start"])
     sheets["celdas_semanal"] = daily
-    cd = pd.read_parquet(t / "country_daily.parquet").dropna(axis=1, how="all")
+    cd = lake.read_table("country_daily").dropna(axis=1, how="all")
     sheets["pais_diario"] = cd
-    cc = pd.read_parquet(t / "country_context.parquet")
+    cc = lake.read_table("country_context")
     sheets["contexto_paises"] = cc[cc.drop(columns=["country_iso3", "year"]).notna().any(axis=1)].dropna(axis=1, how="all")
     cov = lake.reports / "coverage.csv"
     if cov.exists():
@@ -57,7 +56,7 @@ def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: i
         "Campos estáticos de las celdas de ejemplo (una columna por celda; primero los que tienen datos)",
         "Campos anuales (agregados de clima, precio, macro) por celda y año",
         "Variables semanales por celda (solo columnas con datos)",
-        "Variables diarias de España: precio OMIE, mix REE, EUR/USD",
+        "Variables diarias del país (solo España por ahora: precio OMIE, mix REE, EUR/USD)",
         "Indicadores por país y año (8 países)",
         "Estado de cada campo del diccionario: con datos / sin datos / pendiente / sin colector",
     ][: len(sheets)]})

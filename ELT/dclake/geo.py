@@ -5,22 +5,34 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
-EQUAL_AREA = "EPSG:3035"
+EQUAL_AREA = "EPSG:3035"     # set per country at start-up (set_equal_area) from its profile in config.yaml
 
 
-def site_points(sites, crs: str = EQUAL_AREA):
+def set_equal_area(crs: str) -> None:
+    global EQUAL_AREA
+    EQUAL_AREA = crs
+
+
+def bbox_union(cfg, margin: float = 0.0) -> tuple[float, float, float, float]:
+    """(west, south, east, north) covering every box of the country, plus a margin in degrees."""
+    b = np.array(list(cfg["bboxes"].values()), dtype=float)
+    return (max(b[:, 0].min() - margin, -180.0), max(b[:, 1].min() - margin, -90.0),
+            min(b[:, 2].max() + margin, 180.0), min(b[:, 3].max() + margin, 90.0))
+
+
+def site_points(sites, crs: str | None = None):
     """Centroids of the sample cells as a point GeoDataFrame (index = site_id order)."""
     import geopandas as gpd
     pts = gpd.GeoDataFrame({"site_id": sites["site_id"].values},
-                           geometry=gpd.points_from_xy(sites["x"], sites["y"]), crs=crs)
+                           geometry=gpd.points_from_xy(sites["x"], sites["y"]), crs=crs or EQUAL_AREA)
     return pts
 
 
-def points_from_lonlat(df: pd.DataFrame, lon="lon", lat="lat", crs: str = EQUAL_AREA):
+def points_from_lonlat(df: pd.DataFrame, lon="lon", lat="lat", crs: str | None = None):
     import geopandas as gpd
     df = df.dropna(subset=[lon, lat])
     g = gpd.GeoDataFrame(df.copy(), geometry=gpd.points_from_xy(df[lon], df[lat]), crs="EPSG:4326")
-    return g.to_crs(crs)
+    return g.to_crs(crs or EQUAL_AREA)
 
 
 def nearest(left, right, attrs: list[str] | None = None) -> pd.DataFrame:

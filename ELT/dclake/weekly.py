@@ -19,7 +19,7 @@ def weekly_rules(spec) -> list[tuple[str, str, str]]:
 
 def week_start(dates: pd.Series) -> pd.Series:
     d = pd.to_datetime(dates).dt.normalize()
-    return d - pd.to_timedelta(d.dt.dayofweek, unit="D")
+    return d - pd.to_timedelta(d.dt.day_of_week, unit="D")
 
 
 def iso_year(ws: pd.Series) -> pd.Series:

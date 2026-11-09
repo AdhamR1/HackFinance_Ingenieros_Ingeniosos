@@ -5,6 +5,7 @@ from .country import WorldBankCollector
 from .derived import DerivedCollector
 from .electricity import ElectricityESCollector
 from .eobs import EOBSCollector
+from .gridclimate import GridMETCollector, NASAPowerCollector
 from .hazards import EarthquakesCollector, FIRMSCollector
 from .openmeteo import OpenMeteoCollector
 from .osm import OSMCollector
@@ -17,7 +18,7 @@ from .transport import AirportsCollector, CablesCollector, CoastCollector
 REGISTRY = [
     OSMCollector, PeeringDBCollector, HubsCollector, AirportsCollector, CablesCollector, CoastCollector,
     DEMCollector, RemoteRastersCollector, ManualLayersCollector,
-    EarthquakesCollector, FIRMSCollector, ERA5LandCollector, EOBSCollector, OpenMeteoCollector, ElectricityESCollector,
+    EarthquakesCollector, FIRMSCollector, ERA5LandCollector, EOBSCollector, GridMETCollector, NASAPowerCollector, OpenMeteoCollector, ElectricityESCollector,
     WorldBankCollector,
     SeismicCollector, *PENDING,
     DerivedCollector,  # always last

@@ -70,3 +70,52 @@ def test_schema_covers_dictionary():
     assert "t2m_max_c" in specs["sites_daily"].fields
     df = conform(pd.DataFrame({"site_id": ["a"], "elevation_m": ["12.5"], "extra": [1]}), specs["sites_static"])
     assert df.loc[0, "elevation_m"] == 12.5 and "extra" not in df
+
+
+def test_country_profiles_and_parts():
+    from dclake.collectors.gridclimate import NASAPowerCollector
+    from dclake.config import load_config
+    from dclake.geo import bbox_union
+    from dclake.grid import assign_parts, in_region, norm
+
+    root = Path(__file__).resolve().parents[1]
+    usa = load_config(root / "config.yaml", overrides={"project.country_iso3": "usa"})
+    assert usa.iso == "USA" and usa["project"]["crs_equal_area"] == "EPSG:5070"
+    assert usa.lake.name == "USA" and "conus" in usa["bboxes"]
+    assert bbox_union(usa, 1)[0] == pytest.approx(-125.9)
+
+    g = pd.DataFrame({"x": np.random.default_rng(0).uniform(0, 1e6, 1001)})
+    parts = assign_parts(g, 250)
+    assert parts.max() == 4 and np.bincount(parts).max() <= 250
+    assert (pd.Series(parts).groupby(pd.cut(g["x"], 5)).nunique() <= 2).all()   # strips by x
+    assert (assign_parts(g, 5000) == 0).all()
+
+    assert in_region("Comunidad de Madrid", norm("madrid"))
+    assert in_region("Virginia", norm("=virginia")) and not in_region("West Virginia", norm("=virginia"))
+
+    boxes = NASAPowerCollector.boxes(np.array([123.1, 139.7, 141.3]), np.array([24.3, 35.7, 43.1]))
+    assert boxes == [(123.0, 24.0), (133.0, 34.0)]          # only boxes with cells; each cell in one box
+
+
+def test_daily_counts_matches_brute_force():
+    from dclake import geo
+    from dclake.collectors.hazards import daily_counts
+    rng = np.random.default_rng(1)
+    geo.set_equal_area("EPSG:3035")
+    sites = pd.DataFrame({"site_id": [f"c{i}" for i in range(60)], "lon": rng.uniform(-4, -2, 60),
+                          "lat": rng.uniform(39, 41, 60)})
+    xy = geo.xy(geo.points_from_lonlat(sites))
+    sites["x"], sites["y"] = xy[:, 0], xy[:, 1]
+    days = pd.date_range("2025-01-01", "2025-01-10")
+    ev = pd.DataFrame({"lon": rng.uniform(-4, -2, 40), "lat": rng.uniform(39, 41, 40),
+                       "date": rng.choice(days, 40), "mag": rng.uniform(1.5, 4, 40)})
+    d = daily_counts(sites, ev, 50, days, "mag", "n", "mx", "max").set_index(["site_id", "date"])
+    exy = geo.xy(geo.points_from_lonlat(ev))
+    for i in (0, 17, 59):
+        near = np.hypot(exy[:, 0] - xy[i, 0], exy[:, 1] - xy[i, 1]) <= 50_000
+        for day in days[:4]:
+            sel = near & (ev["date"].values == day)
+            got = d.loc[(f"c{i}", day)]
+            assert got["n"] == sel.sum()
+            expected = ev["mag"].values[sel].max() if sel.any() else np.nan
+            assert np.isclose(got["mx"], expected, equal_nan=True)

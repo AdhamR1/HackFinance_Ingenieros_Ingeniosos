@@ -32,9 +32,10 @@ class PeeringDBCollector(Collector):
                                "n_networks_100km", "n_carriers_nearest_colo"]}
 
     def run(self, sites):
-        fac = fetch_pdb(self.lake, "fac", country__in=NEIGHBOUR_COUNTRIES)
-        ix = fetch_pdb(self.lake, "ix", country__in=NEIGHBOUR_COUNTRIES)
-        ixfac = fetch_pdb(self.lake, "ixfac", country__in=NEIGHBOUR_COUNTRIES)
+        cc = ",".join(self.cfg["project"].get("neighbours_iso2") or NEIGHBOUR_COUNTRIES.split(","))
+        fac = fetch_pdb(self.lake, "fac", country__in=cc)
+        ix = fetch_pdb(self.lake, "ix", country__in=cc)
+        ixfac = fetch_pdb(self.lake, "ixfac", country__in=cc)
         pts = geo.site_points(sites)
         sxy = geo.xy(pts)
         df = pd.DataFrame({"site_id": sites["site_id"].values})
@@ -82,7 +83,7 @@ class HubsCollector(Collector):
             return geo.haversine_km(sites["lon"].values, sites["lat"].values, lo, la)
 
         kw = dict(route_factor=lat["route_factor"], ms_per_km_rtt=lat["ms_per_km_rtt"], fixed_ms=lat["fixed_ms"])
-        df["dist_major_hub_km"] = d("madrid")
+        df["dist_major_hub_km"] = d(self.cfg["project"].get("main_hub", "madrid"))
         df["latency_to_hub_ms"] = geo.latency_ms(df["dist_major_hub_km"], **kw)
         for hub in ("frankfurt", "ashburn", "singapore", "tokyo"):
             df[f"latency_{hub}_ms"] = geo.latency_ms(d(hub), **kw)
