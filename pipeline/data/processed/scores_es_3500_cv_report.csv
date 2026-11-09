@@ -1,0 +1,3 @@
+,AUC (P vs U),recall@top10%,recall@top5%
+random K-fold (optimista),0.834,0.7,0.57
+spatial blocks 70 km (honesto),0.585,0.44,0.39

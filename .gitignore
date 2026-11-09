@@ -24,3 +24,6 @@ venv/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Descargas del pipeline (se regeneran)
+pipeline/data/cache/
