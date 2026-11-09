@@ -366,7 +366,7 @@ function activarControles(map) {
   // Botón "ES | EN": marca el idioma activo y cambia al pulsar el otro.
   const botonesIdioma = document.querySelectorAll('.idiomas button');
   const marcarIdioma = () => botonesIdioma.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.idioma === idioma())));
-  botonesIdioma.forEach(b => b.addEventListener('click', () => { if (b.dataset.idioma !== idioma()) ponerIdioma(b.dataset.idioma); }));
+  botonesIdioma.forEach(b => b.addEventListener('click', () => ponerIdioma(b.dataset.idioma)));
   marcarIdioma();
   alCambiarIdioma(marcarIdioma);
 
@@ -450,7 +450,7 @@ async function iniciar() {
     if (!$('aviso').hidden) $('aviso').textContent = textoAviso();
     buscador?.refrescar();
     if (estado.mundo) rellenarSelector();
-    if (map.isStyleLoaded()) ponerIdiomaNombres(map, nuevo);
+    ponerIdiomaNombres(map, nuevo); // (sin esperar a isStyleLoaded: da "no" mientras se cargan imágenes y se saltaba el cambio)
     ponerCreditos(map, creditos());
     pintarLeyenda();
     if (estado.seleccionado !== null) abrirPanel(map, estado.seleccionado); // repinta el panel en el nuevo idioma

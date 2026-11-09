@@ -31,9 +31,18 @@ export const idioma = () => idiomaActual;
 
 export function alCambiarIdioma(fn) { avisos.push(fn); }
 
+// Cada idioma se descarga una sola vez; después el cambio es instantáneo.
+const descargados = {};
+const descargar = l => descargados[l] ??= fetch(`i18n/${l}.json`).then(res => res.json())
+  .catch(err => { delete descargados[l]; throw err; });
+let ultimoPedido = null; // si se pulsa ES y EN muy seguido, manda el último pulsado
+
 export async function ponerIdioma(nuevo) {
-  const res = await fetch(`i18n/${nuevo}.json`);
-  textos = await res.json();
+  if (nuevo === idiomaActual && nuevo === ultimoPedido) return; // ya está puesto
+  ultimoPedido = nuevo;
+  const datos = await descargar(nuevo);
+  if (nuevo !== ultimoPedido) return; // mientras llegaba, el visitante eligió otro idioma
+  textos = datos;
   idiomaActual = nuevo;
   try { localStorage.setItem(CLAVE_GUARDADA, nuevo); } catch { /* sin almacenamiento */ }
   document.documentElement.lang = nuevo;
@@ -46,4 +55,9 @@ export async function ponerIdioma(nuevo) {
   avisos.forEach(fn => fn(nuevo));
 }
 
-export function iniciarIdioma() { return ponerIdioma(idiomaInicial()); }
+export async function iniciarIdioma() {
+  await ponerIdioma(idiomaInicial());
+  // Los otros idiomas se descargan ya (pesan muy poco): así el primer cambio es instantáneo,
+  // aunque el navegador esté ocupado preparando la cuadrícula.
+  CONFIG.idiomas.forEach(l => descargar(l).catch(() => {}));
+}

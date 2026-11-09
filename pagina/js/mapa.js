@@ -92,7 +92,6 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 
     pitchWithRotate: false,
   });
   map.touchZoomRotate.disableRotation();
-  map.once('load', () => { mapaCargado = true; });
   ponerCreditos(map, creditos);
   return map;
 }
@@ -100,9 +99,10 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 
 // Créditos (abajo a la derecha) y botones + / −. Al cambiar de idioma se quitan y se vuelven
 // a poner los dos, para que los créditos salgan traducidos y sigan debajo de los botones.
 let controlesAbajo = [];
-let mapaCargado = false; // (map.loaded() da "sí" demasiado pronto, antes del evento 'load')
+let dejarDeVigilar = () => {};
 export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites de España', paises = 'Países' } = {}) {
   controlesAbajo.forEach(c => map.removeControl(c));
+  dejarDeVigilar();
   controlesAbajo = [
     new maplibregl.AttributionControl({
       compact: true,
@@ -114,11 +114,22 @@ export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites
     new maplibregl.NavigationControl({ showCompass: false }),
   ];
   controlesAbajo.forEach(c => map.addControl(c, 'bottom-right'));
-  // En pantallas pequeñas, los créditos empiezan plegados (botón ⓘ) para no tapar el mapa.
-  if (window.matchMedia('(max-width: 640px)').matches) {
-    const plegar = () => map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
-    if (mapaCargado) plegar(); else map.once('load', plegar);
-  }
+  // En pantallas pequeñas, los créditos van plegados (botón ⓘ) para no tapar el mapa.
+  // MapLibre los despliega solo cuando tiene algo nuevo que enseñar o cuando la pantalla pasa a
+  // ser estrecha (p. ej. al girar una tablet), así que se vigila y se vuelven a plegar,
+  // hasta que el visitante pulse ⓘ por su cuenta.
+  const caja = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
+  if (!caja) return;
+  const estrecha = window.matchMedia('(max-width: 640px)');
+  const plegar = () => {
+    if (estrecha.matches && caja.classList.contains('maplibregl-compact-show')) caja.classList.remove('maplibregl-compact-show');
+  };
+  plegar();
+  const vigilante = new MutationObserver(plegar);
+  vigilante.observe(caja, { attributes: true, attributeFilter: ['class'] });
+  estrecha.addEventListener('change', plegar); // la pantalla pasa a ser estrecha
+  dejarDeVigilar = () => { vigilante.disconnect(); estrecha.removeEventListener('change', plegar); };
+  caja.querySelector('summary')?.addEventListener('click', () => dejarDeVigilar(), { once: true });
 }
 
 // Cambia el idioma de los nombres de lugares ('es' o 'en').

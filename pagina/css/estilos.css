@@ -45,7 +45,6 @@ html, body {
   right: var(--hueco);
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 12px;
   pointer-events: none;   /* deja pasar los clics al mapa... */
   z-index: 10;
@@ -61,13 +60,18 @@ html, body {
   box-shadow: var(--sombra);
   display: flex;
   flex-direction: column;
+  /* Ancho fijo para que nada se mueva al cambiar de idioma (cabe el subtítulo más largo, el español). */
+  width: 272px;
+  flex-shrink: 0;
 }
 .marca-nombre { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
 .marca-nombre::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 6px;
   border-radius: 50%; background: var(--acento); vertical-align: middle; }
-.marca-sub { color: var(--texto-suave); font-size: 12.5px; }
+.marca-sub { color: var(--texto-suave); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.controles-superiores { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.controles-superiores { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+/* Anchos fijos: iguales en español y en inglés ("Ver el mundo" / "World view", "España" / "Spain"). */
+#boton-mundo { width: 146px; justify-content: center; }
 
 /* ---------- Botones y selector ---------- */
 .boton, .selector {
@@ -93,7 +97,10 @@ html, body {
   color: #0a0b0d;
   appearance: none;
   padding-right: 38px;
-  max-width: 220px;
+  /* Ancho fijo: si no, el navegador lo hace tan ancho como el país más largo de la lista,
+     que cambia con el idioma ("Reino Unido" / "United Kingdom"). */
+  width: 200px;
+  text-overflow: ellipsis;
 }
 .selector option { color: #0a0b0d; }
 
@@ -237,7 +244,7 @@ html, body {
 
 .control-opacidad { display: block; margin-bottom: 12px; }
 .control-titulo { display: flex; justify-content: space-between; font-size: 13px; color: var(--texto-suave); margin-bottom: 6px; }
-.control-titulo output { color: var(--texto); }
+.control-titulo output { color: var(--texto); min-width: 5ch; text-align: right; } /* cabe "100 %" */
 input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer; }
 
 .leyenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
@@ -337,6 +344,9 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
   border-radius: 999px;
   padding: 5px 12px;
   cursor: help;
+  /* Ancho del texto más largo ("DATOS DE PRUEBA": 15 letras), igual en los dos idiomas. */
+  width: calc(15ch + 15 * 0.12em + 26px);
+  text-align: center;
 }
 
 /* ---------- Tooltip ---------- */
@@ -378,16 +388,21 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
 .maplibregl-ctrl-attrib a { color: #ffffff !important; }
 .maplibregl-ctrl-attrib.maplibregl-compact { background: var(--superficie-solida) !important; }
 .maplibregl-ctrl-attrib-button { filter: invert(1); }
+/* Créditos desplegados en pantalla grande: ancho fijo (el del texto más largo de los dos idiomas),
+   para que el recuadro no cambie al cambiar de idioma. Si se cambian los créditos, revisar este número. */
+@media (min-width: 641px) {
+  .maplibregl-ctrl-attrib.maplibregl-compact-show { width: min(1240px, calc(100vw - 2 * var(--hueco) - 60px)); text-align: right; }
+}
 .maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom)); }
 
 /* ---------- Móvil ---------- */
 @media (max-width: 640px) {
   :root { --hueco: 10px; }
   .barra-superior { flex-direction: column; align-items: stretch; }
-  .marca { padding: 8px 12px; }
+  .marca { padding: 8px 12px; width: auto; }
   .marca-sub { display: none; }
-  .controles-superiores { justify-content: flex-start; flex-wrap: nowrap; }
-  .selector { flex: 1; min-width: 0; max-width: none; }
+  .controles-superiores { justify-content: flex-start; flex-wrap: nowrap; margin-left: 0; }
+  .selector { flex: 1 1 0; min-width: 0; width: auto; } /* "1 1 0": el ancho sale del hueco, no del texto */
   .buscador { order: 3; flex: none; width: 100%; }
   /* En móvil la etiqueta va arriba a la derecha del nombre, y los controles abajo, plegados. */
   .etiqueta-prueba { top: calc(var(--hueco) + 12px); left: auto; right: calc(var(--hueco) + 12px); }
