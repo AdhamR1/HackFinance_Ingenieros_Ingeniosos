@@ -19,6 +19,9 @@ function nombrePais(iso) {
 }
 
 const tieneDatos = iso => Object.hasOwn(estado.paises, iso);
+const esProximamente = iso => !tieneDatos(iso) && CONFIG.paises_proximamente.includes(iso);
+// Texto pequeño bajo el nombre del país: nada si tiene datos.
+const notaPais = iso => tieneDatos(iso) ? '' : t(esProximamente(iso) ? 'proximamente' : 'no_disponible');
 
 function mostrarTooltip(x, y, html) {
   const tip = $('tooltip');
@@ -45,9 +48,7 @@ function rellenarSelector() {
   const sel = $('selector-pais');
   const ordenar = lista => lista.sort((a, b) => a.nombre.localeCompare(b.nombre, idioma()));
   const conDatos = ordenar(Object.keys(estado.paises).map(iso => ({ iso, nombre: nombrePais(iso) })));
-  const sinDatos = ordenar(estado.mundo.features
-    .map(f => f.properties.iso)
-    .filter(iso => /^[A-Z]{2}$/.test(iso) && !tieneDatos(iso))
+  const proximos = ordenar(CONFIG.paises_proximamente.filter(esProximamente)
     .map(iso => ({ iso, nombre: nombrePais(iso) })));
 
   const opcion = (p, desactivada) =>
@@ -56,7 +57,7 @@ function rellenarSelector() {
   sel.innerHTML =
     `<option value="">${escaparHtml(t('elige_pais'))}</option>` +
     `<optgroup label="${escaparHtml(t('paises_disponibles'))}">${conDatos.map(p => opcion(p, false)).join('')}</optgroup>` +
-    `<optgroup label="${escaparHtml(t('paises_proximamente'))}">${sinDatos.map(p => opcion(p, true)).join('')}</optgroup>`;
+    `<optgroup label="${escaparHtml(t('paises_proximamente'))}">${proximos.map(p => opcion(p, true)).join('')}</optgroup>`;
   sel.value = estado.paisAbierto || '';
 }
 
@@ -106,7 +107,7 @@ function activarInteraccionPaises(map) {
       map.setFeatureState({ source: 'paises', id: hoverId }, { hover: true });
     }
     map.getCanvas().style.cursor = tieneDatos(iso) ? 'pointer' : 'not-allowed';
-    const nota = tieneDatos(iso) ? '' : `<div class="tooltip-nota">${escaparHtml(t('proximamente'))}</div>`;
+    const nota = tieneDatos(iso) ? '' : `<div class="tooltip-nota">${escaparHtml(notaPais(iso))}</div>`;
     mostrarTooltip(e.originalEvent.clientX, e.originalEvent.clientY, `<strong>${escaparHtml(nombrePais(iso))}</strong>${nota}`);
   });
   map.on('mouseleave', 'paises-relleno', () => {
@@ -123,7 +124,7 @@ function activarInteraccionPaises(map) {
     } else {
       // En móvil no hay "pasar el ratón": enseñamos el aviso al tocar.
       mostrarTooltip(e.originalEvent.clientX ?? e.point.x, e.originalEvent.clientY ?? e.point.y,
-        `<strong>${escaparHtml(nombrePais(iso))}</strong><div class="tooltip-nota">${escaparHtml(t('proximamente'))}</div>`);
+        `<strong>${escaparHtml(nombrePais(iso))}</strong><div class="tooltip-nota">${escaparHtml(notaPais(iso))}</div>`);
       setTimeout(ocultarTooltip, 1800);
     }
   });
@@ -151,7 +152,7 @@ async function iniciar() {
   window.__mapa = map; // útil para depurar desde la consola del navegador
 
   map.on('load', () => {
-    anadirPaises(map, estado.mundo, Object.keys(estado.paises));
+    anadirPaises(map, estado.mundo, Object.keys(estado.paises), CONFIG.paises_proximamente);
     activarInteraccionPaises(map);
     rellenarSelector();
 

@@ -9,5 +9,6 @@
   "datos_prueba": "DATOS DE PRUEBA",
   "datos_prueba_ayuda": "Estos valores son inventados mientras recopilamos los datos reales.",
   "cargando": "Cargando…",
-  "error_carga": "No se han podido cargar los datos de {pais}."
+  "error_carga": "No se han podido cargar los datos de {pais}.",
+  "no_disponible": "No disponible"
 }

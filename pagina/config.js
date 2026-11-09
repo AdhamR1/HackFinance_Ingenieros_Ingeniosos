@@ -80,6 +80,16 @@ export const CONFIG = {
   usar_puntuacion_del_archivo: true,
 
   // ---------------------------------------------------------------
+  // PAÍSES "PRÓXIMAMENTE"
+  // ---------------------------------------------------------------
+  // Países que aún no tienen datos pero que pensamos añadir. Salen en el
+  // selector y con el aviso "Próximamente". El resto del mundo sale como
+  // "No disponible". Códigos ISO de 2 letras (FR = Francia, US = EE. UU.…).
+  // Cuando un país tenga datos, se añade a data/paises.json (y se puede
+  // quitar de aquí: si está en los dos sitios, manda data/paises.json).
+  paises_proximamente: ['US', 'FR', 'DE', 'GB', 'IE', 'NL', 'PT', 'IT'],
+
+  // ---------------------------------------------------------------
   // INTERFAZ
   // ---------------------------------------------------------------
   // Muestra la etiqueta "DATOS DE PRUEBA". Ponla a false con datos reales.

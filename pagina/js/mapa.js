@@ -2,7 +2,8 @@
 // maplibregl viene del <script> del index.html (variable global).
 
 const COLOR_ACENTO = '#f5b301';   // ámbar (igual que en estilos.css)
-const COLOR_GRIS   = '#9ca3af';
+const COLOR_GRIS   = '#9ca3af';   // países "próximamente"
+const COLOR_OSCURO = '#1f2937';   // países sin planes ("no disponible")
 
 // Capas base gratuitas, sin clave. Las atribuciones son obligatorias.
 const CAPAS_BASE = {
@@ -61,9 +62,12 @@ export function ponerCapaBase(map, capa) {
   map.setLayoutProperty('base-mapa', 'visibility', capa === 'mapa' ? 'visible' : 'none');
 }
 
-// Añade las siluetas de los países. Los que tienen datos se pintan en ámbar
-// y el resto en gris. "disponibles" es una lista de códigos, p. ej. ['ES'].
+// Añade las siluetas de los países:
+//   - con datos ("disponibles", p. ej. ['ES'])  → ámbar
+//   - "próximamente" (lista de config.js)       → gris claro
+//   - el resto ("no disponible")                → gris oscuro
 let paisesDisponibles = [];
+let paisesProximamente = [];
 
 // Opacidad del relleno de cada país. El país abierto ("seleccionado") se deja
 // transparente para ver bien su cuadrícula.
@@ -73,12 +77,15 @@ function opacidadPaises(seleccionado) {
   return ['case',
     ['==', ['get', 'iso'], seleccionado || ''], 0,
     esDisponible, ['case', enHover, 0.45, 0.25],
-    ['case', enHover, 0.55, 0.4]];
+    ['in', ['get', 'iso'], ['literal', paisesProximamente]], ['case', enHover, 0.55, 0.4],
+    ['case', enHover, 0.5, 0.4]];
 }
 
-export function anadirPaises(map, mundo, disponibles) {
+export function anadirPaises(map, mundo, disponibles, proximamente) {
   paisesDisponibles = disponibles;
+  paisesProximamente = proximamente;
   const esDisponible = ['in', ['get', 'iso'], ['literal', disponibles]];
+  const esProximamente = ['in', ['get', 'iso'], ['literal', proximamente]];
 
   map.addSource('paises', { type: 'geojson', data: mundo, generateId: true });
   map.addLayer({
@@ -86,7 +93,7 @@ export function anadirPaises(map, mundo, disponibles) {
     type: 'fill',
     source: 'paises',
     paint: {
-      'fill-color': ['case', esDisponible, COLOR_ACENTO, COLOR_GRIS],
+      'fill-color': ['case', esDisponible, COLOR_ACENTO, esProximamente, COLOR_GRIS, COLOR_OSCURO],
       'fill-opacity': opacidadPaises(null),
     },
   });

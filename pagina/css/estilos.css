@@ -153,7 +153,8 @@ html, body {
 .maplibregl-ctrl-group button + button { border-top-color: var(--borde) !important; }
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
 .maplibregl-ctrl-attrib { background: rgba(10, 11, 13, 0.7) !important; color: var(--texto-suave); font-size: 11px; }
-.maplibregl-ctrl-attrib a { color: #d4d4d8 !important; }
+.maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib-inner { color: #d4d4d8 !important; }
+.maplibregl-ctrl-attrib a { color: #ffffff !important; }
 .maplibregl-ctrl-attrib.maplibregl-compact { background: var(--superficie-solida) !important; }
 .maplibregl-ctrl-attrib-button { filter: invert(1); }
 .maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom)); }
