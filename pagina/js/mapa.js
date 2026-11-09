@@ -187,14 +187,10 @@ export function marcarPaisSeleccionado(map, iso) {
 // ---------------------------------------------------------------------
 // CUADRÍCULA DE UN PAÍS
 // ---------------------------------------------------------------------
-// Opacidad del relleno: la elegida por el usuario, pero bajando al acercarse
-// para que se vea bien el satélite (árboles, edificios...) dentro del cuadrado.
+// Opacidad del relleno: exactamente la elegida por el usuario, igual en todos
+// los niveles de zoom (antes bajaba sola al acercarse y confundía).
 function opacidadCuadricula(opacidad) {
-  return ['interpolate', ['linear'], ['zoom'],
-    5, opacidad,
-    9, opacidad * 0.8,
-    12, opacidad * 0.55,
-    15, opacidad * 0.4];
+  return opacidad;
 }
 
 // "datos" es el GeoJSON del país, con _color ya calculado en cada cuadrado.
