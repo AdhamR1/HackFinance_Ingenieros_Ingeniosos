@@ -33,7 +33,7 @@ Si cambias algo y no lo ves, recarga forzando con `Ctrl + F5`.
 | Textos de la web (español / inglés)              | `i18n/es.json`, `i18n/en.json` |
 | Los datos de un país                             | `data/ES.json` (formato en `DATA_FORMAT.md`) |
 | Qué países tienen datos                          | `data/paises.json` |
-| Comunidades y provincias (bordes y buscador)     | `data/ES_regiones.json` (se crea con `herramientas/preparar_regiones.mjs`) |
+| Comunidades y provincias (bordes y buscador)     | `data/ES_regiones.json` (se crea con `herramientas/preparar_regiones.mjs`, que también actualiza el contorno usado por la cuadrícula) |
 | Colores y aspecto                                | `css/estilos.css` |
 
 ## Estructura
@@ -52,6 +52,7 @@ herramientas/     scripts para generar datos (no forman parte de la web)
 
 - Mapa: [MapLibre GL JS](https://maplibre.org/) (licencia BSD).
 - Satélite: Esri World Imagery. Mapa: © colaboradores de OpenStreetMap.
-- Contornos de países, comunidades y provincias: [Natural Earth](https://www.naturalearthdata.com/) (dominio público).
-- Nombres sobre el satélite: Esri World Boundaries and Places.
+- Contornos de países (vista del mundo): [Natural Earth](https://www.naturalearthdata.com/) (dominio público).
+- Límites de España, comunidades y provincias: [geoBoundaries](https://www.geoboundaries.org) (datos del INE, CC BY 4.0).
+- Nombres de lugares y fronteras: [OpenFreeMap](https://openfreemap.org) / OpenMapTiles, datos de OpenStreetMap.
 - Buscador de pueblos y ciudades: [Photon](https://photon.komoot.io) (komoot), con datos de OpenStreetMap.

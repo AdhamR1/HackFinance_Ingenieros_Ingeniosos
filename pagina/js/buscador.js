@@ -36,6 +36,7 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     for (const { pais, features } of porPais) {
       for (const f of features) {
         const p = f.properties;
+        if (p.tipo !== 'comunidad' && p.tipo !== 'provincia') continue; // las líneas de borde no tienen nombre
         const nombres = [p.nombre_es, p.nombre_en, ...(p.alias || [])];
         indice.push({
           tipo: p.tipo, pais, caja: p.caja, comunidad: p.comunidad,

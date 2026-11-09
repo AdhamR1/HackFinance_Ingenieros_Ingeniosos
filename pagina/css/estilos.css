@@ -171,7 +171,7 @@ html, body {
 .etiqueta-prueba {
   position: fixed;
   left: var(--hueco);
-  bottom: calc(var(--hueco) + env(safe-area-inset-bottom));
+  top: calc(var(--hueco) + 66px); /* justo debajo del nombre de la web */
   z-index: 10;
   font-family: var(--fuente-mono);
   font-size: 11.5px;
@@ -235,5 +235,5 @@ html, body {
   .controles-superiores { justify-content: flex-start; flex-wrap: nowrap; }
   .selector { flex: 1; min-width: 0; max-width: none; }
   .buscador { order: 3; flex: none; width: 100%; }
-  .etiqueta-prueba { bottom: calc(var(--hueco) + 4px + env(safe-area-inset-bottom)); }
+  .etiqueta-prueba { top: auto; bottom: calc(var(--hueco) + 4px + env(safe-area-inset-bottom)); }
 }

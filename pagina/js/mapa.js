@@ -23,34 +23,62 @@ const CAPAS_BASE = {
   },
 };
 
-// Capa transparente de Esri con nombres de ciudades, regiones y fronteras
-// (como la vista "híbrida" de Google Maps). Va siempre ENCIMA de todo.
-const ETIQUETAS = {
-  type: 'raster',
-  tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
-  tileSize: 256,
-  maxzoom: 19,
-};
-// Todas nuestras capas se insertan justo debajo de los nombres.
-const ENCIMA = 'etiquetas';
+// NOMBRES DE LUGARES Y FRONTERAS: texto de verdad (no imágenes), nítido a cualquier zoom.
+// Vienen de OpenFreeMap (gratis, sin clave, datos de OpenStreetMap).
+const NOMBRES = { type: 'vector', url: 'https://tiles.openfreemap.org/planet' };
+const FUENTES_TEXTO = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
+const TEXTO_BLANCO = { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0, 0, 0, 0.8)', 'text-halo-width': 1.5, 'text-halo-blur': 0.5 };
+const nombreEn = idioma => ['coalesce', ['get', 'name:' + idioma], ['get', 'name']];
+
+// Capas de nombres (de menos a más importantes: las últimas se dibujan encima).
+function capasNombres(idioma, visible) {
+  const v = { visibility: visible ? 'visible' : 'none' };
+  const clase = lista => ['in', ['get', 'class'], ['literal', lista]];
+  return [
+    { id: 'fronteras', type: 'line', source: 'nombres', 'source-layer': 'boundary', minzoom: 4,
+      filter: ['all', ['==', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]],
+      layout: v, paint: { 'line-color': '#ffffff', 'line-opacity': 0.55, 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.6, 10, 1.6] } },
+    { id: 'nombres-barrios', type: 'symbol', source: 'nombres', 'source-layer': 'place', minzoom: 12,
+      filter: clase(['suburb', 'neighbourhood', 'quarter', 'hamlet']),
+      layout: { ...v, 'text-field': nombreEn(idioma), 'text-font': ['Noto Sans Regular'], 'text-size': 12 }, paint: TEXTO_BLANCO },
+    { id: 'nombres-pueblos', type: 'symbol', source: 'nombres', 'source-layer': 'place', minzoom: 9,
+      filter: clase(['village']),
+      layout: { ...v, 'text-field': nombreEn(idioma), 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 11, 14, 14] }, paint: TEXTO_BLANCO },
+    { id: 'nombres-municipios', type: 'symbol', source: 'nombres', 'source-layer': 'place', minzoom: 7,
+      filter: clase(['town']),
+      layout: { ...v, 'text-field': nombreEn(idioma), 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 11, 14, 16] }, paint: TEXTO_BLANCO },
+    { id: 'nombres-ciudades', type: 'symbol', source: 'nombres', 'source-layer': 'place', minzoom: 4,
+      filter: clase(['city']),
+      layout: { ...v, 'text-field': nombreEn(idioma), 'text-font': ['Noto Sans Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 11, 8, 15, 12, 19] }, paint: TEXTO_BLANCO },
+    { id: 'nombres-paises', type: 'symbol', source: 'nombres', 'source-layer': 'place', maxzoom: 7,
+      filter: clase(['country']),
+      layout: { ...v, 'text-field': nombreEn(idioma), 'text-font': ['Noto Sans Bold'], 'text-transform': 'uppercase',
+        'text-letter-spacing': 0.12, 'text-size': ['interpolate', ['linear'], ['zoom'], 1, 10, 5, 14] },
+      paint: { ...TEXTO_BLANCO, 'text-color': 'rgba(255, 255, 255, 0.85)' } },
+  ];
+}
+const CAPAS_NOMBRES = ['fronteras', 'nombres-barrios', 'nombres-pueblos', 'nombres-municipios', 'nombres-ciudades', 'nombres-paises'];
+// Todas nuestras capas (países, cuadrícula, bordes) se insertan justo debajo de los nombres.
+const ENCIMA = 'fronteras';
 let conNombres = true;
 
-export function crearMapa(idContenedor, capaInicial, { nombres = true } = {}) {
+export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 'es' } = {}) {
   conNombres = nombres;
   const map = new maplibregl.Map({
     container: idContenedor,
     style: {
       version: 8,
-      sources: { satelite: CAPAS_BASE.satelite, mapa: CAPAS_BASE.mapa, etiquetas: ETIQUETAS },
+      glyphs: FUENTES_TEXTO,
+      sources: { satelite: CAPAS_BASE.satelite, mapa: CAPAS_BASE.mapa, nombres: NOMBRES },
       layers: [
         { id: 'fondo', type: 'background', paint: { 'background-color': '#05070a' } },
         { id: 'base-satelite', type: 'raster', source: 'satelite',
           layout: { visibility: capaInicial === 'satelite' ? 'visible' : 'none' } },
         { id: 'base-mapa', type: 'raster', source: 'mapa',
           layout: { visibility: capaInicial === 'mapa' ? 'visible' : 'none' } },
-        // El mapa normal (OpenStreetMap) ya trae nombres; los de Esri solo hacen falta sobre el satélite.
-        { id: ENCIMA, type: 'raster', source: 'etiquetas',
-          layout: { visibility: nombres && capaInicial === 'satelite' ? 'visible' : 'none' } },
+        // El mapa normal (OpenStreetMap) ya trae nombres; los nuestros solo hacen falta sobre el satélite.
+        ...capasNombres(idioma, nombres && capaInicial === 'satelite'),
       ],
     },
     center: [10, 30],
@@ -59,7 +87,10 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true } = {}) {
     maxZoom: 19,
     attributionControl: {
       compact: true,
-      customAttribution: 'Búsqueda: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a> · datos &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Límites: Natural Earth',
+      // (OpenFreeMap y OpenStreetMap ya ponen su crédito automáticamente.)
+      customAttribution: 'Búsqueda: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>'
+        + ' · Límites de España: <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (INE, CC BY 4.0)'
+        + ' · Países: Natural Earth',
     },
     renderWorldCopies: false,
     dragRotate: false,
@@ -75,11 +106,18 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true } = {}) {
   return map;
 }
 
+// Cambia el idioma de los nombres de lugares ('es' o 'en').
+export function ponerIdiomaNombres(map, idioma) {
+  for (const id of CAPAS_NOMBRES)
+    if (map.getLayer(id) && map.getLayer(id).type === 'symbol') map.setLayoutProperty(id, 'text-field', nombreEn(idioma));
+}
+
 // Cambia entre 'satelite' y 'mapa'.
 export function ponerCapaBase(map, capa) {
   map.setLayoutProperty('base-satelite', 'visibility', capa === 'satelite' ? 'visible' : 'none');
   map.setLayoutProperty('base-mapa', 'visibility', capa === 'mapa' ? 'visible' : 'none');
-  map.setLayoutProperty(ENCIMA, 'visibility', conNombres && capa === 'satelite' ? 'visible' : 'none');
+  for (const id of CAPAS_NOMBRES)
+    map.setLayoutProperty(id, 'visibility', conNombres && capa === 'satelite' ? 'visible' : 'none');
 }
 
 // Añade las siluetas de los países:
@@ -94,11 +132,21 @@ let paisesProximamente = [];
 function opacidadPaises(seleccionado) {
   const esDisponible = ['in', ['get', 'iso'], ['literal', paisesDisponibles]];
   const enHover = ['boolean', ['feature-state', 'hover'], false];
-  return ['case',
+  const segunPais = ['case',
     ['==', ['get', 'iso'], seleccionado || ''], 0,
     esDisponible, ['case', enHover, 0.45, 0.25],
     ['in', ['get', 'iso'], ['literal', paisesProximamente]], ['case', enHover, 0.55, 0.4],
     ['case', enHover, 0.5, 0.4]];
+  // Al acercarse, el gris de los países se desvanece: sus siluetas son aproximadas
+  // y taparían el terreno. De cerca mandan las fronteras precisas (capa "fronteras").
+  return ['interpolate', ['linear'], ['zoom'], 4.5, segunPais, 6.5, 0];
+}
+
+// Bordes aproximados de los países (solo para la vista del mundo; se desvanecen al acercarse).
+function opacidadBordesPaises(seleccionado) {
+  const esDisponible = ['in', ['get', 'iso'], ['literal', paisesDisponibles]];
+  return ['interpolate', ['linear'], ['zoom'], 3.5,
+    ['case', ['==', ['get', 'iso'], seleccionado || ''], 0, esDisponible, 0.9, 0.35], 5, 0];
 }
 
 export function anadirPaises(map, mundo, disponibles, proximamente) {
@@ -123,7 +171,7 @@ export function anadirPaises(map, mundo, disponibles, proximamente) {
     source: 'paises',
     paint: {
       'line-color': ['case', esDisponible, COLOR_ACENTO, '#ffffff'],
-      'line-opacity': ['case', esDisponible, 0.9, 0.35],
+      'line-opacity': opacidadBordesPaises(null),
       'line-width': ['case', esDisponible, 1.5, 0.6],
     },
   }, ENCIMA);
@@ -133,9 +181,7 @@ export function anadirPaises(map, mundo, disponibles, proximamente) {
 export function marcarPaisSeleccionado(map, iso) {
   map.setPaintProperty('paises-relleno', 'fill-opacity', opacidadPaises(iso));
   // El borde simplificado del país abierto se oculta: su cuadrícula ya dibuja la forma.
-  const esDisponible = ['in', ['get', 'iso'], ['literal', paisesDisponibles]];
-  map.setPaintProperty('paises-borde', 'line-opacity',
-    ['case', ['==', ['get', 'iso'], iso || ''], 0, esDisponible, 0.9, 0.35]);
+  map.setPaintProperty('paises-borde', 'line-opacity', opacidadBordesPaises(iso));
 }
 
 // ---------------------------------------------------------------------
@@ -200,58 +246,33 @@ export function ponerOpacidadCuadricula(map, opacidad) {
 // ---------------------------------------------------------------------
 // COMUNIDADES Y PROVINCIAS (bordes para orientarse)
 // ---------------------------------------------------------------------
+// Los bordes vienen de la misma fuente que el contorno con el que se recorta
+// la cuadrícula, así que coinciden con los cuadrados.
 export function ponerRegiones(map, datos) {
   if (map.getSource('regiones')) { map.getSource('regiones').setData(datos); mostrarRegiones(map, true); return; }
   map.addSource('regiones', { type: 'geojson', data: datos });
   // Provincias: línea fina discontinua, solo al acercarse un poco.
   map.addLayer({
     id: 'provincias-borde', type: 'line', source: 'regiones', minzoom: 6,
-    filter: ['==', ['get', 'tipo'], 'provincia'],
+    filter: ['==', ['get', 'tipo'], 'linea_provincia'],
     paint: {
       'line-color': '#ffffff',
-      'line-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.35, 9, 0.6],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.25, 9, 0.45],
       'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 1.2],
       'line-dasharray': [3, 2],
     },
   }, ENCIMA);
-  // Comunidades autónomas: línea blanca continua, con un halo oscuro para verse sobre cualquier color.
-  map.addLayer({
-    id: 'comunidades-halo', type: 'line', source: 'regiones',
-    filter: ['==', ['get', 'tipo'], 'comunidad'],
-    paint: { 'line-color': '#000000', 'line-opacity': 0.35,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 2.5, 10, 4.5] },
-  }, ENCIMA);
+  // Comunidades autónomas: línea blanca continua, discreta.
   map.addLayer({
     id: 'comunidades-borde', type: 'line', source: 'regiones',
-    filter: ['==', ['get', 'tipo'], 'comunidad'],
-    paint: { 'line-color': '#ffffff', 'line-opacity': 0.9,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 2] },
+    filter: ['==', ['get', 'tipo'], 'linea_comunidad'],
+    paint: { 'line-color': '#ffffff', 'line-opacity': 0.5,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.9, 10, 1.8] },
   }, ENCIMA);
-  // Resalte de la región elegida en el buscador: ámbar con un contorno oscuro para que destaque.
-  map.addLayer({
-    id: 'region-resalte-halo', type: 'line', source: 'regiones',
-    filter: ['==', ['get', 'tipo'], '__ninguna__'],
-    paint: { 'line-color': '#000000', 'line-opacity': 0.6, 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 6, 10, 8] },
-  }, ENCIMA);
-  map.addLayer({
-    id: 'region-resalte', type: 'line', source: 'regiones',
-    filter: ['==', ['get', 'tipo'], '__ninguna__'],
-    paint: { 'line-color': '#f5b301', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 3, 10, 4.5] },
-  }, ENCIMA);
-}
-
-// Resalta en ámbar una comunidad o provincia (la elegida en el buscador). null = quitar.
-export function resaltarRegion(map, region) {
-  if (!map.getLayer('region-resalte')) return;
-  const filtro = region
-    ? ['all', ['==', ['get', 'tipo'], region.tipo], ['==', ['get', 'nombre_es'], region.nombre]]
-    : ['==', ['get', 'tipo'], '__ninguna__'];
-  map.setFilter('region-resalte', filtro);
-  map.setFilter('region-resalte-halo', filtro);
 }
 
 export function mostrarRegiones(map, visible) {
-  for (const capa of ['provincias-borde', 'comunidades-halo', 'comunidades-borde', 'region-resalte-halo', 'region-resalte'])
+  for (const capa of ['provincias-borde', 'comunidades-borde'])
     if (map.getLayer(capa)) map.setLayoutProperty(capa, 'visibility', visible ? 'visible' : 'none');
 }
 

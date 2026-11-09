@@ -3,7 +3,7 @@ import { CONFIG } from '../config.js';
 import { t, idioma, iniciarIdioma, alCambiarIdioma } from './i18n.js';
 import {
   crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula,
-  ponerRegiones, mostrarRegiones, resaltarRegion, ponerMarcador,
+  ponerRegiones, mostrarRegiones, ponerMarcador, ponerIdiomaNombres,
 } from './mapa.js';
 import { evaluar } from './puntuacion.js';
 import { crearBuscador } from './buscador.js';
@@ -136,7 +136,6 @@ function volverAlMundo(map) {
   marcarPaisSeleccionado(map, null);
   mostrarCuadricula(map, false);
   mostrarRegiones(map, false);
-  resaltarRegion(map, null);
   ponerMarcador(map, null);
   buscador?.limpiar();
   map.flyTo({ center: [10, 30], zoom: 1.6, speed: 1.4, essential: true });
@@ -197,7 +196,7 @@ let buscador = null;
 
 function irALugar(map, r) {
   if (r.pais && r.pais !== estado.paisAbierto) abrirPais(map, r.pais, { encuadrar: false });
-  resaltarRegion(map, r.region || null);
+  // Pueblos y ciudades llevan un marcador; comunidades y provincias solo se encuadran.
   ponerMarcador(map, r.region ? null : r.punto);
   // Si el lugar es muy pequeño (un pueblo), se acerca a una vista de unos 15-20 km.
   if (r.caja) {
@@ -226,7 +225,7 @@ async function iniciar() {
     return;
   }
 
-  const map = crearMapa('mapa', CONFIG.capa_inicial, { nombres: CONFIG.mostrar_nombres_lugares });
+  const map = crearMapa('mapa', CONFIG.capa_inicial, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma() });
   window.__mapa = map; // útil para depurar desde la consola del navegador
 
   map.on('load', () => {
@@ -255,7 +254,10 @@ async function iniciar() {
     alElegir: r => irALugar(map, r),
   });
 
-  alCambiarIdioma(() => { if (estado.mundo) rellenarSelector(); });
+  alCambiarIdioma(nuevo => {
+    if (estado.mundo) rellenarSelector();
+    if (map.isStyleLoaded()) ponerIdiomaNombres(map, nuevo);
+  });
 }
 
 iniciar();
