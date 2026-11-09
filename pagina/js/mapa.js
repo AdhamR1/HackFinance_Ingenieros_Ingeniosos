@@ -100,7 +100,13 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 
 // a poner los dos, para que los créditos salgan traducidos y sigan debajo de los botones.
 let controlesAbajo = [];
 let dejarDeVigilar = () => {};
+// ¿Quiere el visitante los créditos abiertos? null = aún no ha tocado nada (entonces: abiertos en
+// pantalla grande, plegados en móvil). Se recuerda al cambiar de idioma.
+let creditosAbiertos = null;
 export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites de España', paises = 'Países' } = {}) {
+  // Antes de quitar los créditos viejos se apunta cómo estaban (abiertos o plegados).
+  const vieja = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
+  if (vieja) creditosAbiertos = vieja.classList.contains('maplibregl-compact-show');
   controlesAbajo.forEach(c => map.removeControl(c));
   dejarDeVigilar();
   controlesAbajo = [
@@ -114,22 +120,26 @@ export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites
     new maplibregl.NavigationControl({ showCompass: false }),
   ];
   controlesAbajo.forEach(c => map.addControl(c, 'bottom-right'));
-  // En pantallas pequeñas, los créditos van plegados (botón ⓘ) para no tapar el mapa.
-  // MapLibre los despliega solo cuando tiene algo nuevo que enseñar o cuando la pantalla pasa a
-  // ser estrecha (p. ej. al girar una tablet), así que se vigila y se vuelven a plegar,
-  // hasta que el visitante pulse ⓘ por su cuenta.
+
+  // MapLibre abre los créditos por su cuenta (al cargar, al estrecharse la pantalla...). Se vigilan
+  // y se dejan como quiere el visitante; si no ha tocado nada, plegados en móvil.
   const caja = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
   if (!caja) return;
   const estrecha = window.matchMedia('(max-width: 640px)');
-  const plegar = () => {
-    if (estrecha.matches && caja.classList.contains('maplibregl-compact-show')) caja.classList.remove('maplibregl-compact-show');
+  const ajustar = () => {
+    const abrir = creditosAbiertos ?? !estrecha.matches;
+    if (caja.classList.contains('maplibregl-compact-show') !== abrir) caja.classList.toggle('maplibregl-compact-show', abrir);
   };
-  plegar();
-  const vigilante = new MutationObserver(plegar);
+  ajustar();
+  const vigilante = new MutationObserver(ajustar);
   vigilante.observe(caja, { attributes: true, attributeFilter: ['class'] });
-  estrecha.addEventListener('change', plegar); // la pantalla pasa a ser estrecha
-  dejarDeVigilar = () => { vigilante.disconnect(); estrecha.removeEventListener('change', plegar); };
-  caja.querySelector('summary')?.addEventListener('click', () => dejarDeVigilar(), { once: true });
+  estrecha.addEventListener('change', ajustar);
+  // Lo que hace el visitante manda: pulsar ⓘ, o arrastrar el mapa (MapLibre los pliega al arrastrar).
+  const alPulsar = () => { creditosAbiertos = caja.classList.contains('maplibregl-compact-show'); };
+  const alArrastrar = () => { creditosAbiertos = false; };
+  caja.querySelector('summary')?.addEventListener('click', alPulsar);
+  map.on('drag', alArrastrar);
+  dejarDeVigilar = () => { vigilante.disconnect(); estrecha.removeEventListener('change', ajustar); map.off('drag', alArrastrar); };
 }
 
 // Cambia el idioma de los nombres de lugares ('es' o 'en').

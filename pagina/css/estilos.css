@@ -388,10 +388,15 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
 .maplibregl-ctrl-attrib a { color: #ffffff !important; }
 .maplibregl-ctrl-attrib.maplibregl-compact { background: var(--superficie-solida) !important; }
 .maplibregl-ctrl-attrib-button { filter: invert(1); }
-/* Créditos desplegados en pantalla grande: ancho fijo (el del texto más largo de los dos idiomas),
-   para que el recuadro no cambie al cambiar de idioma. Si se cambian los créditos, revisar este número. */
+/* Créditos desplegados en pantalla grande: ancho fijo, igual en los dos idiomas, y sin llegar a la
+   tarjeta de leyenda (abajo a la izquierda): termina 12 px antes de ella.
+   Cuentas: pantalla − hueco izq. − tarjeta (250) − separación (12) − margen dcho. de MapLibre (10)
+   − relleno interior del recuadro (8 + 28). Si cambia el ancho de la tarjeta, cambiar aquí el 250. */
 @media (min-width: 641px) {
-  .maplibregl-ctrl-attrib.maplibregl-compact-show { width: min(1240px, calc(100vw - 2 * var(--hueco) - 60px)); text-align: right; }
+  .maplibregl-ctrl-attrib.maplibregl-compact-show {
+    width: min(1240px, calc(100vw - var(--hueco) - 250px - 12px - 10px - 36px));
+    text-align: right;
+  }
 }
 .maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom)); }
 
@@ -407,6 +412,9 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
   /* En móvil la etiqueta va arriba a la derecha del nombre, y los controles abajo, plegados. */
   .etiqueta-prueba { top: calc(var(--hueco) + 12px); left: auto; right: calc(var(--hueco) + 12px); }
   .tarjeta-controles { width: auto; right: 64px; }
+  /* Créditos abiertos en móvil: encima de la tarjeta plegada (42 px de alto), sin tocarla.
+     margen = separación propia de MapLibre (10) + tarjeta (42) + espacio (8). */
+  .maplibregl-ctrl-bottom-right > .maplibregl-ctrl-attrib.maplibregl-compact-show { margin-bottom: 60px; }
   /* Panel: hoja que sale desde abajo */
   .panel {
     top: auto; left: 0; right: 0; bottom: 0;
