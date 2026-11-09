@@ -1,0 +1,10 @@
+// Configuración para subir la web a Cloudflare (canibuildhere.online).
+// Subir: desde esta carpeta, "npx wrangler deploy" (antes, una vez: "npx wrangler login").
+// Es un "Worker" de Cloudflare que solo sirve archivos (no Pages). Lo que NO se sube está en .assetsignore.
+{
+  "name": "canibuildhere",
+  "compatibility_date": "2026-11-08",
+  "assets": { "directory": "." },
+  "workers_dev": false,
+  "preview_urls": false
+}

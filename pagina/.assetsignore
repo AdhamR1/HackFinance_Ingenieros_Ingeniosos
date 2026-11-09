@@ -1,0 +1,10 @@
+# Archivos que NO se suben a la web (son de trabajo, no de la página)
+.git
+.gitignore
+.assetsignore
+.wrangler
+wrangler.jsonc
+herramientas
+CLAUDE.md
+README.md
+DATA_FORMAT.md
