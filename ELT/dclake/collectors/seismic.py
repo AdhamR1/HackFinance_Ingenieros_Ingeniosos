@@ -223,7 +223,7 @@ class SeismicCollector(Collector):
             key = list(zip(sf["station_id"], sf["date"]))
             sf["day_night_ratio"] = [r / night.get(k, np.nan) if h >= 6 else np.nan
                                      for r, k, h in zip(sf["rms_velocity"], key, sf["_hour"])]
-            wk = pd.to_datetime(sf["date"]).dt.dayofweek < 5
+            wk = pd.to_datetime(sf["date"]).dt.day_of_week < 5
             ratio = sf[wk].groupby("station_id")["rms_velocity"].mean() / sf[~wk].groupby("station_id")["rms_velocity"].mean()
             sf["weekday_weekend_ratio"] = sf["station_id"].map(ratio)
             sf["noise_source_class"] = [hv.classify_noise(a, b, c) for a, b, c in

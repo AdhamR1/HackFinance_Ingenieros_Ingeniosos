@@ -9,7 +9,7 @@
   all        grid + collect + assemble + report
   demo       ejecución offline con datos sintéticos (comprueba la instalación)
   export     Excel legible con las tablas de unas celdas (--sites a,b,c --out archivo.xlsx)
-  upload     sube ELT/dataset/ a Azure Data Lake (credenciales en .env)
+  upload     sube ELT/dataset/ a Azure Data Lake (credenciales en .env; --force, --dry-run, --workers N)
 """
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ def main(argv=None):
     ap.add_argument("command", choices=["init", "status", "grid", "collect", "assemble", "report", "all", "demo", "export",
                                         "upload"])
     ap.add_argument("--out", help="export: archivo Excel de salida (por defecto <lake>/reports/ejemplo.xlsx)")
-    ap.add_argument("--config", default="config.yaml")
+    ap.add_argument("--config", help="ruta a config.yaml (por defecto ELT/config.yaml)")
     ap.add_argument("--only", help="colectores separados por comas")
     ap.add_argument("--skip", help="colectores separados por comas")
     ap.add_argument("--limit-sites", type=int, help="usar solo N celdas variadas de la muestra (pruebas)")
@@ -132,15 +132,22 @@ def main(argv=None):
     ap.add_argument("--start", help="inicio del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_START)")
     ap.add_argument("--end", help="fin del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_END)")
     ap.add_argument("--lake-dir", help="carpeta del data lake (por defecto config.yaml o DCLAKE_LAKE_DIR)")
+<<<<<<< HEAD
     ap.add_argument("--country", help="país con rejilla: ESP, JPN o USA (por defecto config.yaml o DCLAKE_COUNTRY)")
     ap.add_argument("--part", type=int, help="solo esta parte (franja de celdas) del país; por defecto todas")
+=======
+    ap.add_argument("--force", action="store_true", help="upload: subir también los archivos que ya están en Azure")
+    ap.add_argument("--dry-run", action="store_true", help="upload: mostrar qué se subiría sin subir nada")
+    ap.add_argument("--workers", type=int, default=4, help="upload: subidas en paralelo (por defecto 4)")
+>>>>>>> dc38a497a6a04161af65a9f0fdc6ed7824caea70
     args = ap.parse_args(argv)
     only = set(args.only.split(",")) if args.only else None
     skip = set(args.skip.split(",")) if args.skip else None
 
     if args.command == "demo":
         from .demo import run_demo
-        run_demo(Path(args.config).resolve().parent)
+        from .config import DEFAULT_CONFIG
+        run_demo(Path(args.config).resolve().parent if args.config else DEFAULT_CONFIG.parent)
         return 0
 
     cfg, lake = _setup(args)
@@ -168,7 +175,11 @@ def main(argv=None):
         coverage_report(lake, cfg, REGISTRY)
     if args.command == "upload":
         from .upload import upload_dataset
-        upload_dataset(lake, cfg)
+        try:
+            upload_dataset(lake, cfg, force=args.force, dry_run=args.dry_run, workers=args.workers)
+        except RuntimeError as e:
+            lake.log.error("upload: %s", e)
+            return 1
     if args.command == "export":
         if not args.out:
             lake.log.error("export necesita --out <archivo.xlsx>")
