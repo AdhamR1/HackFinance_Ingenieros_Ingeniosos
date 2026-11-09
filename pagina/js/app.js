@@ -131,10 +131,16 @@ function activarInteraccionPaises(map) {
     hoverId = null;
   };
 
+  // Si hay un cuadrado de la cuadrícula bajo el ratón, manda el cuadrado (no el país de al lado,
+  // cuyo borde puede montar un poco sobre la cuadrícula).
+  const hayCuadrado = punto => estado.paisAbierto && map.getLayer('cuadricula-relleno') &&
+    map.getLayoutProperty('cuadricula-relleno', 'visibility') !== 'none' &&
+    map.queryRenderedFeatures(punto, { layers: ['cuadricula-relleno'] }).length > 0;
+
   map.on('mousemove', 'paises-relleno', e => {
     const f = e.features[0];
     const iso = f.properties.iso;
-    if (iso === estado.paisAbierto) { quitarHover(); ocultarTooltip(); map.getCanvas().style.cursor = ''; return; }
+    if (iso === estado.paisAbierto || hayCuadrado(e.point)) { quitarHover(); ocultarTooltip(); map.getCanvas().style.cursor = ''; return; }
     if (f.id !== hoverId) {
       quitarHover();
       hoverId = f.id;
@@ -152,7 +158,7 @@ function activarInteraccionPaises(map) {
 
   map.on('click', 'paises-relleno', e => {
     const iso = e.features[0].properties.iso;
-    if (iso === estado.paisAbierto) return;
+    if (iso === estado.paisAbierto || hayCuadrado(e.point)) return;
     if (tieneDatos(iso)) {
       abrirPais(map, iso);
     } else {
