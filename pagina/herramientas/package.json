@@ -7,6 +7,7 @@
     "datos-prueba": "node generar_datos_prueba.mjs"
   },
   "dependencies": {
+    "mapshaper": "0.6.102",
     "polygon-clipping": "0.15.7"
   }
 }
