@@ -27,3 +27,6 @@ Thumbs.db
 
 # Descargas del pipeline (se regeneran)
 pipeline/data/cache/
+
+# Zonas inundables del SNCZI y estilos .lyr (descarga manual, ~2,6 GB): no van a git
+pipeline/data/raw/*.zip

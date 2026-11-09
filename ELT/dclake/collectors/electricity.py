@@ -78,10 +78,12 @@ class ElectricityESCollector(Collector):
                         m = re.search(r"marginalpdbc_(\d{8})\.\d", n)
                         if m:
                             texts[m.group(1)] = zf.read(n).decode("latin-1", errors="ignore")
-        rows = []
+        rows, misses, dead = [], {}, set()
         for d in tqdm(days, desc="OMIE"):
             ds = d.strftime("%Y%m%d")
             text = texts.get(ds)
+            if text is None and d.year in dead:
+                continue
             for version in (() if text else (1, 2, 3)):
                 dest = self.lake.raw / "omie" / f"marginalpdbc_{ds}.{version}"
                 try:
@@ -96,6 +98,11 @@ class ElectricityESCollector(Collector):
                 if path is not None:
                     text = path.read_bytes().decode("latin-1", errors="ignore")
                     break
+            if text is None:    # OMIE publishes files from 2018 on: a year whose first week fails is skipped
+                misses[d.year] = misses.get(d.year, 0) + 1
+                if misses[d.year] >= 7 and not any(r["date"].year == d.year for r in rows[-7:]):
+                    dead.add(d.year)
+                    self.log.warning("  OMIE %d: sin archivos diarios publicados; el año queda vacío", d.year)
             prices = parse_omie_marginal(text, idx) if text else []
             if prices:
                 rows.append({"date": d, "omie_price_mean_eur_mwh": float(np.mean(prices)),
@@ -113,9 +120,13 @@ class ElectricityESCollector(Collector):
         for year in sorted(set(days.year)):
             start = max(days.min(), pd.Timestamp(f"{year}-01-01"))
             end = min(days.max(), pd.Timestamp(f"{year}-12-31"))
-            js = self.lake.get_json(REE_URL, self.lake.raw / "ree" / f"estructura_generacion_{start:%Y%m%d}_{end:%Y%m%d}.json", params={
-                "start_date": start.strftime("%Y-%m-%dT00:00"), "end_date": end.strftime("%Y-%m-%dT23:59"),
-                "time_trunc": "day"}, sleep=1)
+            try:     # REE has daily data from 2011: a year it does not have must not drop the others
+                js = self.lake.get_json(REE_URL, self.lake.raw / "ree" / f"estructura_generacion_{start:%Y%m%d}_{end:%Y%m%d}.json",
+                                        params={"start_date": start.strftime("%Y-%m-%dT00:00"),
+                                                "end_date": end.strftime("%Y-%m-%dT23:59"), "time_trunc": "day"}, sleep=1)
+            except Exception as e:
+                self.log.warning("  REE %d: sin datos (%s)", year, str(e)[:100])
+                continue
             for item in (js or {}).get("included", []):
                 a = item.get("attributes", {})
                 title = a.get("title") or item.get("type")
