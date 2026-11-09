@@ -1,0 +1,12 @@
+{
+  "name": "cibh-herramientas",
+  "private": true,
+  "type": "module",
+  "description": "Scripts para generar los datos de la web (no forman parte de la web).",
+  "scripts": {
+    "datos-prueba": "node generar_datos_prueba.mjs"
+  },
+  "dependencies": {
+    "polygon-clipping": "0.15.7"
+  }
+}
