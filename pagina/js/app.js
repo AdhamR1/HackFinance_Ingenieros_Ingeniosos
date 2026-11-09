@@ -4,7 +4,9 @@ import { t, idioma, iniciarIdioma, alCambiarIdioma } from './i18n.js';
 import {
   crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula,
   ponerRegiones, mostrarRegiones, ponerMarcador, ponerIdiomaNombres,
+  ponerCapaBase, ponerOpacidadCuadricula,
 } from './mapa.js';
+import { pintarPanel, ponerLugar, pintarLeyenda, textoTooltip } from './panel.js';
 import { evaluar } from './puntuacion.js';
 import { crearBuscador } from './buscador.js';
 
@@ -16,8 +18,17 @@ const estado = {
   paisAbierto: null, // código del país que se está viendo, p. ej. 'ES'
   datosPais: {},     // cuadrículas ya descargadas, por país
   regiones: {},      // comunidades/provincias ya descargadas, por país
-  opacidad: CONFIG.opacidad_inicial,
+  opacidad: leerPreferencia('cibh_opacidad', CONFIG.opacidad_inicial, Number),
+  capa: leerPreferencia('cibh_capa', CONFIG.capa_inicial, String),
+  porId: {},         // por país: id del cuadrado → cuadrado (para abrir el panel)
+  seleccionado: null,// id del cuadrado abierto en el panel
 };
+
+// Preferencias de cada visitante (opacidad, capa). Si el navegador no deja guardar, no pasa nada.
+function leerPreferencia(clave, porDefecto, tipo) {
+  try { const v = localStorage.getItem(clave); return v === null ? porDefecto : tipo(v); } catch { return porDefecto; }
+}
+function guardarPreferencia(clave, valor) { try { localStorage.setItem(clave, String(valor)); } catch { /* nada */ } }
 
 // ---------- Utilidades ----------
 function nombrePais(iso) {
@@ -125,10 +136,13 @@ async function cargarCuadricula(map, iso) {
       f.properties._nota = r.nota ?? -1;
     }
     estado.datosPais[iso] = datos;
+    estado.porId[iso] = new Map(datos.features.map(f => [f.properties.id, f]));
     ocultarAviso();
   }
   if (estado.paisAbierto !== iso) return; // el usuario se fue a otro sitio mientras cargaba
   ponerCuadricula(map, datos, estado.opacidad);
+  activarInteraccionCuadricula(map);
+  $('bloque-cuadricula').hidden = false;
 }
 
 function volverAlMundo(map) {
@@ -137,6 +151,8 @@ function volverAlMundo(map) {
   mostrarCuadricula(map, false);
   mostrarRegiones(map, false);
   ponerMarcador(map, null);
+  cerrarPanel(map);
+  $('bloque-cuadricula').hidden = true;
   buscador?.limpiar();
   map.flyTo({ center: [10, 30], zoom: 1.6, speed: 1.4, essential: true });
   $('selector-pais').value = '';
@@ -161,7 +177,8 @@ function activarInteraccionPaises(map) {
   map.on('mousemove', 'paises-relleno', e => {
     const f = e.features[0];
     const iso = f.properties.iso;
-    if (iso === estado.paisAbierto || hayCuadrado(e.point)) { quitarHover(); ocultarTooltip(); map.getCanvas().style.cursor = ''; return; }
+    if (hayCuadrado(e.point)) { quitarHover(); return; } // de esto se encarga la cuadrícula
+    if (iso === estado.paisAbierto) { quitarHover(); ocultarTooltip(); map.getCanvas().style.cursor = ''; return; }
     if (f.id !== hoverId) {
       quitarHover();
       hoverId = f.id;
@@ -189,6 +206,147 @@ function activarInteraccionPaises(map) {
       setTimeout(ocultarTooltip, 1800);
     }
   });
+}
+
+// ---------- Cuadrícula: pasar el ratón y pulsar ----------
+const conRaton = window.matchMedia('(hover: hover)').matches; // en móvil no hay "pasar el ratón"
+let interaccionActiva = false;
+
+function activarInteraccionCuadricula(map) {
+  if (interaccionActiva) return;
+  interaccionActiva = true;
+  let hoverId = null;
+  const quitarHover = () => {
+    if (hoverId !== null) map.setFeatureState({ source: 'cuadricula', id: hoverId }, { hover: false });
+    hoverId = null;
+  };
+
+  map.on('mousemove', 'cuadricula-relleno', e => {
+    const f = e.features[0];
+    if (f.id !== hoverId) {
+      quitarHover();
+      hoverId = f.id;
+      map.setFeatureState({ source: 'cuadricula', id: hoverId }, { hover: true });
+    }
+    map.getCanvas().style.cursor = 'pointer';
+    if (!conRaton) return;
+    const original = estado.porId[estado.paisAbierto]?.get(f.id);
+    if (original) mostrarTooltip(e.originalEvent.clientX, e.originalEvent.clientY, textoTooltip(original.properties));
+  });
+  map.on('mouseleave', 'cuadricula-relleno', () => {
+    quitarHover();
+    ocultarTooltip();
+    map.getCanvas().style.cursor = '';
+  });
+
+  const alPulsar = punto => {
+    if (!estado.paisAbierto) return;
+    const f = map.queryRenderedFeatures(punto, { layers: ['cuadricula-relleno'] })[0];
+    if (f) abrirPanel(map, f.id);
+    else cerrarPanel(map); // pulsar fuera de la cuadrícula: se cierra el panel
+  };
+
+  // Ratón: el clic de siempre.
+  let ultimoToque = 0;
+  map.on('click', e => { if (Date.now() - ultimoToque > 600) alPulsar(e.point); });
+
+  // Pantallas táctiles: algunos navegadores no convierten el toque en "clic" sobre el mapa,
+  // así que se reconoce aquí un toque corto (menos de 350 ms y casi sin arrastrar).
+  let inicio = null;
+  map.on('touchstart', e => {
+    inicio = e.points.length === 1 ? { x: e.point.x, y: e.point.y, t: Date.now() } : null;
+  });
+  map.on('touchend', e => {
+    if (!inicio || e.points.length > 0 && e.originalEvent.touches.length > 0) { inicio = null; return; }
+    const quieto = Math.hypot(e.point.x - inicio.x, e.point.y - inicio.y) < 10;
+    if (quieto && Date.now() - inicio.t < 350) { ultimoToque = Date.now(); alPulsar(e.point); }
+    inicio = null;
+  });
+}
+
+// ---------- Panel lateral ----------
+let peticionLugar = null;
+const lugaresCache = new Map();
+
+function abrirPanel(map, id) {
+  const f = estado.porId[estado.paisAbierto]?.get(id);
+  if (!f) return;
+  if (estado.seleccionado !== null) map.setFeatureState({ source: 'cuadricula', id: estado.seleccionado }, { seleccionado: false });
+  estado.seleccionado = id;
+  map.setFeatureState({ source: 'cuadricula', id }, { seleccionado: true });
+  ocultarTooltip();
+  const centro = pintarPanel(f, estado.datosPais[estado.paisAbierto].meta);
+  $('panel').hidden = false;
+  $('panel').scrollTop = 0;
+  if (centro) buscarLugarCercano(id, centro);
+  // En móvil el panel tapa la mitad de abajo: se sube el mapa para que el cuadrado quede a la vista.
+  if (centro && window.innerWidth <= 640) {
+    const arribaPanel = $('panel').getBoundingClientRect().top;
+    const hueco = $('buscador-input').getBoundingClientRect().bottom;
+    const yDeseada = (hueco + arribaPanel) / 2;
+    const punto = map.project(centro);
+    if (punto.y > arribaPanel - 20 || punto.y < hueco + 20)
+      map.easeTo({ center: centro, offset: [0, yDeseada - window.innerHeight / 2], duration: 400 });
+  }
+}
+
+function cerrarPanel(map) {
+  if (estado.seleccionado !== null && map.getSource('cuadricula'))
+    map.setFeatureState({ source: 'cuadricula', id: estado.seleccionado }, { seleccionado: false });
+  estado.seleccionado = null;
+  $('panel').hidden = true;
+}
+
+// "Cerca de Calatayud · Zaragoza" con Photon (al revés: de coordenadas a nombre).
+async function buscarLugarCercano(id, [lon, lat]) {
+  if (lugaresCache.has(id)) { ponerLugar(lugaresCache.get(id)); return; }
+  if (!CONFIG.buscar_con_photon) return;
+  peticionLugar?.abort();
+  peticionLugar = new AbortController();
+  try {
+    const url = `https://photon.komoot.io/reverse?lon=${lon}&lat=${lat}&limit=1&layer=city&radius=15`;
+    const datos = await (await fetch(url, { signal: peticionLugar.signal })).json();
+    const p = datos.features?.[0]?.properties;
+    const texto = p ? [p.name, p.county && p.county !== p.name ? p.county : null].filter(Boolean).join(' · ') : '';
+    lugaresCache.set(id, texto);
+    if (estado.seleccionado === id) ponerLugar(texto);
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn('No se pudo obtener el lugar cercano:', err);
+  }
+}
+
+// ---------- Controles: capa base, opacidad, leyenda ----------
+function activarControles(map) {
+  const botonesCapa = document.querySelectorAll('.segmentado button');
+  const marcarCapa = () => botonesCapa.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.capa === estado.capa)));
+  botonesCapa.forEach(b => b.addEventListener('click', () => {
+    estado.capa = b.dataset.capa;
+    guardarPreferencia('cibh_capa', estado.capa);
+    ponerCapaBase(map, estado.capa);
+    marcarCapa();
+  }));
+  marcarCapa();
+
+  const deslizador = $('opacidad');
+  const mostrarValor = () => { $('opacidad-valor').textContent = `${Math.round(estado.opacidad * 100)} %`; };
+  deslizador.value = Math.round(estado.opacidad * 100);
+  mostrarValor();
+  deslizador.addEventListener('input', () => {
+    estado.opacidad = Number(deslizador.value) / 100;
+    ponerOpacidadCuadricula(map, estado.opacidad);
+    mostrarValor();
+  });
+  deslizador.addEventListener('change', () => guardarPreferencia('cibh_opacidad', estado.opacidad));
+
+  // Plegar / desplegar la tarjeta (en móvil empieza plegada para no tapar el mapa).
+  const tarjeta = $('controles-mapa'), boton = $('boton-plegar');
+  const plegar = plegada => { tarjeta.classList.toggle('plegada', plegada); boton.setAttribute('aria-expanded', String(!plegada)); };
+  plegar(window.matchMedia('(max-width: 640px)').matches);
+  boton.addEventListener('click', () => plegar(!tarjeta.classList.contains('plegada')));
+
+  pintarLeyenda();
+  $('panel-cerrar').addEventListener('click', () => cerrarPanel(map));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('panel').hidden) cerrarPanel(map); });
 }
 
 // ---------- Buscador ----------
@@ -225,7 +383,7 @@ async function iniciar() {
     return;
   }
 
-  const map = crearMapa('mapa', CONFIG.capa_inicial, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma() });
+  const map = crearMapa('mapa', estado.capa, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma() });
   window.__mapa = map; // útil para depurar desde la consola del navegador
 
   map.on('load', () => {
@@ -244,6 +402,7 @@ async function iniciar() {
     else volverAlMundo(map);
   });
   $('boton-mundo').addEventListener('click', () => volverAlMundo(map));
+  activarControles(map);
 
   buscador = crearBuscador({
     input: $('buscador-input'),
@@ -257,6 +416,8 @@ async function iniciar() {
   alCambiarIdioma(nuevo => {
     if (estado.mundo) rellenarSelector();
     if (map.isStyleLoaded()) ponerIdiomaNombres(map, nuevo);
+    pintarLeyenda();
+    if (estado.seleccionado !== null) abrirPanel(map, estado.seleccionado); // repinta el panel en el nuevo idioma
   });
 }
 

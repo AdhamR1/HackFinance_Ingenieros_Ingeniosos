@@ -49,6 +49,33 @@
     <span data-i18n="datos_prueba"></span>
   </div>
 
+  <!-- Tarjeta de controles: capa base, opacidad y leyenda -->
+  <section id="controles-mapa" class="tarjeta-controles" data-i18n-aria="controles_mapa">
+    <button id="boton-plegar" class="boton-plegar" aria-expanded="true" aria-controls="controles-cuerpo">
+      <span data-i18n="leyenda"></span><span class="flecha" aria-hidden="true">▾</span>
+    </button>
+    <div id="controles-cuerpo" class="controles-cuerpo">
+      <div class="segmentado" role="group" data-i18n-aria="capa_base">
+        <button id="capa-satelite" type="button" data-capa="satelite" data-i18n="capa_satelite"></button>
+        <button id="capa-mapa" type="button" data-capa="mapa" data-i18n="capa_mapa"></button>
+      </div>
+
+      <div id="bloque-cuadricula" hidden>
+        <label class="control-opacidad">
+          <span class="control-titulo"><span data-i18n="opacidad"></span> <output id="opacidad-valor" class="mono"></output></span>
+          <input id="opacidad" type="range" min="0" max="100" step="5">
+        </label>
+        <ul id="leyenda" class="leyenda"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Panel lateral con los datos del cuadrado (en móvil sale desde abajo) -->
+  <aside id="panel" class="panel" hidden aria-labelledby="panel-id">
+    <button id="panel-cerrar" class="panel-cerrar" data-i18n-aria="cerrar" data-i18n-title="cerrar">✕</button>
+    <div id="panel-contenido"></div>
+  </aside>
+
   <!-- Tooltip que sigue al ratón -->
   <div id="tooltip" class="tooltip" hidden></div>
 
