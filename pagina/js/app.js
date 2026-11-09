@@ -1,10 +1,10 @@
 // Arranque de la web y flujo principal: mundo → elegir país → cuadrícula.
 import { CONFIG } from '../config.js';
-import { t, idioma, iniciarIdioma, alCambiarIdioma } from './i18n.js';
+import { t, idioma, iniciarIdioma, alCambiarIdioma, ponerIdioma } from './i18n.js';
 import {
   crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula,
   ponerRegiones, mostrarRegiones, ponerMarcador, ponerIdiomaNombres,
-  ponerCapaBase, ponerOpacidadCuadricula,
+  ponerCapaBase, ponerOpacidadCuadricula, ponerCreditos,
 } from './mapa.js';
 import { pintarPanel, ponerLugar, pintarLeyenda, textoTooltip } from './panel.js';
 import { evaluar } from './puntuacion.js';
@@ -51,10 +51,13 @@ function mostrarTooltip(x, y, html) {
 }
 const ocultarTooltip = () => { $('tooltip').hidden = true; };
 
+// El aviso recibe una función que da el texto, para poder repetirla si cambia el idioma.
 let temporizadorAviso;
+let textoAviso = () => '';
 function mostrarAviso(texto, duracionMs = 4000) {
   const aviso = $('aviso');
-  aviso.textContent = texto;
+  textoAviso = texto;
+  aviso.textContent = texto();
   aviso.hidden = false;
   clearTimeout(temporizadorAviso);
   if (duracionMs) temporizadorAviso = setTimeout(() => { aviso.hidden = true; }, duracionMs);
@@ -131,12 +134,12 @@ function descargarDatos(iso) {
 async function cargarCuadricula(map, iso) {
   let datos = estado.datosPais[iso];
   if (!datos) {
-    mostrarAviso(t('cargando'), 0);
+    mostrarAviso(() => t('cargando'), 0);
     try {
       datos = await descargarDatos(iso);
     } catch (err) {
       console.error(err);
-      mostrarAviso(t('error_carga', { pais: nombrePais(iso) }));
+      mostrarAviso(() => t('error_carga', { pais: nombrePais(iso) }));
       return;
     }
     if (estado.datosPais[iso]) datos = estado.datosPais[iso]; // ya preparado por otra llamada
@@ -311,16 +314,17 @@ function cerrarPanel(map) {
 
 // "Cerca de Calatayud · Zaragoza" con Photon (al revés: de coordenadas a nombre).
 async function buscarLugarCercano(id, [lon, lat]) {
-  if (lugaresCache.has(id)) { ponerLugar(lugaresCache.get(id)); return; }
+  const clave = `${id}|${idioma()}`;
+  if (lugaresCache.has(clave)) { ponerLugar(lugaresCache.get(clave)); return; }
   if (!CONFIG.buscar_con_photon) return;
   peticionLugar?.abort();
   peticionLugar = new AbortController();
   try {
-    const url = `https://photon.komoot.io/reverse?lon=${lon}&lat=${lat}&limit=1&layer=city&radius=15`;
+    const url = `https://photon.komoot.io/reverse?lon=${lon}&lat=${lat}&limit=1&layer=city&radius=15${idioma() === 'en' ? '&lang=en' : ''}`;
     const datos = await (await fetch(url, { signal: peticionLugar.signal })).json();
     const p = datos.features?.[0]?.properties;
     const texto = p ? [p.name, p.county && p.county !== p.name ? p.county : null].filter(Boolean).join(' · ') : '';
-    lugaresCache.set(id, texto);
+    lugaresCache.set(clave, texto);
     if (estado.seleccionado === id) ponerLugar(texto);
   } catch (err) {
     if (err.name !== 'AbortError') console.warn('No se pudo obtener el lugar cercano:', err);
@@ -340,7 +344,8 @@ function activarControles(map) {
   marcarCapa();
 
   const deslizador = $('opacidad');
-  const mostrarValor = () => { $('opacidad-valor').textContent = `${Math.round(estado.opacidad * 100)} %`; };
+  const mostrarValor = () => { $('opacidad-valor').textContent = t('porcentaje', { n: Math.round(estado.opacidad * 100) }); };
+  alCambiarIdioma(mostrarValor);
   deslizador.value = Math.round(estado.opacidad * 100);
   mostrarValor();
   deslizador.addEventListener('input', () => {
@@ -357,6 +362,14 @@ function activarControles(map) {
   boton.addEventListener('click', () => plegar(!tarjeta.classList.contains('plegada')));
 
   pintarLeyenda();
+
+  // Botón "ES | EN": marca el idioma activo y cambia al pulsar el otro.
+  const botonesIdioma = document.querySelectorAll('.idiomas button');
+  const marcarIdioma = () => botonesIdioma.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.idioma === idioma())));
+  botonesIdioma.forEach(b => b.addEventListener('click', () => { if (b.dataset.idioma !== idioma()) ponerIdioma(b.dataset.idioma); }));
+  marcarIdioma();
+  alCambiarIdioma(marcarIdioma);
+
   $('panel-cerrar').addEventListener('click', () => cerrarPanel(map));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('panel').hidden) cerrarPanel(map); });
 }
@@ -391,11 +404,12 @@ async function iniciar() {
     estado.mundo = mundo;
   } catch (err) {
     console.error(err);
-    mostrarAviso(t('error_carga', { pais: '—' }));
+    mostrarAviso(() => t('error_carga', { pais: '—' }));
     return;
   }
 
-  const map = crearMapa('mapa', estado.capa, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma() });
+  const creditos = () => ({ busqueda: t('credito_busqueda'), limites: t('credito_limites'), paises: t('credito_paises') });
+  const map = crearMapa('mapa', estado.capa, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma(), creditos: creditos() });
   window.__mapa = map; // útil para depurar desde la consola del navegador
 
   map.on('load', () => {
@@ -432,8 +446,12 @@ async function iniciar() {
   });
 
   alCambiarIdioma(nuevo => {
+    ocultarTooltip(); // se vuelve a pintar, ya traducido, en cuanto se mueve el ratón
+    if (!$('aviso').hidden) $('aviso').textContent = textoAviso();
+    buscador?.refrescar();
     if (estado.mundo) rellenarSelector();
     if (map.isStyleLoaded()) ponerIdiomaNombres(map, nuevo);
+    ponerCreditos(map, creditos());
     pintarLeyenda();
     if (estado.seleccionado !== null) abrirPanel(map, estado.seleccionado); // repinta el panel en el nuevo idioma
   });

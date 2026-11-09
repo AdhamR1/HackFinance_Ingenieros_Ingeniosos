@@ -99,6 +99,26 @@ html, body {
 
 .boton:focus-visible, .selector:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 
+/* ---------- Botón de idioma "ES | EN" ---------- */
+.idiomas {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  height: 40px; padding: 0 6px;
+  background: var(--superficie); backdrop-filter: blur(8px);
+  border: 1px solid var(--borde); border-radius: 999px; box-shadow: var(--sombra);
+}
+.idiomas button {
+  font: inherit; font-family: var(--fuente-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+  background: none; border: 0; color: var(--texto-suave); cursor: pointer;
+  height: 30px; padding: 0 8px; border-radius: 999px; transition: color 0.15s;
+}
+.idiomas button:hover { color: var(--texto); }
+.idiomas button[aria-pressed="true"] { color: var(--texto); }
+.idiomas button[aria-pressed="true"]::after { /* rayita ámbar bajo el idioma activo */
+  content: ''; display: block; height: 2px; margin-top: 1px; border-radius: 2px; background: var(--acento);
+}
+.idiomas button:focus-visible { outline: 2px solid var(--acento); outline-offset: 0; }
+.idiomas-sep { color: var(--borde); font-size: 14px; user-select: none; }
+
 /* ---------- Buscador ---------- */
 .buscador {
   position: relative;

@@ -27,6 +27,7 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
   let activo = -1;
   let temporizador = null;
   let peticion = null;     // para cancelar la búsqueda anterior en Photon
+  let elegido = null;      // último resultado elegido (para traducir su nombre en la caja)
 
   async function prepararIndice() {
     if (indice) return;
@@ -34,12 +35,15 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     indice = [];
     let [o, s, e, n] = [180, 90, -180, -90];
     for (const { pais, features } of porPais) {
+      // Nombre en inglés de cada comunidad, para el "Provincia · Comunidad" de las provincias.
+      const comunidadEn = new Map(features.filter(f => f.properties.tipo === 'comunidad')
+        .map(f => [f.properties.nombre_es, f.properties.nombre_en]));
       for (const f of features) {
         const p = f.properties;
         if (p.tipo !== 'comunidad' && p.tipo !== 'provincia') continue; // las líneas de borde no tienen nombre
         const nombres = [p.nombre_es, p.nombre_en, ...(p.alias || [])];
         indice.push({
-          tipo: p.tipo, pais, caja: p.caja, comunidad: p.comunidad,
+          tipo: p.tipo, pais, caja: p.caja, comunidad: p.comunidad, comunidad_en: comunidadEn.get(p.comunidad) ?? p.comunidad,
           nombre_es: p.nombre_es, nombre_en: p.nombre_en,
           claves: [...new Set(nombres.map(normalizar))],
         });
@@ -52,8 +56,9 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
   const nombreLocal = l => (idioma() === 'en' ? l.nombre_en : l.nombre_es);
   const aResultadoLocal = l => ({
     nombre: nombreLocal(l),
-    detalle: l.tipo === 'comunidad' ? t('tipo_comunidad') : `${t('tipo_provincia')} · ${l.comunidad}`,
+    detalle: l.tipo === 'comunidad' ? t('tipo_comunidad') : `${t('tipo_provincia')} · ${idioma() === 'en' ? l.comunidad_en : l.comunidad}`,
     pais: l.pais, caja: l.caja, region: { tipo: l.tipo, nombre: l.nombre_es }, icono: l.tipo === 'comunidad' ? '◇' : '▫',
+    local: l,
   });
 
   function buscarLocal(texto) {
@@ -77,6 +82,7 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     const url = new URL('https://photon.komoot.io/api/');
     url.searchParams.set('q', texto);
     url.searchParams.set('limit', '15');
+    if (idioma() === 'en') url.searchParams.set('lang', 'en'); // nombres en inglés si los hay (Seville, Corunna…)
     if (cajaBusqueda) url.searchParams.set('bbox', cajaBusqueda.join(','));
     const res = await fetch(url, { signal: peticion.signal });
     if (!res.ok) throw new Error(`Photon ${res.status}`);
@@ -136,6 +142,7 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     const r = resultados[i];
     if (!r) return;
     input.value = r.nombre;
+    elegido = r;
     cerrar();
     input.blur();
     alElegir(r);
@@ -186,5 +193,12 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     if (!lista.hidden && !lista.contains(e.target) && e.target !== input) cerrar();
   });
 
-  return { limpiar() { input.value = ''; cerrar(); } };
+  return {
+    limpiar() { input.value = ''; elegido = null; cerrar(); },
+    // Al cambiar de idioma: traduce el nombre elegido (comunidades y provincias) y la lista abierta.
+    refrescar() {
+      if (elegido?.local && input.value === elegido.nombre) input.value = elegido.nombre = nombreLocal(elegido.local);
+      if (!lista.hidden) alEscribir();
+    },
+  };
 }

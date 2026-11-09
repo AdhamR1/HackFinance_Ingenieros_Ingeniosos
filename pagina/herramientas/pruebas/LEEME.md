@@ -14,7 +14,8 @@ node herramientas/pruebas/probar.mjs herramientas/pruebas/ejemplos/panel_movil.j
 - `{"viewport":[ancho, alto, esMovil]}` · `{"throttle":4}` (CPU 4× más lenta) · `{"net":[kbps_bajada, kbps_subida, latencia_ms]}`
 - `{"go":"url"}` · `{"wait":ms}` · `{"waitFor":"expresión JS"}` (espera hasta 25 s a que sea verdadera)
 - `{"eval":"expresión JS"}` (imprime el resultado; puede ser una promesa)
-- `{"move":[x,y]}` / `{"click":[x,y]}` en píxeles CSS · `{"tap":[x,y]}` (toque de dedo real)
+- `{"move":[x,y]}` / `{"click":[x,y]}` en píxeles CSS · `{"tap":[x,y]}` (gesto de toque: el mapa lo reconoce,
+  pero **no genera "click"**) · `{"toque":[x,y]}` (dedo abajo + arriba: sí genera "click"; usarlo para botones)
 - `{"moveLL":[lon,lat]}` / `{"clickLL":[lon,lat]}` · `{"moveJS":"expr→[lon,lat]"}` / `{"clickJS":"..."}`
 - `{"shot":"nombre.png"}` (captura)
 

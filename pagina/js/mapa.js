@@ -63,7 +63,8 @@ const CAPAS_NOMBRES = ['fronteras', 'nombres-barrios', 'nombres-pueblos', 'nombr
 const ENCIMA = 'fronteras';
 let conNombres = true;
 
-export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 'es' } = {}) {
+// creditos = { busqueda, limites, paises }: textos ya traducidos para la línea de créditos.
+export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 'es', creditos } = {}) {
   conNombres = nombres;
   const map = new maplibregl.Map({
     container: idContenedor,
@@ -85,25 +86,39 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 
     zoom: 1.6,
     minZoom: 1,
     maxZoom: 19,
-    attributionControl: {
-      compact: true,
-      // (OpenFreeMap y OpenStreetMap ya ponen su crédito automáticamente.)
-      customAttribution: 'Búsqueda: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>'
-        + ' · Límites de España: <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (INE, CC BY 4.0)'
-        + ' · Países: Natural Earth',
-    },
+    attributionControl: false, // se pone abajo, en ponerCreditos(), para poder traducirlo
     renderWorldCopies: false,
     dragRotate: false,
     pitchWithRotate: false,
   });
   map.touchZoomRotate.disableRotation();
+  map.once('load', () => { mapaCargado = true; });
+  ponerCreditos(map, creditos);
+  return map;
+}
+
+// Créditos (abajo a la derecha) y botones + / −. Al cambiar de idioma se quitan y se vuelven
+// a poner los dos, para que los créditos salgan traducidos y sigan debajo de los botones.
+let controlesAbajo = [];
+let mapaCargado = false; // (map.loaded() da "sí" demasiado pronto, antes del evento 'load')
+export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites de España', paises = 'Países' } = {}) {
+  controlesAbajo.forEach(c => map.removeControl(c));
+  controlesAbajo = [
+    new maplibregl.AttributionControl({
+      compact: true,
+      // (Esri, OpenFreeMap y OpenStreetMap ya ponen su crédito automáticamente.)
+      customAttribution: `${busqueda}: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>`
+        + ` · ${limites}: <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (INE, CC BY 4.0)`
+        + ` · ${paises}: Natural Earth`,
+    }),
+    new maplibregl.NavigationControl({ showCompass: false }),
+  ];
+  controlesAbajo.forEach(c => map.addControl(c, 'bottom-right'));
   // En pantallas pequeñas, los créditos empiezan plegados (botón ⓘ) para no tapar el mapa.
   if (window.matchMedia('(max-width: 640px)').matches) {
-    map.once('load', () => document.querySelector('.maplibregl-ctrl-attrib')
-      ?.classList.remove('maplibregl-compact-show'));
+    const plegar = () => map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+    if (mapaCargado) plegar(); else map.once('load', plegar);
   }
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-  return map;
 }
 
 // Cambia el idioma de los nombres de lugares ('es' o 'en').

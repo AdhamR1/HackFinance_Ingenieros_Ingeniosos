@@ -70,6 +70,13 @@ for (const p of pasos) {
   if (p.click) for (const type of ['mousePressed', 'mouseReleased'])
     await cdp('Input.dispatchMouseEvent', { type, x: p.click[0], y: p.click[1], button: 'left', clickCount: 1 });
   if (p.tap) await cdp('Input.synthesizeTapGesture', { x: p.tap[0], y: p.tap[1], gestureSourceType: 'touch' });
+  // "toque": dedo abajo + dedo arriba por separado (como una pantalla real). A diferencia de "tap",
+  // el navegador sí genera el "click" después, así que sirve para pulsar botones en modo móvil.
+  if (p.toque) {
+    await cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.toque[0], y: p.toque[1] }] });
+    await new Promise(r => setTimeout(r, 60));
+    await cdp('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
   if (p.shot) {
     const r = await cdp('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(salida, p.shot), Buffer.from(r.result.data, 'base64'));

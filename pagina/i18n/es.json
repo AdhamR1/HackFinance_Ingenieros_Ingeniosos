@@ -61,5 +61,11 @@
   "oeste_abrev": "O",
   "nota_area": "Valor medio de un área de {area} km² ({lado} × {lado} km)",
   "cerca_de": "Cerca de {lugar}",
-  "nota_no_cuenta": "Esta nota no cuenta: el terreno está descartado."
+  "nota_no_cuenta": "Esta nota no cuenta: el terreno está descartado.",
+  "descripcion_pagina": "Can I Build Here? — Viabilidad de terrenos para data centers.",
+  "idioma": "Idioma",
+  "porcentaje": "{n} %",
+  "credito_busqueda": "Búsqueda",
+  "credito_limites": "Límites de España",
+  "credito_paises": "Países"
 }

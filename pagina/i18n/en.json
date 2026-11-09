@@ -54,12 +54,18 @@
   "var_sismico": "Seismic risk",
   "var_inundacion": "Flood risk",
   "ayuda_riesgo": "100 = low risk",
-  "peso": "Weight {n} %",
+  "peso": "Weight {n}%",
   "solo_descarta": "Not scored; only rules out",
   "coordenadas": "Centre coordinates",
   "superficie_tierra": "Land area",
   "oeste_abrev": "W",
   "nota_area": "Average value over a {area} km² area ({lado} × {lado} km)",
   "cerca_de": "Near {lugar}",
-  "nota_no_cuenta": "This score does not count: the land is ruled out."
+  "nota_no_cuenta": "This score does not count: the land is ruled out.",
+  "descripcion_pagina": "Can I Build Here? — Land suitability for data centers.",
+  "idioma": "Language",
+  "porcentaje": "{n}%",
+  "credito_busqueda": "Search",
+  "credito_limites": "Boundaries of Spain",
+  "credito_paises": "Countries"
 }

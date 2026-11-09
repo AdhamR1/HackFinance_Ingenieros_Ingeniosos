@@ -38,6 +38,7 @@ export async function ponerIdioma(nuevo) {
   try { localStorage.setItem(CLAVE_GUARDADA, nuevo); } catch { /* sin almacenamiento */ }
   document.documentElement.lang = nuevo;
   document.title = t('titulo_pagina');
+  document.querySelector('meta[name="description"]')?.setAttribute('content', t('descripcion_pagina'));
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
