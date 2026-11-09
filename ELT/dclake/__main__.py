@@ -132,6 +132,8 @@ def main(argv=None):
     ap.add_argument("--start", help="inicio del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_START)")
     ap.add_argument("--end", help="fin del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_END)")
     ap.add_argument("--lake-dir", help="carpeta del data lake (por defecto config.yaml o DCLAKE_LAKE_DIR)")
+    # Merge resolution: keep both country/partition options for grid and Azure upload flags
+    # added by the team when the CLI evolved in parallel.
     ap.add_argument("--country", help="país con rejilla: ESP, JPN o USA (por defecto config.yaml o DCLAKE_COUNTRY)")
     ap.add_argument("--part", type=int, help="solo esta parte (franja de celdas) del país; por defecto todas")
     ap.add_argument("--force", action="store_true", help="upload: subir también los archivos que ya están en Azure")
