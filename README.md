@@ -13,4 +13,5 @@ Países:
 
 ## Estructura
 
-- `ELT/`: obtención de datos y data lake (España, rejilla 5×5 km). Instrucciones en [ELT/README.md](ELT/README.md).
+- `ELT/`: obtención de datos y data lake (España, rejilla 3,5 × 3,5 km). Instrucciones en [ELT/README.md](ELT/README.md).
+- `pipeline/`: target, variables, modelo y puntuación por celda (lo que pinta la web). Instrucciones en [pipeline/README.md](pipeline/README.md).

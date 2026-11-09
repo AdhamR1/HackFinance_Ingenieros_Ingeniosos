@@ -1,0 +1,104 @@
+site,operators,municipio,prov,status,n_buildings,precision,lat,lon,metro_page,geocode_source
+Madrid - Julian Camarillo / Albasanz (San Blas),Digital Realty MAD1-4; Nabiax; GNET; Templus MAD03; Hispaweb; IaaS; Civicos,Madrid,M,operational,10,district_approx,40.4375,-3.6215,madrid,manual_district
+Madrid - Calle Alcala San Blas (MAD5),Digital Realty,Madrid,M,planned,1,district_approx,40.438,-3.61,madrid,manual_district
+Madrid - Lezama (Fuencarral),nLighten MA1,Madrid,M,operational,1,district_approx,40.481,-3.705,madrid,manual_district
+Madrid - Las Tablas / Manoteras,Equinix MD1; Templus MAD02; Masmovil,Madrid,M,operational,3,district_approx,40.495,-3.663,madrid,manual_district
+Madrid - Rejas (Yecora / Marzo),Global Switch Madrid 1-2; ipcore,Madrid,M,operational,3,district_approx,40.442,-3.595,madrid,manual_district
+Madrid - Hortaleza / Valdebebas,NxN Madrid; IslaLink; Cisco Real Madrid City,Madrid,M,planned,3,district_approx,40.465,-3.61,madrid,manual_district
+Madrid - Mesena / Arturo Soria,Espanix; Econocom,Madrid,M,operational,2,district_approx,40.465,-3.663,madrid,manual_district
+Madrid - Vicalvaro,DAMAC Digital MAD01,Madrid,M,planned,1,district_approx,40.4,-3.58,madrid,manual_district
+Madrid - Aravaca,Vodafone La Florida,Madrid,M,operational,1,district_approx,40.456,-3.787,madrid,manual_district
+Madrid - Atocha,Vodafone Atocha,Madrid,M,operational,1,district_approx,40.409,-3.697,madrid,manual_district
+Las Rozas,NTT GDC Madrid 1,Las Rozas de Madrid,M,operational,1,municipio,40.49292,-3.87371,madrid,geonames
+Alcala de Henares - Tecnoalcala,Adam; Nabiax ADC1-3; Templus MAD01; Iridium; Microsoft,Alcalá de Henares,M,operational,8,municipio,40.48205,-3.35996,madrid,geonames
+Alcobendas,CyrusOne; Equinix MD2-6; Prime; DATA4 MAD01; acens; AiOnX; Ferrovial,Alcobendas,M,operational,16,municipio,40.54746,-3.64197,madrid,geonames
+Getafe,Edged Madrid-Getafe,Getafe,M,operational,1,municipio,40.30571,-3.73295,madrid,geonames
+San Fernando de Henares,Iron Mountain MAD-1..8; Kyndryl,San Fernando de Henares,M,operational,9,municipio,40.42386,-3.53261,madrid,geonames
+San Sebastian de los Reyes,Cogent,San Sebastián de los Reyes,M,operational,1,municipio,40.55555,-3.62733,madrid,geonames
+Tres Cantos,IT Nexus; Quetta DC,Tres Cantos,M,operational,2,municipio,40.60092,-3.70806,madrid,geonames
+San Agustin del Guadalix,DATA4 MAD02 DC1-4,San Agustín del Guadalix,M,operational,5,municipio,40.67882,-3.61639,madrid,geonames
+Pozuelo de Alarcon,EspacioRack,Pozuelo de Alarcón,M,operational,1,municipio,40.43293,-3.81338,madrid,geonames
+Meco,PureDC Madrid,Meco,M,planned,1,municipio,40.55274,-3.32894,madrid,geonames
+Algete,Microsoft MAD1; AVAIO Algete Data Hub,Algete,M,operational,2,municipio,40.59711,-3.49743,madrid,geonames
+Pinto,IREN Pinto,Pinto,M,operational,1,municipio,40.24147,-3.69999,madrid,geonames
+Fuenlabrada,Apto DC Madrid (5 bldgs),Fuenlabrada,M,planned,6,municipio,40.28419,-3.79415,madrid,geonames
+Sant Adria de Besos,Digital Realty BCN1,Sant Adrià de Besòs,B,operational,1,municipio,41.43073,2.21855,barcelona,geonames
+Cerdanyola del Valles - Parc de l'Alba,Adam BCN2-3; hscale; T-Systems; Panattoni; Kyndryl; ITnow; EXA,Cerdanyola del Vallès,B,operational,12,municipio,41.49109,2.14079,barcelona,geonames
+Viladecans,EdgeConneX EDCBCN01,Viladecans,B,operational,1,municipio,41.31405,2.01427,barcelona,geonames
+L'Hospitalet de Llobregat,Templus BCN01; Equinix BA2,L'Hospitalet de Llobregat,B,operational,2,municipio,41.35967,2.10028,barcelona,geonames
+Barcelona - Zona Franca (c/ Acer),Templus BCN02; Equinix BA1; Econocom; acens; ICM; ACKSTORM; Edged,Barcelona,B,operational,8,district_approx,41.346,2.14,barcelona,manual_district
+Barcelona - 22@ Poblenou,Mediacloud; T-Systems CPD22; Vodafone,Barcelona,B,operational,3,district_approx,41.402,2.195,barcelona,manual_district
+Barcelona - Sant Andreu / Besos,Ark Data Centres,Barcelona,B,planned,1,district_approx,41.437,2.2,barcelona,manual_district
+Barcelona - Sants (c/ Tarragona),acens Barcelona,Barcelona,B,operational,1,district_approx,41.378,2.144,barcelona,manual_district
+Sant Cugat del Valles,Oxigen DC,Sant Cugat del Vallès,B,operational,1,municipio,41.47063,2.08611,barcelona,geonames
+Terrassa,Nabiax Terrassa,Terrassa,B,operational,1,municipio,41.56667,2.01667,barcelona,geonames
+Sant Joan Despi,AtlasEdge BCN002,Sant Joan Despí,B,operational,1,municipio,41.36718,2.0574,barcelona,geonames
+Montmelo,Mediterra BARCELONA 01,Montmeló,B,planned,1,municipio,41.55002,2.2419,barcelona,geonames
+Sant Fruitos de Bages,Oxigen DC,Sant Fruitós de Bages,B,operational,1,municipio,41.75,1.86667,barcelona,geonames
+Molins de Rei,Quetta DC,Molins de Rei,B,planned,1,municipio,41.41667,2.01667,barcelona,geonames
+Paterna,NIXVAL; Nunsys; ProRed; Kumo; Templus VAL01; Axarnet,Paterna,V,operational,6,municipio,39.50263,-0.44079,valencia,geonames
+Sagunto,VDPC,Sagunto,V,planned,1,municipio,39.68333,-0.26667,valencia,geonames
+Valencia - Patraix,NxN Valencia NX01,Valencia,V,planned,1,district_approx,39.462,-0.406,valencia,manual_district
+Valencia - Ausias March,Digital Value; IslaLink,Valencia,V,operational,2,district_approx,39.447,-0.366,valencia,manual_district
+Riba-roja de Turia,EXA Edge DC Valencia,Riba-roja de Túria,V,operational,1,municipio,39.547,-0.566,valencia,manual_town
+Ribera Baja - Arasur,Edged Bilbao-Arasur BIL01-03,Rivabellosa,VI,operational,4,municipio,42.719,-2.906,bilbao,manual_town
+Derio,Telxius; Sarenet x2,Derio,BI,operational,3,municipio,43.30544,-2.88116,bilbao,geonames
+Arrasate,ADI Garaia,Arrasate / Mondragón,SS,operational,1,municipio,43.064,-2.49,bilbao,manual_town
+Zamudio,ADI Euskadi; IREN Zamudio,Zamudio,BI,operational,2,municipio,43.286,-2.87,bilbao,geonames
+Basauri,EXA DC Bilbao,Basauri,BI,operational,1,municipio,43.2397,-2.8858,bilbao,geonames
+Villaescusa - Altamira,XDC Properties Altamira (15 bldgs),Villaescusa,S,planned,15,municipio,42.96262,-4.16706,santander,geonames
+Malaga - Guadalhorce,DataRush I-II; Templus MAL01; Malaga DC; ODC,Málaga,MA,operational,5,district_approx,36.692,-4.47,malaga,manual_district
+Malaga - El Viso,Box2bit Malaga,Málaga,MA,planned,1,district_approx,36.705,-4.455,malaga,manual_district
+Malaga - PTA Campanillas,Grupo Aire OASIX,Málaga,MA,operational,1,district_approx,36.735,-4.555,malaga,manual_district
+Talavera de la Reina,Meta; Substrate AI; OASIX,Talavera de la Reina,TO,planned,3,municipio,39.96348,-4.83076,toledo-es,geonames
+Recas,Box2bit AXIS South,Recas,TO,planned,1,municipio,40.05286,-3.9909,toledo-es,geonames
+Mora,DC Estate Malpica (Spark AI),Mora,TO,planned,3,municipio,39.68492,-3.77394,toledo-es,geonames
+Cuarte - Walqa (Huesca),Amazon AWS Walqa,Cuarte,HU,operational,5,district_approx,42.111,-0.437,huesca,manual_district
+Huesca - Valdabra,Amazon AWS Huesca,Huesca,HU,operational,3,municipio,42.13615,-0.4087,huesca,geonames
+Villamayor de Gallego,Microsoft ZAZ45-50; Tillion,Villamayor de Gállego,Z,planned,8,municipio,41.68584,-0.7723,zaragoza,geonames
+San Mateo de Gallego,O-Green CDC; Amazon AWS,San Mateo de Gállego,Z,planned,2,municipio,41.83043,-0.76578,zaragoza,geonames
+La Puebla de Alfinden,Grupo ACS,La Puebla de Alfindén,Z,planned,1,municipio,41.632,-0.75,zaragoza,manual_town
+Zaragoza - ciudad,Redestel; DXC; OASIX; UNIZAR x2; Microsoft Z-40,Zaragoza,Z,operational,10,municipio,41.65606,-0.87734,zaragoza,geonames
+Luceni / Pedrola,Grupo SAMCA Green IT Aragon,Luceni,Z,planned,1,municipio,41.82857,-1.23889,zaragoza,geonames
+Cartuja Baja - Empresarium,Amazon AWS La Cartuja A-F; Iridium,Zaragoza,Z,operational,8,district_approx,41.597,-0.833,zaragoza,manual_district
+El Burgo de Ebro,Amazon AWS El Burgo de Ebro 1-2,El Burgo de Ebro,Z,operational,7,municipio,41.57157,-0.74128,zaragoza,geonames
+Villanueva de Gallego,Amazon AWS VDG0-2; Vantage; Krolmap,Villanueva de Gállego,Z,operational,16,municipio,41.76917,-0.8235,zaragoza,geonames
+Escatron,DayOne Aragon,Escatrón,Z,planned,1,municipio,41.29149,-0.32308,zaragoza,geonames
+Calatayud,Box2bit,Calatayud,Z,planned,1,municipio,41.35353,-1.64318,zaragoza,geonames
+Belchite,Krolmap,Belchite,Z,planned,1,municipio,41.306,-0.754,zaragoza,geonames
+La Muela,Microsoft ZAZ08-13,La Muela,Z,planned,7,municipio,41.58014,-1.11719,zaragoza,geonames
+Calatorao,QTS,Calatorao,Z,planned,1,municipio,41.52228,-1.34702,zaragoza,geonames
+Carinena,Box2bit Proyecto Ebro,Cariñena,Z,planned,1,municipio,41.33733,-1.22444,zaragoza,geonames
+La Puebla de Hijar,Amazon AWS,La Puebla de Híjar,TE,operational,1,municipio,41.215,-0.45,zaragoza,manual_town
+Murcia,metro listing,Murcia,MU,operational,3,metro,37.98704,-1.13004,murcia,geonames
+Logrono,metro listing,Logroño,LO,operational,1,metro,42.46615,-2.45115,logrono,geonames
+Cordoba,metro listing,Córdoba,CO,operational,1,metro,37.89155,-4.77275,cordoba-es,geonames
+Ceuta,metro listing,Ceuta,CE,operational,2,metro,35.88919,-5.32042,ceuta,geonames
+Castellon de la Plana,metro listing,Castelló de la Plana,CS,operational,1,metro,39.98567,-0.04935,castellon-de-la-plana,geonames
+Alicante,metro listing,Alicante,A,operational,4,metro,38.34517,-0.48149,alicante,geonames
+Palma,metro listing,Palma,PM,operational,5,metro,39.56939,2.65024,palma,geonames
+Sevilla,metro listing,Sevilla,SE,operational,3,metro,37.38283,-5.97317,sevilla,geonames
+Cadiz,metro listing,Cádiz,CA,operational,2,metro,36.52672,-6.2891,cadiz,geonames
+Granada,metro listing,Granada,GR,operational,2,metro,37.18817,-3.60667,granada,geonames
+Tarragona,metro listing,Tarragona,T,operational,1,metro,41.11905,1.24544,tarragona,geonames
+Oviedo,metro listing,Oviedo,O,operational,3,metro,43.36029,-5.84476,oviedo,geonames
+Guadalajara,metro listing,Guadalajara,GU,operational,2,metro,40.62862,-3.16185,guadalajara-es,geonames
+Santa Cruz de Tenerife,metro listing,Santa Cruz de Tenerife,TF,operational,2,metro,28.46824,-16.25462,santa-cruz-de-tenerife,geonames
+Lleida,metro listing,Lleida,L,operational,1,metro,41.61674,0.62218,lleida,geonames
+Pamplona,metro listing,Pamplona,,operational,4,metro,42.81687,-1.64323,pamplona,geonames
+Badajoz,metro listing,Badajoz,BA,operational,1,metro,38.87789,-6.97061,badajoz,geonames
+Caceres,metro listing,Cáceres,CC,operational,1,metro,39.47649,-6.37224,caceres,geonames
+Ciudad Real,metro listing,Ciudad Real,CR,operational,1,metro,38.98626,-3.92907,ciudad-real,geonames
+Valladolid,metro listing,Valladolid,VA,operational,1,metro,41.65541,-4.72353,valladolid,geonames
+A Coruna,metro listing,A Coruña,C,operational,1,metro,43.37135,-8.396,a-coruna,geonames
+Girona,metro listing,Girona,GI,operational,1,metro,41.98311,2.82493,girona,geonames
+Las Palmas,metro listing,Las Palmas de Gran Canaria,GC,operational,1,metro,28.10178,-15.41573,las-palmas,geonames
+Albacete,metro listing,Albacete,AB,operational,1,metro,38.99424,-1.85643,albacete,geonames
+Soria,metro listing,Soria,SO,operational,1,metro,41.76401,-2.46883,soria,geonames
+Donostia,metro listing,San Sebastián,SS,operational,1,metro,43.31283,-1.97499,donostia,geonames
+Merida,metro listing,Mérida,BA,operational,1,metro,38.91802,-6.34292,merida-es,geonames
+Arrecife,metro listing,Arrecife,GC,operational,1,metro,28.96302,-13.54769,arrecife,geonames
+Ciutadella de Menorca,metro listing,Ciutadella,PM,operational,1,metro,40.00112,3.84144,ciutadella-de-menorca,geonames
+Ibiza,metro listing,Ibiza,PM,operational,1,metro,38.90883,1.43296,ibiza,geonames
+Los Llanos de Aridane,metro listing,Los Llanos de Aridane,TF,operational,1,metro,28.65851,-17.91821,los-llanos,geonames
+Mao,metro listing,Mahón,PM,operational,1,metro,39.88853,4.26583,mao,geonames
