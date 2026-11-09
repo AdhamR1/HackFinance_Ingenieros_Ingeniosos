@@ -10,7 +10,8 @@ Descarga datos públicos en una rejilla de **3,5 × 3,5 km** (12,25 km² por cel
 
 - Cada país se procesa por separado (`--country`) con su perfil en `config.yaml` (`country_profiles`). Los países grandes van por **partes** (franjas de ≤25.000 celdas) para no agotar la memoria.
 - `sample_type` marca las celdas con data center conocido (`positivo_dc`), las de las regiones foco (`foco_region`: Madrid y Aragón; Tokio y Osaka; Virginia, Texas y Arizona) y el `resto`.
-- Periodo configurable: ahora 2025; después, 20 años (nov 2006 – oct 2026).
+- Periodo por país (`period` en su perfil): **España 2010–2025**; Japón y EEUU, 2025 de momento.
+- Capas de referencia que se descargan solas (`auto` en `manual_layers`): espacios protegidos y Red Natura 2000 (WDPA), peligrosidad sísmica (GEM, PGA de 475 años), fallas activas (GEM), calado de inundación de 10, 100 y 500 años (JRC). Red eléctrica y carreteras salen de OpenStreetMap.
 - Las fuentes se descargan **por rejilla, por país o por tesela, nunca por celda**: el coste apenas crece con el número de celdas.
 
 Tamaño medido con 2025 (la tabla grande es `sites_weekly`) y estimado para 20 años:
@@ -86,7 +87,9 @@ Una carpeta por tabla y un archivo por país (y parte): los países se suman sin
 
 - El clima de Japón viene de un reanálisis de 0,5° (~50 km): es regional, no local. España (11 km) y EEUU (4 km) van con más detalle.
 - EEUU es solo el territorio continental (48 estados + DC): Alaska, Hawái y los territorios se pueden añadir en `adm1_exclude`.
-- OSM (red eléctrica, carreteras, etc.) y el mercado eléctrico diario solo están para España; en Japón y EEUU esos campos quedan vacíos de momento.
+- OSM (red eléctrica, carreteras, etc.) y el mercado eléctrico diario solo están para España; en Japón y EEUU esos campos quedan vacíos de momento. `DCLAKE_OSM_LAYERS=substations,power_lines,…` limita OSM a unas capas.
+- Zona inundable oficial (`in_official_flood_zone`, SNCZI): MITECO pide aceptar condiciones en la web, así que hay que bajar a mano `laminasPB-q100.zip` y `laminasCanarias-q100.zip` (miteco.gob.es → Cartografía y SIG → Descargas → Zonas inundables). El calado de inundación de JRC sí se descarga solo.
+- Inundación y peligrosidad sísmica se miden en el centro de la celda: indican el riesgo del emplazamiento tipo de la celda, no de toda su superficie.
 - La pendiente y la rugosidad salen del DEM Copernicus leído a ~60 m, igual en todos los países.
 - El conteo semanal de terremotos (`eq_count_100km`) depende de lo que el catálogo EMSC recoge en cada país: España desde M1,5, EEUU desde ~M2 y Japón desde ~M3. No es comparable entre países sin un umbral común; los campos históricos M≥4 de USGS sí lo son.
 - El H/V de cada celda viene de la estación sísmica más cercana: es un indicador regional, no una medida de la parcela.

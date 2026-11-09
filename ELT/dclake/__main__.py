@@ -70,9 +70,11 @@ def cmd_status(cfg, lake, create=False):
         if c.requires or miss:
             lake.log.info("  %-18s %s", c.name, "OK" if not miss else f"FALTA {miss}")
     lake.log.info("Capas manuales (en %s):", lake.manual)
+    from .autolayers import layer_path
     for layer in cfg.get("manual_layers", []):
-        ok = (lake.manual / layer["file"]).exists()
-        lake.log.info("  %-16s %s  %s", layer["name"], "OK   " if ok else "FALTA", "" if ok else layer.get("download", ""))
+        ok = layer_path(lake, cfg, layer).exists()
+        state = "OK   " if ok else ("AUTO " if layer.get("auto") else "FALTA")   # AUTO: se descarga sola
+        lake.log.info("  %-16s %s  %s", layer["name"], state, "" if ok else layer.get("download", ""))
 
 
 def cmd_collect(cfg, lake, only=None, skip=None, limit=None, ids=None):
@@ -132,11 +134,8 @@ def main(argv=None):
     ap.add_argument("--start", help="inicio del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_START)")
     ap.add_argument("--end", help="fin del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_END)")
     ap.add_argument("--lake-dir", help="carpeta del data lake (por defecto config.yaml o DCLAKE_LAKE_DIR)")
-<<<<<<< HEAD
-=======
     # Merge resolution: keep both country/partition options for grid and Azure upload flags
     # added by the team when the CLI evolved in parallel.
->>>>>>> bbd79beb129b00b732d5a334026a19aa15d407b8
     ap.add_argument("--country", help="país con rejilla: ESP, JPN o USA (por defecto config.yaml o DCLAKE_COUNTRY)")
     ap.add_argument("--part", type=int, help="solo esta parte (franja de celdas) del país; por defecto todas")
     ap.add_argument("--force", action="store_true", help="upload: subir también los archivos que ya están en Azure")

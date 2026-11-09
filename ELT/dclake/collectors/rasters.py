@@ -280,7 +280,19 @@ class DEMCollector(Collector):
 
 def _sample_raster(path_or_url: str, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
     import rasterio
+    from pathlib import Path
     from rasterio.warp import transform
+    folder = Path(str(path_or_url))
+    if folder.is_dir():          # lon/lat tiles (e.g. JRC flood maps): each point from the tile that holds it
+        lon, lat = np.asarray(lon, dtype=float), np.asarray(lat, dtype=float)
+        out = np.full(len(lon), np.nan)
+        for t in sorted(folder.glob("*.tif")):
+            with rasterio.open(t) as ds:
+                b = ds.bounds
+            m = (lon >= b.left) & (lon < b.right) & (lat > b.bottom) & (lat <= b.top) & np.isnan(out)
+            if m.any():
+                out[m] = _sample_raster(str(t), lon[m], lat[m])
+        return out
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(path_or_url) as ds:
             xs, ys = transform("EPSG:4326", ds.crs, list(lon), list(lat))
@@ -362,10 +374,16 @@ class ManualLayersCollector(Collector):
         self._done = []
         bb = self.cfg["bboxes"]
         area = gpd.GeoSeries([box(*b).buffer(1) for b in bb.values()], crs=4326)   # the country's boxes
+        from ..autolayers import ensure_layer, layer_path
         for layer in self.cfg.get("manual_layers", []):
-            path = self.lake.manual / layer["file"]
-            if not path.exists():
-                self.log.warning("  [%s] falta %s (descarga: %s)", layer["name"], path, layer.get("download", "?"))
+            try:
+                path = ensure_layer(self.lake, self.cfg, layer)     # layers with `auto` download themselves
+            except Exception as e:
+                self.log.error("  [%s] descarga automática fallida: %s", layer["name"], e)
+                path = None
+            if path is None:
+                self.log.warning("  [%s] falta %s (descarga: %s)", layer["name"], layer_path(self.lake, self.cfg, layer),
+                                 layer.get("download", "?"))
                 continue
             try:
                 if layer["kind"] == "vector":
@@ -380,7 +398,10 @@ class ManualLayersCollector(Collector):
                         elif op["op"] == "contains":
                             df[f] = geo.contains(pts, g)
                         elif op["op"] == "nearest_attr":
-                            df[f] = geo.nearest(pts, g, [op["attr"]])[op["attr"]].values
+                            v = geo.nearest(pts, g, [op["attr"]])[op["attr"]]
+                            if op.get("parse") == "first_number":     # e.g. GEM slip rate "(1.55,0.8,2.22)"
+                                v = pd.to_numeric(v.astype(str).str.extract(r"(-?\d+(?:\.\d+)?)")[0], errors="coerce")
+                            df[f] = v.values
                         elif op["op"] == "point_attr":
                             df[f] = geo.point_attr(pts, g, op["attr"])
                         elif op["op"] == "count_within_km":
@@ -407,7 +428,8 @@ class ManualLayersCollector(Collector):
         for layer in getattr(self, "_done", []):
             for op in layer["ops"]:
                 info[f"sites_static.{op['field']}"] = {
-                    "source": layer["name"], "source_url": layer.get("download", ""), "license": layer.get("license", ""),
+                    "source": layer.get("source", layer["name"]), "source_url": layer.get("download", ""),
+                    "license": layer.get("license", ""),
                     "is_synthetic": False, "imputation_method": "ninguno",
                     "pipeline_version": self.cfg["project"]["pipeline_version"]}
         self.lake.write_lineage(self.name, info)

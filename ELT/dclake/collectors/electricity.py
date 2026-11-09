@@ -58,12 +58,31 @@ class ElectricityESCollector(Collector):
     # ------------------------------------------------------------------ OMIE
     def _omie(self, days):
         from tqdm import tqdm
+        import re
+        import zipfile
         idx = self.cfg["electricity"]["omie_es_field_index"]
+        texts = {}       # closed years come in one zip per year (365 files): 16 requests instead of ~5,800
+        for y in sorted(set(days.year)):
+            if y >= pd.Timestamp.today().year:
+                continue
+            try:
+                z = self.lake.cached_get(OMIE_URL, self.lake.raw / "omie" / f"marginalpdbc_{y}.zip",
+                                         params={"parents": "marginalpdbc", "filename": f"marginalpdbc_{y}.zip"},
+                                         timeout=300, min_bytes=1000, sleep=0.5, validate=lambda b: b[:2] == b"PK")
+            except Exception as e:
+                self.log.warning("  OMIE %d (zip anual): %s; se descarga día a día", y, e)
+                z = None
+            if z is not None:
+                with zipfile.ZipFile(z) as zf:
+                    for n in sorted(zf.namelist(), reverse=True):     # version .1 is read last, so it wins
+                        m = re.search(r"marginalpdbc_(\d{8})\.\d", n)
+                        if m:
+                            texts[m.group(1)] = zf.read(n).decode("latin-1", errors="ignore")
         rows = []
         for d in tqdm(days, desc="OMIE"):
             ds = d.strftime("%Y%m%d")
-            text = None
-            for version in (1, 2, 3):
+            text = texts.get(ds)
+            for version in (() if text else (1, 2, 3)):
                 dest = self.lake.raw / "omie" / f"marginalpdbc_{ds}.{version}"
                 try:
                     # 'parents[0]=' answers with an HTML redirect page (HTTP 200): use 'parents='

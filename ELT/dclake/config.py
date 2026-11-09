@@ -63,6 +63,7 @@ ENV_OVERRIDES = {
     "DCLAKE_START": "period.start",
     "DCLAKE_END": "period.end",
     "DCLAKE_N_CELLS": "sampling.n_cells",
+    "DCLAKE_OSM_LAYERS": "osm.layers",       # only these OpenStreetMap layers (comma separated)
 }
 
 
@@ -89,12 +90,15 @@ def load_config(path: str | Path | None = None, overrides: dict | None = None) -
     for k, v in merged.items():
         sec, _, key = k.partition(".")
         data.setdefault(sec, {})[key] = v
-    apply_country_profile(data)
+    apply_country_profile(data, explicit=set(merged))
     return Config(data)
 
 
-def apply_country_profile(data: dict) -> None:
-    """Overlay country_profiles[<country_iso3>] on project, bboxes and sampling.focus_regions."""
+def apply_country_profile(data: dict, explicit=()) -> None:
+    """Overlay country_profiles[<country_iso3>] on project, bboxes, sampling.focus_regions and period.
+
+    A period given on the command line or in the environment (explicit) wins over the profile's.
+    """
     iso = str(data["project"]["country_iso3"]).upper()
     data["project"]["country_iso3"] = iso
     profiles = data.get("country_profiles") or {}
@@ -105,5 +109,9 @@ def apply_country_profile(data: dict) -> None:
             data["bboxes"] = v
         elif k == "focus_regions":
             data.setdefault("sampling", {})["focus_regions"] = v
+        elif k == "period":
+            for pk, pv in v.items():
+                if f"period.{pk}" not in explicit:
+                    data.setdefault("period", {})[pk] = pv
         else:
             data["project"][k] = v
