@@ -400,6 +400,14 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
 }
 .maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom)); }
 
+/* Buscador centrado en la pantalla cuando hay sitio. Su ancho deja libre, a cada lado, lo que
+   ocupan los controles de la derecha en su estado más ancho (país abierto):
+   "Ver el mundo" 146 + 8 + selector 200 + 8 + ES|EN 84 = 446, + margen 16 + separación 12 = 474.
+   Así no se mueve al cambiar de idioma ni al abrir un país, y nunca toca los botones. */
+@media (min-width: 1280px) {
+  .buscador { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: min(400px, calc(100vw - 2 * 474px)); }
+}
+
 /* ---------- Móvil ---------- */
 @media (max-width: 640px) {
   :root { --hueco: 10px; }
