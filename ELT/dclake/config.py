@@ -60,8 +60,15 @@ ENV_OVERRIDES = {
 }
 
 
-def load_config(path: str | Path = "config.yaml", overrides: dict | None = None) -> Config:
-    path = Path(path).resolve()
+# ELT/config.yaml, located from the package so the CLI works from any working directory
+# (python -m dclake from ELT/, or python -m ELT.dclake from the repo root).
+DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config.yaml"
+
+
+def load_config(path: str | Path | None = None, overrides: dict | None = None) -> Config:
+    path = Path(path).resolve() if path else DEFAULT_CONFIG
+    if not path.exists():
+        raise FileNotFoundError(f"No se encuentra el archivo de configuración: {path}")
     if load_dotenv is not None:
         load_dotenv(path.parent / ".env")
     with open(path, encoding="utf-8") as f:

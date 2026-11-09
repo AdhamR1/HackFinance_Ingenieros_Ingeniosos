@@ -113,7 +113,7 @@ def main(argv=None):
     ap.add_argument("command", choices=["init", "status", "grid", "collect", "assemble", "report", "all", "demo", "export",
                                         "upload"])
     ap.add_argument("--out", help="export: archivo Excel de salida (por defecto <lake>/reports/ejemplo.xlsx)")
-    ap.add_argument("--config", default="config.yaml")
+    ap.add_argument("--config", help="ruta a config.yaml (por defecto ELT/config.yaml)")
     ap.add_argument("--only", help="colectores separados por comas")
     ap.add_argument("--skip", help="colectores separados por comas")
     ap.add_argument("--limit-sites", type=int, help="usar solo N celdas variadas de la muestra (pruebas)")
@@ -130,7 +130,8 @@ def main(argv=None):
 
     if args.command == "demo":
         from .demo import run_demo
-        run_demo(Path(args.config).resolve().parent)
+        from .config import DEFAULT_CONFIG
+        run_demo(Path(args.config).resolve().parent if args.config else DEFAULT_CONFIG.parent)
         return 0
 
     cfg, lake = _setup(args)

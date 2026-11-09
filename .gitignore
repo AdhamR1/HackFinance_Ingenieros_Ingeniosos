@@ -1,6 +1,7 @@
 # Claves y ajustes locales
 .env
 .vscode/
+.idea/
 
 # Descargas e intermedios del ELT (el dataset final está en ELT/dataset/)
 .cache/
@@ -10,6 +11,14 @@ data_lake_demo/
 
 # Python
 __pycache__/
+*.py[cod]
 *.egg-info/
 .pytest_cache/
-.venv/
+.mypy_cache/
+.ruff_cache/
+.venv*/
+venv/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

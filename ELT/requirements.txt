@@ -1,5 +1,10 @@
-# Instalación (Windows, desde la carpeta ELT):
-#   py -3 -m venv %USERPROFILE%\.venvs\dclake
+# Requiere Python >= 3.11.
+# macOS/Linux, desde la raíz del repo:
+#   python3.11 -m venv .venv && source .venv/bin/activate
+#   python -m pip install -r ELT/requirements.txt
+#   python -m ELT.dclake status        (o, desde ELT/: python -m dclake status)
+# Windows, desde la carpeta ELT:
+#   py -3.11 -m venv %USERPROFILE%\.venvs\dclake
 #   %USERPROFILE%\.venvs\dclake\Scripts\activate
 #   python -m pip install -r requirements.txt
 # pip >= 24.2 usa los certificados de Windows, así que funciona en redes corporativas con inspección TLS.
