@@ -11,10 +11,14 @@ Outputs:
 
 Team decision (9-Nov-2026): RED only for what is FORBIDDEN or impossible; what is allowed
 with permits is scored and carries a warning.
-  * EXCLUDED (red): the cell is almost entirely water / wetland (>= EXCLUDE_PCT).
-    To add when the layers arrive: national parks and preferential flood flow zones.
+  * EXCLUDED (red): the cell is almost entirely water / wetland, or at least half of it is a national
+    park or a preferential flood flow zone (ZFP, where the water law forbids building). Parks and
+    ZFP come from feat_riesgos.parquet (src/feat_riesgos.py). Thresholds in EXCLUDE_PCT.
   * WARNING (not excluded): Natura 2000 needs an environmental assessment; urban land needs
-    available industrial land or rezoning. Shown in the web panel as "avisos".
+    available industrial land or rezoning; part of the cell in a national park, a ZFP or the
+    100-year flood zone limits where to build. Shown in the web panel as "avisos".
+  `python src/feat_suelo.py --solo-exclusiones` rebuilds only the exclusions from feat_suelo.parquet
+  and feat_riesgos.parquet, without downloading anything.
   * Industrial and commercial land (CORINE 121) is neither: it is where data centers get built.
 train.py warns if an existing data center falls in an excluded cell (rule too strict).
 """
@@ -37,13 +41,19 @@ GROUPS = {   # CORINE 2018 codes
     "industrial": ["121"],                               # industrial or commercial units
     "agua": ["411", "412", "421", "422", "423", "511", "512", "521", "522", "523"],  # wetlands + water
 }
-EXCLUDE_PCT = {"agua": 90}                      # hard rules: column -> % of the cell
-MOTIVO = {"agua": "agua"}                       # motivo_descarte shown by the web
-WARN_PCT = {"natura2000": 25, "urbano": 50}     # warnings: column -> % of the cell
+EXCLUDE_PCT = {"agua": 90, "parque_nacional": 50, "zfp": 50}   # hard rules: column -> % of the cell
+MOTIVO = {"agua": "agua", "parque_nacional": "parque nacional",   # motivo_descarte shown by the web
+          "zfp": "zona de flujo preferente"}
+WARN_PCT = {"natura2000": 25, "urbano": 50,     # warnings: column -> % of the cell
+            "parque_nacional": 10, "zfp": 10, "zi_t100": 25}
 WARN_TEXT = {
     "natura2000": "Natura 2000 en el {v:.0f} % de la celda: requiere evaluación ambiental",
     "urbano": "Suelo urbano en el {v:.0f} % de la celda: requiere suelo industrial disponible o recalificación",
+    "parque_nacional": "Parque nacional en el {v:.0f} % de la celda: solo se puede construir fuera del parque",
+    "zfp": "Zona de flujo preferente en el {v:.0f} % de la celda: prohibido edificar en esa parte",
+    "zi_t100": "Zona inundable de 100 años en el {v:.0f} % de la celda: edificar ahí exige las medidas del RDPH",
 }
+RIESGOS = ("parque_nacional_pct", "zfp_pct", "zi_t100_pct")   # from feat_riesgos.parquet (src/feat_riesgos.py)
 TILE_DEG = 1
 SIMPLIFY_M = 50
 
@@ -145,27 +155,48 @@ def main():
     for name, cl in GROUPS.items():
         out[f"{name}_pct"] = cover_pct(boxes, [g for c, g in corine.values() if c in cl])
     out = out.round(1)
+    PROCESSED.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(PROCESSED / "feat_suelo.parquet", index=False)
+    print(f"-> {PROCESSED / 'feat_suelo.parquet'}")
+    exclusions(out)
 
+
+def exclusions(out: pd.DataFrame) -> pd.DataFrame:
+    """Red cells and warnings from the land % (feat_suelo) and, when present, the risk % (feat_riesgos)."""
     ex = out.copy()
+    riesgos = PROCESSED / "feat_riesgos.parquet"
+    if riesgos.exists():
+        r = pd.read_parquet(riesgos)
+        ex = ex.merge(r[["site_id", *[c for c in RIESGOS if c in r]]], on="site_id", how="left")
+    else:
+        print(f"  Falta {riesgos.name}: sin reglas de parque nacional ni zona de flujo preferente "
+              "(ejecuta src/feat_riesgos.py)")
     ex["excluded"] = False
     ex["motivo_descarte"] = None
     for name, thr in EXCLUDE_PCT.items():
-        hit = (ex[f"{name}_pct"] >= thr) & ~ex["excluded"]
+        col = f"{name}_pct"
+        if col not in ex:
+            continue
+        hit = (ex[col] >= thr) & ~ex["excluded"]
         ex.loc[hit, "motivo_descarte"] = MOTIVO[name]
         ex["excluded"] |= hit
         print(f"  excluidas por {name} (>= {thr} %): {hit.sum():,}")
     print(f"Excluidas en total: {ex.excluded.sum():,} de {len(ex):,} ({ex.excluded.mean():.1%})")
-    warn = [[WARN_TEXT[n].format(v=v) for n, thr in WARN_PCT.items() if (v := row[f"{n}_pct"]) >= thr]
+    warns = {n: thr for n, thr in WARN_PCT.items() if f"{n}_pct" in ex}
+    warn = [[WARN_TEXT[n].format(v=v) for n, thr in warns.items() if (v := row[f"{n}_pct"]) >= thr]
             for _, row in ex.iterrows()]
     ex["avisos"] = [" | ".join(w) for w in warn]
-    for n, thr in WARN_PCT.items():
+    for n, thr in warns.items():
         print(f"  con aviso por {n} (>= {thr} %): {(ex[f'{n}_pct'] >= thr).sum():,}")
-
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    out.to_parquet(PROCESSED / "feat_suelo.parquet", index=False)
     ex.to_parquet(PROCESSED / "exclusions_es_3500.parquet", index=False)
-    print(f"-> {PROCESSED / 'feat_suelo.parquet'}\n-> {PROCESSED / 'exclusions_es_3500.parquet'}")
+    print(f"-> {PROCESSED / 'exclusions_es_3500.parquet'}")
+    return ex
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--solo-exclusiones" in sys.argv:      # quick: reuse feat_suelo.parquet, no downloads
+        exclusions(pd.read_parquet(PROCESSED / "feat_suelo.parquet"))
+    else:
+        main()
