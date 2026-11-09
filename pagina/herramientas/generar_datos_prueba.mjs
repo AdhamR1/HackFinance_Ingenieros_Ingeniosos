@@ -1,8 +1,8 @@
 // =====================================================================
 //  GENERADOR DE DATOS DE PRUEBA (INVENTADOS) PARA ESPAÑA
 // =====================================================================
-//  Crea data/ES.json: una cuadrícula de cuadrados de N × N km (N sale de
-//  config.js → tamano_cuadrado_km) recortada por la costa y la frontera,
+//  Crea data/ES.json: una cuadrícula de cuadrados (superficie en config.js →
+//  area_cuadrado_km2; 12 km² = 3,46 × 3,46 km) recortada por la costa y la frontera,
 //  con valores INVENTADOS que cambian de forma suave por zonas.
 //
 //  Uso (desde la carpeta pagina):
@@ -13,8 +13,9 @@
 //  Opciones:  --solo-geometria   crea los cuadrados con todas las variables a null
 //                                (plantilla para rellenar con datos reales)
 //             --salida <ruta>    archivo de salida (por defecto ../data/ES.json)
+//             --area <km²>       superficie de cuadrado distinta a la de config.js (para pruebas)
 //
-//  Cómo se hacen cuadrados de verdad de N km:
+//  Cómo se hacen cuadrados de verdad de esa medida:
 //  se pasa el contorno de España a una proyección en METROS (UTM, la que usa
 //  el Instituto Geográfico Nacional), se dibuja la cuadrícula ahí, se recorta
 //  y se vuelve a pasar a longitud/latitud para la web.
@@ -32,9 +33,11 @@ const { CONFIG } = await import(new URL('../config.js', import.meta.url));
 const args = process.argv.slice(2);
 const SOLO_GEOMETRIA = args.includes('--solo-geometria');
 const SALIDA = args.includes('--salida') ? args[args.indexOf('--salida') + 1] : path.join(AQUI, '../data/ES.json');
-const LADO_KM = CONFIG.tamano_cuadrado_km;
-const LADO = LADO_KM * 1000;            // en metros
-const AREA_MINIMA_KM2 = 1;              // trozos de tierra más pequeños se descartan (astillas de costa)
+const AREA_KM2 = args.includes('--area') ? Number(args[args.indexOf('--area') + 1]) : CONFIG.area_cuadrado_km2;
+const LADO = Math.round(Math.sqrt(AREA_KM2) * 1000); // lado en metros (redondeado al metro)
+const LADO_KM = LADO / 1000;
+const AREA_REAL_KM2 = LADO_KM * LADO_KM;
+const AREA_MINIMA_KM2 = AREA_REAL_KM2 * 0.02;        // trozos de costa < 2 % del cuadrado se descartan (astillas)
 
 // ---------------------------------------------------------------------
 // 1. PROYECCIÓN UTM (fórmulas de Snyder, USGS 1987). Elipsoide GRS80.
@@ -116,14 +119,15 @@ for (const region of REGIONES) {
       if (!trozo.length) continue;
       const area = areaMulti(trozo) / 1e6;
       if (area < AREA_MINIMA_KM2) continue;
-      const entero = area > LADO_KM * LADO_KM * 0.999;
+      const entero = area > AREA_REAL_KM2 * 0.999;
       const geoTrozo = entero
         ? [rectangulo(x, y, x + LADO, y + LADO)[0]].map(an => [an])  // cuadrado completo: 5 puntos exactos
         : trozo;
-      const aGrados = mp => mp.map(poli => poli.map(an => an.map(c => deUTM(c, region.huso).map(v => Math.round(v * 1e5) / 1e5))));
+      // 4 decimales ≈ 10 m: de sobra para cuadrados de varios km y el archivo pesa mucho menos.
+      const aGrados = mp => mp.map(poli => poli.map(an => an.map(c => deUTM(c, region.huso).map(v => Math.round(v * 1e4) / 1e4))));
       const coords = aGrados(geoTrozo);
       celdas.push({
-        huso: region.huso, x, y, area: Math.round(area * 10) / 10,
+        huso: region.huso, x, y, area: Math.round(area * 100) / 100,
         centro: deUTM([x + LADO / 2, y + LADO / 2], region.huso).map(v => Math.round(v * 1e4) / 1e4),
         geometry: coords.length === 1 ? { type: 'Polygon', coordinates: coords[0] } : { type: 'MultiPolygon', coordinates: coords },
       });
@@ -184,7 +188,7 @@ function valoresInventados(c) {
   const sismico = 98 - 95 * cercania(c.centro, ZONAS_SISMICAS, 70) - 50 * cercania(c.centro, CANARIAS_VOLCAN, 25)
     - 15 * Math.max(0, lat - 42.3) * r(61) - 10 * r(67, 60);
   // Inundación (100 = poco riesgo): manchas pequeñas y más riesgo en la costa mediterránea.
-  const inundacion = 92 - 70 * Math.max(0, r(71, 60) - 0.55) * 4 - (c.area < LADO_KM * LADO_KM && lon > -1.5 && !canarias ? 25 : 0);
+  const inundacion = 92 - 70 * Math.max(0, r(71, 60) - 0.55) * 4 - (c.area < AREA_REAL_KM2 * 0.999 && lon > -1.5 && !canarias ? 25 : 0);
 
   const v = { energia, agua, clima, conectividad, carreteras, sismico, inundacion };
   for (const k in v) v[k] = limitar(v[k]);
@@ -212,12 +216,11 @@ const features = celdas.map((c, i) => {
     type: 'Feature',
     geometry: c.geometry,
     properties: {
-      id: `ES-${String(i + 1).padStart(4, '0')}`,
+      id: `ES-${String(i + 1).padStart(5, '0')}`,
       puntuacion: null,
       descartado: protegido,
       motivo_descarte: protegido ? 'suelo_protegido' : null,
       ...v,
-      centro: c.centro,
       area_km2: c.area,
       utm_huso: c.huso,
       utm_x: c.x,
@@ -230,7 +233,8 @@ const salida = {
   type: 'FeatureCollection',
   meta: {
     pais: 'ES',
-    tamano_cuadrado_km: LADO_KM,
+    area_cuadrado_km2: AREA_KM2,
+    lado_cuadrado_km: LADO_KM,
     datos_de_prueba: !SOLO_GEOMETRIA,
     fuente: SOLO_GEOMETRIA ? 'Plantilla vacía generada por herramientas/generar_datos_prueba.mjs'
       : 'DATOS INVENTADOS generados por herramientas/generar_datos_prueba.mjs',
@@ -245,9 +249,9 @@ const texto = JSON.stringify({ ...salida }, null, 1).replace('"features": []',
 fs.writeFileSync(SALIDA, texto + '\n');
 
 // Resumen
-const n = features.length, enteros = celdas.filter(c => c.area >= LADO_KM * LADO_KM * 0.999).length;
+const n = features.length, enteros = celdas.filter(c => c.area >= AREA_REAL_KM2 * 0.999).length;
 const contar = fn => features.filter(ft => fn(ft.properties)).length;
-console.log(`✔ ${path.relative(process.cwd(), SALIDA)}: ${n} cuadrados de ${LADO_KM} × ${LADO_KM} km`);
+console.log(`✔ ${path.relative(process.cwd(), SALIDA)}: ${n} cuadrados de ${AREA_KM2} km² (${LADO_KM} × ${LADO_KM} km)`);
 console.log(`  enteros: ${enteros} · recortados por costa/frontera: ${n - enteros}`);
 console.log(`  por huso: 30 → ${celdas.filter(c => c.huso === 30).length}, 28 (Canarias) → ${celdas.filter(c => c.huso === 28).length}`);
 console.log(`  área total: ${Math.round(celdas.reduce((t, c) => t + c.area, 0)).toLocaleString('es')} km²`);

@@ -9,11 +9,13 @@ export const CONFIG = {
   // ---------------------------------------------------------------
   // CUADRÍCULA
   // ---------------------------------------------------------------
-  // Lado de cada cuadrado en kilómetros. Lo usa el script que genera
-  // los datos (herramientas/generar_datos_prueba.mjs) y la nota del panel.
+  // Superficie de cada cuadrado en km². El lado es la raíz cuadrada:
+  //   12 km² → cuadrados de 3,46 × 3,46 km   ·   144 km² → 12 × 12 km
+  // Lo usa el script que genera los datos (herramientas/generar_datos_prueba.mjs)
+  // y la nota del panel.
   // OJO: si lo cambias, hay que volver a generar data/ES.json.
-  // (Si el archivo de datos trae "meta.tamano_cuadrado_km", la web usa ese.)
-  tamano_cuadrado_km: 12,
+  // (Si el archivo de datos trae "meta.area_cuadrado_km2", la web usa ese.)
+  area_cuadrado_km2: 12,
 
   // ---------------------------------------------------------------
   // PESOS DE LAS VARIABLES QUE PUNTÚAN
