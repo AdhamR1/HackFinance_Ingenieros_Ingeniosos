@@ -10,3 +10,7 @@ Países:
     - Reino Unido
     - Japón
     - España
+
+## Estructura
+
+- `ELT/`: obtención de datos y data lake (España, rejilla 5×5 km). Instrucciones en [ELT/README.md](ELT/README.md).
