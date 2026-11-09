@@ -2,6 +2,7 @@
 
   sites_static  -> used as is (one row per cell)
   sites_yearly  -> averaged over the years available (one row per cell)
+  data/processed/feat_*.parquet -> extra blocks built here (e.g. feat_infra.py); they win over the ELT
 
 Kept: numeric columns with data. Dropped, and printed so everyone sees it:
   * LEAKAGE: columns that tell the model where the data centers already are. With them the
@@ -65,6 +66,11 @@ def main():
     yearly = numeric(yearly.drop(columns=["year"]).set_index("site_id")).groupby(level=0).mean()
 
     feats = numeric(static).join(yearly, how="left")
+    # extra blocks built in this folder (feat_infra.py, ...): site_id + numeric columns
+    for f in sorted(PROCESSED.glob("feat_*.parquet")):
+        extra = numeric(pd.read_parquet(f).set_index("site_id"))
+        print(f"+ {f.name}: {', '.join(extra.columns)}")
+        feats = feats.drop(columns=[c for c in extra.columns if c in feats.columns]).join(extra, how="left")
     leak = [c for c in feats.columns if c in LEAKAGE]
     feats = feats.drop(columns=leak)
     empty = [c for c in feats.columns if feats[c].isna().all()]
