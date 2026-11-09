@@ -132,14 +132,11 @@ def main(argv=None):
     ap.add_argument("--start", help="inicio del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_START)")
     ap.add_argument("--end", help="fin del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_END)")
     ap.add_argument("--lake-dir", help="carpeta del data lake (por defecto config.yaml o DCLAKE_LAKE_DIR)")
-<<<<<<< HEAD
     ap.add_argument("--country", help="país con rejilla: ESP, JPN o USA (por defecto config.yaml o DCLAKE_COUNTRY)")
     ap.add_argument("--part", type=int, help="solo esta parte (franja de celdas) del país; por defecto todas")
-=======
     ap.add_argument("--force", action="store_true", help="upload: subir también los archivos que ya están en Azure")
     ap.add_argument("--dry-run", action="store_true", help="upload: mostrar qué se subiría sin subir nada")
     ap.add_argument("--workers", type=int, default=4, help="upload: subidas en paralelo (por defecto 4)")
->>>>>>> dc38a497a6a04161af65a9f0fdc6ed7824caea70
     args = ap.parse_args(argv)
     only = set(args.only.split(",")) if args.only else None
     skip = set(args.skip.split(",")) if args.skip else None

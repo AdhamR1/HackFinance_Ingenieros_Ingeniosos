@@ -108,6 +108,16 @@ def dem_stats_bounds(lon0, lat0, lon1, lat1, target_px: int = 100) -> dict:
 DEM_FACTOR = 2          # each 1 deg tile is read at half resolution (~60 m), the same in every country
 
 
+def dem_tile_exists(lat: int, lon: int) -> bool:
+    """False for tiles that do not exist (open sea); raises on network errors, which must not be cached."""
+    import requests
+    r = requests.head(dem_tile_url(lat, lon), timeout=60)
+    if r.status_code in (403, 404):
+        return False
+    r.raise_for_status()
+    return True
+
+
 def dem_tile_sums(lat: int, lon: int, crs: str, cell_m: float, factor: int = DEM_FACTOR) -> pd.DataFrame:
     """Terrain sums per grid cell (cell indices ix, iy as in the site_id) for one 1 deg Copernicus tile.
 
@@ -127,7 +137,9 @@ def dem_tile_sums(lat: int, lon: int, crs: str, cell_m: float, factor: int = DEM
                 a, e = t.a * ds.width / w, t.e * ds.height / h
                 c, f = t.c, t.f
         except rasterio.errors.RasterioIOError:
-            return pd.DataFrame(columns=cols)
+            if not dem_tile_exists(lat, lon):      # sea: there is no tile
+                return pd.DataFrame(columns=cols)
+            raise                                   # network failure: not cached, retried in the next run
     lons = c + (np.arange(w) + 0.5) * a
     lats = f + (np.arange(h) + 0.5) * e
     gy, gx = np.gradient(z)
@@ -198,7 +210,18 @@ class DEMCollector(Collector):
         def path(t):
             return cache / f"{t[0]:+03d}_{t[1]:+04d}.parquet"
 
-        todo = [t for t in tiles if not path(t).exists()]
+        def cached_ok(t):
+            p = path(t)
+            if not p.exists():
+                return False
+            if len(pd.read_parquet(p, columns=["ix"])):
+                return True
+            try:        # empty = sea; an older run could have cached a network failure as empty
+                return not dem_tile_exists(*t)
+            except Exception:
+                return False
+
+        todo = [t for t in tiles if not cached_ok(t)]
         self.log.info("  DEM: %d teselas de 1° (%d ya calculadas)", len(tiles), len(tiles) - len(todo))
 
         def one(t):

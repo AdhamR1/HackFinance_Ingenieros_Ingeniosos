@@ -8,6 +8,8 @@
 data_lake/
 data_lake_demo/
 *.part
+# EEUU ocupa ~1,3 GB por año: se comparte por el data lake (python -m dclake upload), no por git
+ELT/dataset/**/USA*.parquet
 
 # Python
 __pycache__/
