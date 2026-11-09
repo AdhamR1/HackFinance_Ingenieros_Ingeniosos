@@ -1,7 +1,8 @@
 // Arranque de la web y flujo principal: mundo → elegir país → cuadrícula.
 import { CONFIG } from '../config.js';
 import { t, idioma, iniciarIdioma, alCambiarIdioma } from './i18n.js';
-import { crearMapa, anadirPaises, marcarPaisSeleccionado } from './mapa.js';
+import { crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula } from './mapa.js';
+import { evaluar } from './puntuacion.js';
 
 const $ = id => document.getElementById(id);
 
@@ -9,6 +10,8 @@ const estado = {
   paises: {},        // contenido de data/paises.json (países con datos)
   mundo: null,       // siluetas de todos los países
   paisAbierto: null, // código del país que se está viendo, p. ej. 'ES'
+  datosPais: {},     // cuadrículas ya descargadas, por país
+  opacidad: CONFIG.opacidad_inicial,
 };
 
 // ---------- Utilidades ----------
@@ -33,13 +36,14 @@ function mostrarTooltip(x, y, html) {
 const ocultarTooltip = () => { $('tooltip').hidden = true; };
 
 let temporizadorAviso;
-function mostrarAviso(texto) {
+function mostrarAviso(texto, duracionMs = 4000) {
   const aviso = $('aviso');
   aviso.textContent = texto;
   aviso.hidden = false;
   clearTimeout(temporizadorAviso);
-  temporizadorAviso = setTimeout(() => { aviso.hidden = true; }, 4000);
+  if (duracionMs) temporizadorAviso = setTimeout(() => { aviso.hidden = true; }, duracionMs);
 }
+const ocultarAviso = () => { $('aviso').hidden = true; };
 
 const escaparHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -77,12 +81,42 @@ function abrirPais(map, iso) {
   $('selector-pais').value = iso;
   $('boton-mundo').hidden = false;
   history.replaceState(null, '', `#${iso}`);
-  // Paso 3: aquí se cargará la cuadrícula del país (info.archivo).
+  cargarCuadricula(map, iso);
+}
+
+// Descarga (solo la primera vez) la cuadrícula del país y la pinta.
+// Solo se cargan los cuadrados del país abierto.
+async function cargarCuadricula(map, iso) {
+  let datos = estado.datosPais[iso];
+  if (!datos) {
+    mostrarAviso(t('cargando'), 0);
+    try {
+      const res = await fetch(estado.paises[iso].archivo);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      datos = await res.json();
+    } catch (err) {
+      console.error(err);
+      mostrarAviso(t('error_carga', { pais: nombrePais(iso) }));
+      return;
+    }
+    // Se calcula una vez la nota y el color de cada cuadrado (reglas de config.js).
+    for (const f of datos.features) {
+      const r = evaluar(f.properties);
+      f.properties._color = r.color;
+      f.properties._categoria = r.categoria;
+      f.properties._nota = r.nota ?? -1;
+    }
+    estado.datosPais[iso] = datos;
+    ocultarAviso();
+  }
+  if (estado.paisAbierto !== iso) return; // el usuario se fue a otro sitio mientras cargaba
+  ponerCuadricula(map, datos, estado.opacidad);
 }
 
 function volverAlMundo(map) {
   estado.paisAbierto = null;
   marcarPaisSeleccionado(map, null);
+  mostrarCuadricula(map, false);
   map.flyTo({ center: [10, 30], zoom: 1.6, speed: 1.4, essential: true });
   $('selector-pais').value = '';
   $('boton-mundo').hidden = true;

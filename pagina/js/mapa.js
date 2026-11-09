@@ -112,4 +112,65 @@ export function anadirPaises(map, mundo, disponibles, proximamente) {
 // Marca un país como "abierto" (o ninguno, con null).
 export function marcarPaisSeleccionado(map, iso) {
   map.setPaintProperty('paises-relleno', 'fill-opacity', opacidadPaises(iso));
+  // El borde simplificado del país abierto se oculta: su cuadrícula ya dibuja la forma.
+  const esDisponible = ['in', ['get', 'iso'], ['literal', paisesDisponibles]];
+  map.setPaintProperty('paises-borde', 'line-opacity',
+    ['case', ['==', ['get', 'iso'], iso || ''], 0, esDisponible, 0.9, 0.35]);
+}
+
+// ---------------------------------------------------------------------
+// CUADRÍCULA DE UN PAÍS
+// ---------------------------------------------------------------------
+// Opacidad del relleno: la elegida por el usuario, pero bajando al acercarse
+// para que se vea bien el satélite (árboles, edificios...) dentro del cuadrado.
+function opacidadCuadricula(opacidad) {
+  return ['interpolate', ['linear'], ['zoom'],
+    5, opacidad,
+    9, opacidad * 0.8,
+    12, opacidad * 0.55,
+    15, opacidad * 0.4];
+}
+
+// "datos" es el GeoJSON del país, con _color ya calculado en cada cuadrado.
+export function ponerCuadricula(map, datos, opacidad) {
+  const fuente = map.getSource('cuadricula');
+  if (fuente) {
+    fuente.setData(datos);
+  } else {
+    map.addSource('cuadricula', { type: 'geojson', data: datos, promoteId: 'id' });
+    map.addLayer({
+      id: 'cuadricula-relleno', type: 'fill', source: 'cuadricula',
+      paint: { 'fill-color': ['get', '_color'], 'fill-opacity': opacidadCuadricula(opacidad) },
+    });
+    map.addLayer({
+      id: 'cuadricula-borde', type: 'line', source: 'cuadricula',
+      paint: {
+        'line-color': '#000000',
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.25, 10, 0.5],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.2, 8, 0.6, 12, 1.2],
+      },
+    });
+    // Resalte del cuadrado bajo el ratón o seleccionado (se activa con feature-state).
+    map.addLayer({
+      id: 'cuadricula-resalte', type: 'line', source: 'cuadricula',
+      paint: {
+        'line-color': ['case', ['boolean', ['feature-state', 'seleccionado'], false], '#f5b301', '#ffffff'],
+        'line-width': ['case', ['boolean', ['feature-state', 'seleccionado'], false], 3, 2],
+        'line-opacity': ['case',
+          ['boolean', ['feature-state', 'seleccionado'], false], 1,
+          ['boolean', ['feature-state', 'hover'], false], 0.95, 0],
+      },
+    });
+  }
+  mostrarCuadricula(map, true);
+}
+
+export function mostrarCuadricula(map, visible) {
+  for (const capa of ['cuadricula-relleno', 'cuadricula-borde', 'cuadricula-resalte'])
+    if (map.getLayer(capa)) map.setLayoutProperty(capa, 'visibility', visible ? 'visible' : 'none');
+}
+
+export function ponerOpacidadCuadricula(map, opacidad) {
+  if (map.getLayer('cuadricula-relleno'))
+    map.setPaintProperty('cuadricula-relleno', 'fill-opacity', opacidadCuadricula(opacidad));
 }
