@@ -101,8 +101,9 @@ function abrirPais(map, iso, { encuadrar = true } = {}) {
   $('selector-pais').value = iso;
   $('boton-mundo').hidden = false;
   history.replaceState(null, '', `#${iso}`);
-  cargarCuadricula(map, iso);
-  cargarRegiones(iso).then(datos => { if (datos && estado.paisAbierto === iso) ponerRegiones(map, datos); });
+  // Primero la cuadrícula (lo importante); los bordes de comunidades, después.
+  cargarCuadricula(map, iso).finally(() =>
+    cargarRegiones(iso).then(datos => { if (datos && estado.paisAbierto === iso) ponerRegiones(map, datos); }));
 }
 
 // Comunidades y provincias del país (si el país las tiene en data/paises.json).
@@ -113,6 +114,18 @@ async function cargarRegiones(iso) {
   return estado.regiones[iso];
 }
 
+// Descarga del archivo de datos de un país. Se guarda la promesa para no descargarlo dos veces
+// (puede empezar antes, en segundo plano, mientras el visitante mira el mapa del mundo).
+const descargas = {};
+function descargarDatos(iso) {
+  descargas[iso] ??= fetch(estado.paises[iso].archivo).then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+  descargas[iso].catch(() => { delete descargas[iso]; }); // si falla, se podrá reintentar
+  return descargas[iso];
+}
+
 // Descarga (solo la primera vez) la cuadrícula del país y la pinta.
 // Solo se cargan los cuadrados del país abierto.
 async function cargarCuadricula(map, iso) {
@@ -120,14 +133,13 @@ async function cargarCuadricula(map, iso) {
   if (!datos) {
     mostrarAviso(t('cargando'), 0);
     try {
-      const res = await fetch(estado.paises[iso].archivo);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      datos = await res.json();
+      datos = await descargarDatos(iso);
     } catch (err) {
       console.error(err);
       mostrarAviso(t('error_carga', { pais: nombrePais(iso) }));
       return;
     }
+    if (estado.datosPais[iso]) datos = estado.datosPais[iso]; // ya preparado por otra llamada
     // Se calcula una vez la nota y el color de cada cuadrado (reglas de config.js).
     for (const f of datos.features) {
       const r = evaluar(f.properties);
@@ -395,6 +407,12 @@ async function iniciar() {
     const desdeEnlace = location.hash.slice(1).toUpperCase();
     if (tieneDatos(desdeEnlace)) abrirPais(map, desdeEnlace);
     window.__listo = true; // señal para las pruebas automáticas
+
+    // Precarga: si solo hay un país con datos, casi seguro que el visitante lo abrirá.
+    // Se descarga ya en segundo plano para que al elegirlo aparezca mucho antes.
+    const conDatos = Object.keys(estado.paises);
+    if (CONFIG.precargar_datos && conDatos.length === 1 && !estado.paisAbierto)
+      setTimeout(() => descargarDatos(conDatos[0]).catch(() => {}), 300);
   });
 
   $('selector-pais').addEventListener('change', e => {

@@ -94,6 +94,10 @@ export const CONFIG = {
   // ---------------------------------------------------------------
   // INTERFAZ
   // ---------------------------------------------------------------
+  // Si solo hay un país con datos, empezar a descargar su cuadrícula en segundo
+  // plano en cuanto se abre la web (así, al elegirlo, aparece mucho antes).
+  precargar_datos: true,
+
   // Muestra la etiqueta "DATOS DE PRUEBA". Ponla a false con datos reales.
   mostrar_etiqueta_datos_prueba: true,
 
