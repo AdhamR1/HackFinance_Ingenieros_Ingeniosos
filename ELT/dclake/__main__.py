@@ -9,7 +9,7 @@
   all        grid + collect + assemble + report
   demo       ejecución offline con datos sintéticos (comprueba la instalación)
   export     Excel legible con las tablas de unas celdas (--sites a,b,c --out archivo.xlsx)
-  upload     sube ELT/dataset/ a Azure Data Lake (credenciales en .env)
+  upload     sube ELT/dataset/ a Azure Data Lake (credenciales en .env; --force, --dry-run, --workers N)
 """
 from __future__ import annotations
 
@@ -121,6 +121,9 @@ def main(argv=None):
     ap.add_argument("--start", help="inicio del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_START)")
     ap.add_argument("--end", help="fin del periodo AAAA-MM-DD (por defecto config.yaml o DCLAKE_END)")
     ap.add_argument("--lake-dir", help="carpeta del data lake (por defecto config.yaml o DCLAKE_LAKE_DIR)")
+    ap.add_argument("--force", action="store_true", help="upload: subir también los archivos que ya están en Azure")
+    ap.add_argument("--dry-run", action="store_true", help="upload: mostrar qué se subiría sin subir nada")
+    ap.add_argument("--workers", type=int, default=4, help="upload: subidas en paralelo (por defecto 4)")
     args = ap.parse_args(argv)
     only = set(args.only.split(",")) if args.only else None
     skip = set(args.skip.split(",")) if args.skip else None
@@ -147,7 +150,11 @@ def main(argv=None):
         coverage_report(lake, cfg, REGISTRY)
     if args.command == "upload":
         from .upload import upload_dataset
-        upload_dataset(lake, cfg)
+        try:
+            upload_dataset(lake, cfg, force=args.force, dry_run=args.dry_run, workers=args.workers)
+        except RuntimeError as e:
+            lake.log.error("upload: %s", e)
+            return 1
     if args.command == "export":
         if not args.out:
             lake.log.error("export necesita --out <archivo.xlsx>")
