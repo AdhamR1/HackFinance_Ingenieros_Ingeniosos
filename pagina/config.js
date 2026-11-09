@@ -98,7 +98,15 @@ export const CONFIG = {
   mostrar_etiqueta_datos_prueba: true,
 
   // Opacidad inicial de la cuadrícula (0 = invisible, 1 = opaca).
-  opacidad_inicial: 0.55,
+  opacidad_inicial: 0.4,
+
+  // Nombres de ciudades y regiones encima del satélite (como la vista "híbrida").
+  mostrar_nombres_lugares: true,
+
+  // Buscador de lugares. Las comunidades y provincias se buscan sin internet;
+  // los pueblos y ciudades, con Photon (servicio gratuito basado en OpenStreetMap).
+  // Si Photon dejara de funcionar, poner a false: seguirán funcionando comunidades y provincias.
+  buscar_con_photon: true,
 
   // Capa base al abrir la web: 'satelite' o 'mapa'.
   capa_inicial: 'satelite',

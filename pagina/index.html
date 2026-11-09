@@ -28,6 +28,14 @@
       <span class="marca-sub" data-i18n="subtitulo"></span>
     </div>
 
+    <div class="buscador" role="search">
+      <svg class="buscador-lupa" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="buscador-input" type="search" autocomplete="off" spellcheck="false"
+             role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="buscador-lista"
+             data-i18n-placeholder="buscar_placeholder" data-i18n-aria="buscar_aria">
+      <ul id="buscador-lista" class="buscador-lista" role="listbox" hidden></ul>
+    </div>
+
     <div class="controles-superiores">
       <button id="boton-mundo" class="boton boton-secundario" hidden>
         <span aria-hidden="true">←</span> <span data-i18n="volver_mundo"></span>

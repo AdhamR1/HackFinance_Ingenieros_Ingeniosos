@@ -1,8 +1,12 @@
 // Arranque de la web y flujo principal: mundo → elegir país → cuadrícula.
 import { CONFIG } from '../config.js';
 import { t, idioma, iniciarIdioma, alCambiarIdioma } from './i18n.js';
-import { crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula } from './mapa.js';
+import {
+  crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula,
+  ponerRegiones, mostrarRegiones, resaltarRegion, ponerMarcador,
+} from './mapa.js';
 import { evaluar } from './puntuacion.js';
+import { crearBuscador } from './buscador.js';
 
 const $ = id => document.getElementById(id);
 
@@ -11,6 +15,7 @@ const estado = {
   mundo: null,       // siluetas de todos los países
   paisAbierto: null, // código del país que se está viendo, p. ej. 'ES'
   datosPais: {},     // cuadrículas ya descargadas, por país
+  regiones: {},      // comunidades/provincias ya descargadas, por país
   opacidad: CONFIG.opacidad_inicial,
 };
 
@@ -66,22 +71,35 @@ function rellenarSelector() {
 }
 
 // ---------- Abrir / cerrar país ----------
-function abrirPais(map, iso) {
+// Margen para que los controles flotantes no tapen lo que se encuadra.
+const margenEncuadre = () => window.innerWidth <= 640
+  ? { top: 170, bottom: 40, left: 10, right: 10 }
+  : { top: 90, bottom: 50, left: 40, right: 40 };
+
+// encuadrar: false cuando luego se va a hacer zoom a otro sitio (p. ej. desde el buscador).
+function abrirPais(map, iso, { encuadrar = true } = {}) {
   if (!tieneDatos(iso)) return;
   const info = estado.paises[iso];
+  const yaAbierto = estado.paisAbierto === iso;
   estado.paisAbierto = iso;
   ocultarTooltip();
   marcarPaisSeleccionado(map, iso);
-  // Encuadra el país (limites = [[oeste, sur], [este, norte]]) dejando sitio a los controles.
-  const estrecho = window.innerWidth <= 640;
-  map.fitBounds(info.limites, {
-    padding: estrecho ? { top: 120, bottom: 40, left: 10, right: 10 } : { top: 90, bottom: 50, left: 40, right: 40 },
-    speed: 1.4, essential: true,
-  });
+  // Encuadra el país (limites = [[oeste, sur], [este, norte]]).
+  if (encuadrar) map.fitBounds(info.limites, { padding: margenEncuadre(), speed: 1.4, essential: true });
+  if (yaAbierto) return;
   $('selector-pais').value = iso;
   $('boton-mundo').hidden = false;
   history.replaceState(null, '', `#${iso}`);
   cargarCuadricula(map, iso);
+  cargarRegiones(iso).then(datos => { if (datos && estado.paisAbierto === iso) ponerRegiones(map, datos); });
+}
+
+// Comunidades y provincias del país (si el país las tiene en data/paises.json).
+async function cargarRegiones(iso) {
+  const archivo = estado.paises[iso]?.regiones;
+  if (!archivo) return null;
+  estado.regiones[iso] ??= fetch(archivo).then(r => r.json()).catch(err => { console.error(err); delete estado.regiones[iso]; return null; });
+  return estado.regiones[iso];
 }
 
 // Descarga (solo la primera vez) la cuadrícula del país y la pinta.
@@ -117,6 +135,10 @@ function volverAlMundo(map) {
   estado.paisAbierto = null;
   marcarPaisSeleccionado(map, null);
   mostrarCuadricula(map, false);
+  mostrarRegiones(map, false);
+  resaltarRegion(map, null);
+  ponerMarcador(map, null);
+  buscador?.limpiar();
   map.flyTo({ center: [10, 30], zoom: 1.6, speed: 1.4, essential: true });
   $('selector-pais').value = '';
   $('boton-mundo').hidden = true;
@@ -170,6 +192,22 @@ function activarInteraccionPaises(map) {
   });
 }
 
+// ---------- Buscador ----------
+let buscador = null;
+
+function irALugar(map, r) {
+  if (r.pais && r.pais !== estado.paisAbierto) abrirPais(map, r.pais, { encuadrar: false });
+  resaltarRegion(map, r.region || null);
+  ponerMarcador(map, r.region ? null : r.punto);
+  // Si el lugar es muy pequeño (un pueblo), se acerca a una vista de unos 15-20 km.
+  if (r.caja) {
+    map.fitBounds([[r.caja[0], r.caja[1]], [r.caja[2], r.caja[3]]],
+      { padding: margenEncuadre(), maxZoom: r.region ? 10 : 12, speed: 1.4, essential: true });
+  } else if (r.punto) {
+    map.flyTo({ center: r.punto, zoom: 12, speed: 1.4, essential: true });
+  }
+}
+
 // ---------- Inicio ----------
 async function iniciar() {
   await iniciarIdioma();
@@ -188,7 +226,7 @@ async function iniciar() {
     return;
   }
 
-  const map = crearMapa('mapa', CONFIG.capa_inicial);
+  const map = crearMapa('mapa', CONFIG.capa_inicial, { nombres: CONFIG.mostrar_nombres_lugares });
   window.__mapa = map; // útil para depurar desde la consola del navegador
 
   map.on('load', () => {
@@ -207,6 +245,15 @@ async function iniciar() {
     else volverAlMundo(map);
   });
   $('boton-mundo').addEventListener('click', () => volverAlMundo(map));
+
+  buscador = crearBuscador({
+    input: $('buscador-input'),
+    lista: $('buscador-lista'),
+    paisesConDatos: () => Object.keys(estado.paises),
+    cargarRegiones: async () => (await Promise.all(Object.keys(estado.paises).map(async pais =>
+      ({ pais, features: (await cargarRegiones(pais))?.features ?? [] })))),
+    alElegir: r => irALugar(map, r),
+  });
 
   alCambiarIdioma(() => { if (estado.mundo) rellenarSelector(); });
 }

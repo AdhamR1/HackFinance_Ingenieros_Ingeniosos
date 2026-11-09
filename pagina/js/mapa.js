@@ -23,25 +23,44 @@ const CAPAS_BASE = {
   },
 };
 
-export function crearMapa(idContenedor, capaInicial) {
+// Capa transparente de Esri con nombres de ciudades, regiones y fronteras
+// (como la vista "híbrida" de Google Maps). Va siempre ENCIMA de todo.
+const ETIQUETAS = {
+  type: 'raster',
+  tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+  tileSize: 256,
+  maxzoom: 19,
+};
+// Todas nuestras capas se insertan justo debajo de los nombres.
+const ENCIMA = 'etiquetas';
+let conNombres = true;
+
+export function crearMapa(idContenedor, capaInicial, { nombres = true } = {}) {
+  conNombres = nombres;
   const map = new maplibregl.Map({
     container: idContenedor,
     style: {
       version: 8,
-      sources: { satelite: CAPAS_BASE.satelite, mapa: CAPAS_BASE.mapa },
+      sources: { satelite: CAPAS_BASE.satelite, mapa: CAPAS_BASE.mapa, etiquetas: ETIQUETAS },
       layers: [
         { id: 'fondo', type: 'background', paint: { 'background-color': '#05070a' } },
         { id: 'base-satelite', type: 'raster', source: 'satelite',
           layout: { visibility: capaInicial === 'satelite' ? 'visible' : 'none' } },
         { id: 'base-mapa', type: 'raster', source: 'mapa',
           layout: { visibility: capaInicial === 'mapa' ? 'visible' : 'none' } },
+        // El mapa normal (OpenStreetMap) ya trae nombres; los de Esri solo hacen falta sobre el satélite.
+        { id: ENCIMA, type: 'raster', source: 'etiquetas',
+          layout: { visibility: nombres && capaInicial === 'satelite' ? 'visible' : 'none' } },
       ],
     },
     center: [10, 30],
     zoom: 1.6,
     minZoom: 1,
     maxZoom: 19,
-    attributionControl: { compact: true },
+    attributionControl: {
+      compact: true,
+      customAttribution: 'Búsqueda: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a> · datos &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Límites: Natural Earth',
+    },
     renderWorldCopies: false,
     dragRotate: false,
     pitchWithRotate: false,
@@ -60,6 +79,7 @@ export function crearMapa(idContenedor, capaInicial) {
 export function ponerCapaBase(map, capa) {
   map.setLayoutProperty('base-satelite', 'visibility', capa === 'satelite' ? 'visible' : 'none');
   map.setLayoutProperty('base-mapa', 'visibility', capa === 'mapa' ? 'visible' : 'none');
+  map.setLayoutProperty(ENCIMA, 'visibility', conNombres && capa === 'satelite' ? 'visible' : 'none');
 }
 
 // Añade las siluetas de los países:
@@ -96,7 +116,7 @@ export function anadirPaises(map, mundo, disponibles, proximamente) {
       'fill-color': ['case', esDisponible, COLOR_ACENTO, esProximamente, COLOR_GRIS, COLOR_OSCURO],
       'fill-opacity': opacidadPaises(null),
     },
-  });
+  }, ENCIMA);
   map.addLayer({
     id: 'paises-borde',
     type: 'line',
@@ -106,7 +126,7 @@ export function anadirPaises(map, mundo, disponibles, proximamente) {
       'line-opacity': ['case', esDisponible, 0.9, 0.35],
       'line-width': ['case', esDisponible, 1.5, 0.6],
     },
-  });
+  }, ENCIMA);
 }
 
 // Marca un país como "abierto" (o ninguno, con null).
@@ -140,16 +160,18 @@ export function ponerCuadricula(map, datos, opacidad) {
     map.addSource('cuadricula', { type: 'geojson', data: datos, promoteId: 'id' });
     map.addLayer({
       id: 'cuadricula-relleno', type: 'fill', source: 'cuadricula',
-      paint: { 'fill-color': ['get', '_color'], 'fill-opacity': opacidadCuadricula(opacidad) },
-    });
+      // fill-antialias false: evita una malla de rayitas finas entre cuadrados vecinos.
+      paint: { 'fill-color': ['get', '_color'], 'fill-opacity': opacidadCuadricula(opacidad), 'fill-antialias': false },
+    }, ENCIMA);
     map.addLayer({
       id: 'cuadricula-borde', type: 'line', source: 'cuadricula',
       paint: {
         'line-color': '#000000',
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.25, 10, 0.5],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.2, 8, 0.6, 12, 1.2],
+        // De lejos no se dibujan (con miles de cuadrados oscurecerían el mapa); aparecen al acercarse.
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 6.5, 0, 8, 0.3, 11, 0.5],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.3, 10, 0.8, 13, 1.4],
       },
-    });
+    }, ENCIMA);
     // Resalte del cuadrado bajo el ratón o seleccionado (se activa con feature-state).
     map.addLayer({
       id: 'cuadricula-resalte', type: 'line', source: 'cuadricula',
@@ -160,7 +182,7 @@ export function ponerCuadricula(map, datos, opacidad) {
           ['boolean', ['feature-state', 'seleccionado'], false], 1,
           ['boolean', ['feature-state', 'hover'], false], 0.95, 0],
       },
-    });
+    }, ENCIMA);
   }
   mostrarCuadricula(map, true);
 }
@@ -173,4 +195,74 @@ export function mostrarCuadricula(map, visible) {
 export function ponerOpacidadCuadricula(map, opacidad) {
   if (map.getLayer('cuadricula-relleno'))
     map.setPaintProperty('cuadricula-relleno', 'fill-opacity', opacidadCuadricula(opacidad));
+}
+
+// ---------------------------------------------------------------------
+// COMUNIDADES Y PROVINCIAS (bordes para orientarse)
+// ---------------------------------------------------------------------
+export function ponerRegiones(map, datos) {
+  if (map.getSource('regiones')) { map.getSource('regiones').setData(datos); mostrarRegiones(map, true); return; }
+  map.addSource('regiones', { type: 'geojson', data: datos });
+  // Provincias: línea fina discontinua, solo al acercarse un poco.
+  map.addLayer({
+    id: 'provincias-borde', type: 'line', source: 'regiones', minzoom: 6,
+    filter: ['==', ['get', 'tipo'], 'provincia'],
+    paint: {
+      'line-color': '#ffffff',
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.35, 9, 0.6],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 1.2],
+      'line-dasharray': [3, 2],
+    },
+  }, ENCIMA);
+  // Comunidades autónomas: línea blanca continua, con un halo oscuro para verse sobre cualquier color.
+  map.addLayer({
+    id: 'comunidades-halo', type: 'line', source: 'regiones',
+    filter: ['==', ['get', 'tipo'], 'comunidad'],
+    paint: { 'line-color': '#000000', 'line-opacity': 0.35,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 2.5, 10, 4.5] },
+  }, ENCIMA);
+  map.addLayer({
+    id: 'comunidades-borde', type: 'line', source: 'regiones',
+    filter: ['==', ['get', 'tipo'], 'comunidad'],
+    paint: { 'line-color': '#ffffff', 'line-opacity': 0.9,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 2] },
+  }, ENCIMA);
+  // Resalte de la región elegida en el buscador: ámbar con un contorno oscuro para que destaque.
+  map.addLayer({
+    id: 'region-resalte-halo', type: 'line', source: 'regiones',
+    filter: ['==', ['get', 'tipo'], '__ninguna__'],
+    paint: { 'line-color': '#000000', 'line-opacity': 0.6, 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 6, 10, 8] },
+  }, ENCIMA);
+  map.addLayer({
+    id: 'region-resalte', type: 'line', source: 'regiones',
+    filter: ['==', ['get', 'tipo'], '__ninguna__'],
+    paint: { 'line-color': '#f5b301', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 3, 10, 4.5] },
+  }, ENCIMA);
+}
+
+// Resalta en ámbar una comunidad o provincia (la elegida en el buscador). null = quitar.
+export function resaltarRegion(map, region) {
+  if (!map.getLayer('region-resalte')) return;
+  const filtro = region
+    ? ['all', ['==', ['get', 'tipo'], region.tipo], ['==', ['get', 'nombre_es'], region.nombre]]
+    : ['==', ['get', 'tipo'], '__ninguna__'];
+  map.setFilter('region-resalte', filtro);
+  map.setFilter('region-resalte-halo', filtro);
+}
+
+export function mostrarRegiones(map, visible) {
+  for (const capa of ['provincias-borde', 'comunidades-halo', 'comunidades-borde', 'region-resalte-halo', 'region-resalte'])
+    if (map.getLayer(capa)) map.setLayoutProperty(capa, 'visibility', visible ? 'visible' : 'none');
+}
+
+// ---------------------------------------------------------------------
+// MARCADOR DEL LUGAR BUSCADO
+// ---------------------------------------------------------------------
+let marcador = null;
+export function ponerMarcador(map, lonLat) {
+  if (marcador) { marcador.remove(); marcador = null; }
+  if (!lonLat) return;
+  const el = document.createElement('div');
+  el.className = 'marcador-busqueda';
+  marcador = new maplibregl.Marker({ element: el }).setLngLat(lonLat).addTo(map);
 }

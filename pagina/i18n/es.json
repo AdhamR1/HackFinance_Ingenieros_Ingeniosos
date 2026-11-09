@@ -10,5 +10,18 @@
   "datos_prueba_ayuda": "Estos valores son inventados mientras recopilamos los datos reales.",
   "cargando": "Cargando…",
   "error_carga": "No se han podido cargar los datos de {pais}.",
-  "no_disponible": "No disponible"
+  "no_disponible": "No disponible",
+  "buscar_placeholder": "Buscar: Zaragoza, Aragón, un pueblo…",
+  "buscar_aria": "Buscar un lugar",
+  "buscando": "Buscando…",
+  "sin_resultados": "No se ha encontrado nada",
+  "tipo_comunidad": "Comunidad autónoma",
+  "tipo_provincia": "Provincia",
+  "tipo_ciudad": "Ciudad",
+  "tipo_municipio": "Municipio",
+  "tipo_pueblo": "Pueblo",
+  "tipo_aldea": "Aldea",
+  "tipo_barrio": "Barrio",
+  "tipo_lugar": "Lugar",
+  "tipo_isla": "Isla"
 }

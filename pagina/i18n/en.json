@@ -10,5 +10,18 @@
   "datos_prueba_ayuda": "These values are made up while we gather the real data.",
   "cargando": "Loading…",
   "error_carga": "Could not load the data for {pais}.",
-  "no_disponible": "Not available"
+  "no_disponible": "Not available",
+  "buscar_placeholder": "Search: Zaragoza, Aragon, a town…",
+  "buscar_aria": "Search for a place",
+  "buscando": "Searching…",
+  "sin_resultados": "Nothing found",
+  "tipo_comunidad": "Autonomous community",
+  "tipo_provincia": "Province",
+  "tipo_ciudad": "City",
+  "tipo_municipio": "Town",
+  "tipo_pueblo": "Village",
+  "tipo_aldea": "Hamlet",
+  "tipo_barrio": "Neighbourhood",
+  "tipo_lugar": "Place",
+  "tipo_isla": "Island"
 }
