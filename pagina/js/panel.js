@@ -3,6 +3,7 @@
 import { CONFIG } from '../config.js';
 import { t, idioma } from './i18n.js';
 import { evaluar, tieneValor } from './puntuacion.js';
+import { icono as dibujarIcono } from './iconos.js';
 
 const $ = id => document.getElementById(id);
 const escaparHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -66,7 +67,7 @@ export function pintarPanel(feature, meta) {
       <div><strong>${escaparHtml(t('descartado'))}</strong><br>${escaparHtml(textoMotivo(r.motivo))}</div>
     </div>` : '';
 
-  const filas = CONFIG.variables.map(({ clave, icono }) => {
+  const filas = CONFIG.variables.map(({ clave, color }) => {
     const v = p[clave];
     const hay = tieneValor(v);
     const peso = CONFIG.pesos[clave] ?? 0;
@@ -75,7 +76,7 @@ export function pintarPanel(feature, meta) {
     return `
       <li class="variable${hay ? '' : ' sin-dato'}">
         <div class="variable-cabecera">
-          <span class="variable-icono" aria-hidden="true">${icono}</span>
+          <span class="variable-icono">${dibujarIcono(clave, color)}</span>
           <span class="variable-nombre">${escaparHtml(t(`var_${clave}`))}${ayuda}</span>
           <span class="variable-valor mono">${hay ? numero(v) : escaparHtml(t('sin_datos'))}</span>
         </div>

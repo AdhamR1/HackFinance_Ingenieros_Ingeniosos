@@ -35,15 +35,18 @@ export const CONFIG = {
     inundacion:   0,     // 100 = poco riesgo. Ahora solo sirve para descartar
   },
 
-  // Orden e iconos con que se muestran las variables en el panel.
+  // Orden y color del icono con que se muestran las variables en el panel.
+  // Los dibujos de los iconos están en js/iconos.js (misma "clave").
+  // Para añadir una variable: añadirla aquí, en "pesos", en i18n/es.json y en.json
+  // ("var_<clave>") y, si se quiere, su dibujo en js/iconos.js.
   variables: [
-    { clave: 'energia',      icono: '⚡' },
-    { clave: 'agua',         icono: '💧' },
-    { clave: 'clima',        icono: '🌡️' },
-    { clave: 'conectividad', icono: '📡' },
-    { clave: 'carreteras',   icono: '🛣️' },
-    { clave: 'sismico',      icono: '🌋' },
-    { clave: 'inundacion',   icono: '🌊' },
+    { clave: 'energia',      color: '#f5b301' }, // ámbar
+    { clave: 'agua',         color: '#38bdf8' }, // azul
+    { clave: 'clima',        color: '#fb7185' }, // rosa
+    { clave: 'conectividad', color: '#a78bfa' }, // violeta
+    { clave: 'carreteras',   color: '#cbd5e1' }, // gris claro
+    { clave: 'sismico',      color: '#fb923c' }, // naranja
+    { clave: 'inundacion',   color: '#2dd4bf' }, // turquesa
   ],
 
   // ---------------------------------------------------------------

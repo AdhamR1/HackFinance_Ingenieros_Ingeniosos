@@ -67,5 +67,9 @@
   "porcentaje": "{n} %",
   "credito_busqueda": "Search",
   "credito_limites": "Boundaries of Spain",
-  "credito_paises": "Countries"
+  "credito_paises": "Countries",
+  "credito_boton": "Map credits",
+  "credito_satelite": "Satellite",
+  "credito_mapa": "Map",
+  "credito_nombres": "Labels"
 }

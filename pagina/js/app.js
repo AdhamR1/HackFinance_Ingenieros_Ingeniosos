@@ -408,7 +408,8 @@ async function iniciar() {
     return;
   }
 
-  const creditos = () => ({ busqueda: t('credito_busqueda'), limites: t('credito_limites'), paises: t('credito_paises') });
+  const creditos = () => ({ busqueda: t('credito_busqueda'), limites: t('credito_limites'), paises: t('credito_paises'),
+    boton: t('credito_boton'), satelite: t('credito_satelite'), mapa: t('credito_mapa'), nombres: t('credito_nombres') });
   const map = crearMapa('mapa', estado.capa, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma(), creditos: creditos() });
   window.__mapa = map; // útil para depurar desde la consola del navegador
 

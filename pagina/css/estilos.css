@@ -312,7 +312,8 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
 .panel-subtitulo { margin: 18px 0 10px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-suave); font-weight: 600; }
 .variables { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .variable-cabecera { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.variable-icono { width: 20px; text-align: center; }
+.variable-icono { width: 20px; height: 20px; flex: none; display: grid; place-items: center; }
+.variable-icono svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .variable-nombre { flex: 1; }
 .variable-valor { font-weight: 600; }
 .sin-dato .variable-valor { color: var(--texto-suave); font-weight: 400; font-family: var(--fuente); font-size: 13px; }
@@ -383,21 +384,32 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
 .maplibregl-ctrl-group { background: var(--superficie-solida) !important; border-radius: 12px !important; }
 .maplibregl-ctrl-group button + button { border-top-color: var(--borde) !important; }
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
-.maplibregl-ctrl-attrib { background: rgba(10, 11, 13, 0.7) !important; color: var(--texto-suave); font-size: 11px; }
-.maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib-inner { color: #d4d4d8 !important; }
-.maplibregl-ctrl-attrib a { color: #ffffff !important; }
-.maplibregl-ctrl-attrib.maplibregl-compact { background: var(--superficie-solida) !important; }
-.maplibregl-ctrl-attrib-button { filter: invert(1); }
-/* Créditos desplegados en pantalla grande: ancho fijo, igual en los dos idiomas, y sin llegar a la
-   tarjeta de leyenda (abajo a la izquierda): termina 12 px antes de ella.
-   Cuentas: pantalla − hueco izq. − tarjeta (250) − separación (12) − margen dcho. de MapLibre (10)
-   − relleno interior del recuadro (8 + 28). Si cambia el ancho de la tarjeta, cambiar aquí el 250. */
-@media (min-width: 641px) {
-  .maplibregl-ctrl-attrib.maplibregl-compact-show {
-    width: min(1240px, calc(100vw - var(--hueco) - 250px - 12px - 10px - 36px));
-    text-align: right;
-  }
+/* ---------- Créditos (nuestro botón ⓘ, abajo a la derecha) ---------- */
+/* Mismo relleno y alto abiertos o cerrados: así el botón ⓘ (y los + / − de encima) no se mueven al pulsarlo. */
+.creditos { display: flex; align-items: center; justify-content: flex-end; gap: 8px; clear: both;
+  padding: 6px; min-height: 44px; border-radius: 12px; }
+.creditos.abiertos {
+  background: var(--superficie-solida);
+  padding-left: 12px;
+  /* Pantalla grande: ancho fijo, igual en los dos idiomas, y sin llegar a la tarjeta de leyenda
+     (abajo a la izquierda): termina 12 px antes de ella.
+     Cuentas: pantalla − hueco izq. − tarjeta (250) − separación (12) − margen dcho. de MapLibre (10).
+     Si cambia el ancho de la tarjeta, cambiar aquí el 250. */
+  width: min(1240px, calc(100vw - var(--hueco) - 250px - 12px - 10px));
 }
+.creditos-texto { flex: 1; font-size: 11px; line-height: 1.45; color: #d4d4d8; text-align: right; }
+.creditos-texto a { color: #fff; }
+.creditos-boton {
+  all: unset; flex: none; cursor: pointer;
+  width: 28px; height: 28px; border-radius: 999px;
+  display: grid; place-items: center;
+  box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.28);
+  background: var(--superficie-solida); color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.creditos.abiertos .creditos-boton { background: rgba(255, 255, 255, 0.1); box-shadow: none; }
+.creditos-boton:hover { background: rgba(255, 255, 255, 0.18); }
+.creditos-boton:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.creditos-boton svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom)); }
 
 /* Buscador centrado en la pantalla cuando hay sitio. Su ancho deja libre, a cada lado, lo que
@@ -432,18 +444,60 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
   /* Botones + / −: en el móvil se hace zoom con dos dedos. */
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; }
   .tarjeta-controles { width: auto; right: 64px; }
-  /* Créditos abiertos en móvil: encima de la tarjeta plegada (42 px de alto), sin tocarla.
-     margen = separación propia de MapLibre (10) + tarjeta (42) + espacio (8). */
-  .maplibregl-ctrl-bottom-right > .maplibregl-ctrl-attrib.maplibregl-compact-show { margin-bottom: 60px; }
+  /* Créditos en móvil: el botón ⓘ se queda SIEMPRE en su sitio (al lado de la tarjeta), y el texto
+     sale como una burbuja encima, sin tapar la tarjeta. Antes la caja entera subía y el botón con
+     ella: al volver a tocar en el mismo sitio para cerrar, ya no había botón. */
+  .creditos { position: relative; }
+  .creditos.abiertos { width: auto; background: none; padding-left: 6px; }
+  .creditos.abiertos .creditos-boton { background: var(--superficie-solida); }
+  .creditos-texto {
+    position: absolute; right: 0; bottom: calc(100% + 4px);
+    width: calc(100vw - 2 * var(--hueco));
+    background: var(--superficie-solida); border: 1px solid var(--borde); border-radius: 12px;
+    padding: 8px 12px; box-shadow: var(--sombra); text-align: left;
+  }
   /* Panel: hoja que sale desde abajo */
   .panel {
     top: auto; left: 0; right: 0; bottom: 0;
-    width: auto; max-height: 62vh;
+    width: auto; max-height: 46vh; /* antes 62vh: tapaba más de media pantalla */
     border-radius: 20px 20px 0 0;
-    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
     animation: entrar-abajo 0.22s ease-out;
   }
   @keyframes entrar-abajo { from { transform: translateY(40px); opacity: 0; } }
-  .nota-circulo { width: 76px; height: 76px; padding-top: 17px; }
-  .nota-numero { font-size: 28px; }
+  .panel-cerrar { top: 10px; right: 10px; width: 30px; height: 30px; }
+
+  /* Cabecera compacta: la nota (círculo) a la izquierda y, a su lado, el cuadrado, el lugar y la categoría.
+       ( 72 )  ES-00958
+               Cerca de Cangas de Onís · Asturias
+               Viable                                   */
+  #panel-contenido { display: grid; grid-template-columns: 56px 1fr; column-gap: 12px; }
+  #panel-contenido > * { grid-column: 1 / -1; }
+  .panel-nota { display: contents; }
+  .nota-circulo { grid-column: 1; grid-row: 1 / span 2; align-self: center;
+    width: 56px; height: 56px; border-width: 3px; padding-top: 0; align-items: center; }
+  .nota-numero { font-size: 21px; }
+  .nota-max { display: none; } /* "/100" no cabe en el círculo pequeño */
+  #panel-contenido > .panel-cabecera { grid-column: 2; grid-row: 1; padding-right: 36px; }
+  .panel-etiqueta { display: none; }
+  .panel-cabecera h2 { font-size: 17px; margin: 0; }
+  .panel-lugar { font-size: 12.5px; margin-top: 1px; }
+  .panel-nota > div:not(.nota-circulo) { grid-column: 2; grid-row: 2; }
+  .nota-categoria { font-size: 15px; margin-top: 2px; }
+  .panel-nota > div > p:nth-child(2) { display: none; } /* "Puntuación total" (se entiende por el círculo) */
+  .panel-aviso { margin: 10px 0 0; padding: 8px 10px; font-size: 13px; }
+  .panel-subtitulo { margin: 12px 0 6px; font-size: 11px; }
+
+  /* Cada variable en UNA línea: icono · nombre · barra · valor (el "peso" se ve en pantalla grande). */
+  .variables { gap: 8px; }
+  .variable { display: grid; grid-template-columns: 20px 1fr 64px 58px; column-gap: 8px; align-items: center; }
+  .variable-cabecera { display: contents; }
+  .variable-icono { grid-column: 1; grid-row: 1; }
+  .variable-nombre { grid-column: 2; grid-row: 1; line-height: 1.25; }
+  .variable-nombre .panel-mini { display: block; font-size: 11px; line-height: 1.2; } /* "(100 = poco riesgo)" en su línea */
+  .barra { grid-column: 3; grid-row: 1; margin: 0; }
+  .variable-valor { grid-column: 4; grid-row: 1; text-align: right; }
+  .sin-dato .variable-valor { font-size: 12px; }
+  .variable-peso { display: none; }
+  .panel-datos { margin-top: 12px; }
 }

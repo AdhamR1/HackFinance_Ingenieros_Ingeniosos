@@ -96,50 +96,67 @@ export function crearMapa(idContenedor, capaInicial, { nombres = true, idioma = 
   return map;
 }
 
-// Créditos (abajo a la derecha) y botones + / −. Al cambiar de idioma se quitan y se vuelven
-// a poner los dos, para que los créditos salgan traducidos y sigan debajo de los botones.
-let controlesAbajo = [];
-let dejarDeVigilar = () => {};
+// Créditos (abajo a la derecha) y botones + / −.
+// Los créditos son NUESTROS (no los de MapLibre): el de MapLibre se abre y se cierra solo
+// (al cargar, al cambiar el tamaño, al arrastrar) y peleaba con nuestro código, dejando una
+// barra negra vacía que ya no respondía. Este es un botón ⓘ sencillo que hace solo lo que pide
+// el visitante. El texto es fijo (todas las fuentes que usa la web), así no cambia de tamaño al
+// pasar de Satélite a Mapa.
+const ESTRECHA = window.matchMedia('(max-width: 640px)');
+let creditos = null; // { caja, boton, texto } una vez creados
 // ¿Quiere el visitante los créditos abiertos? null = aún no ha tocado nada (entonces: abiertos en
 // pantalla grande, plegados en móvil). Se recuerda al cambiar de idioma.
 let creditosAbiertos = null;
-export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites de España', paises = 'Países' } = {}) {
-  // Antes de quitar los créditos viejos se apunta cómo estaban (abiertos o plegados).
-  const vieja = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
-  if (vieja) creditosAbiertos = vieja.classList.contains('maplibregl-compact-show');
-  controlesAbajo.forEach(c => map.removeControl(c));
-  dejarDeVigilar();
-  controlesAbajo = [
-    new maplibregl.AttributionControl({
-      compact: true,
-      // (Esri, OpenFreeMap y OpenStreetMap ya ponen su crédito automáticamente.)
-      customAttribution: `${busqueda}: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>`
-        + ` · ${limites}: <a href="https://www.geoboundaries.org" target="_blank" rel="noopener">geoBoundaries</a> (INE, CC BY 4.0)`
-        + ` · ${paises}: Natural Earth`,
-    }),
-    new maplibregl.NavigationControl({ showCompass: false }),
-  ];
-  controlesAbajo.forEach(c => map.addControl(c, 'bottom-right'));
 
-  // MapLibre abre los créditos por su cuenta (al cargar, al estrecharse la pantalla...). Se vigilan
-  // y se dejan como quiere el visitante; si no ha tocado nada, plegados en móvil.
-  const caja = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
-  if (!caja) return;
-  const estrecha = window.matchMedia('(max-width: 640px)');
-  const ajustar = () => {
-    const abrir = creditosAbiertos ?? !estrecha.matches;
-    if (caja.classList.contains('maplibregl-compact-show') !== abrir) caja.classList.toggle('maplibregl-compact-show', abrir);
-  };
-  ajustar();
-  const vigilante = new MutationObserver(ajustar);
-  vigilante.observe(caja, { attributes: true, attributeFilter: ['class'] });
-  estrecha.addEventListener('change', ajustar);
-  // Lo que hace el visitante manda: pulsar ⓘ, o arrastrar el mapa (MapLibre los pliega al arrastrar).
-  const alPulsar = () => { creditosAbiertos = caja.classList.contains('maplibregl-compact-show'); };
-  const alArrastrar = () => { creditosAbiertos = false; };
-  caja.querySelector('summary')?.addEventListener('click', alPulsar);
-  map.on('drag', alArrastrar);
-  dejarDeVigilar = () => { vigilante.disconnect(); estrecha.removeEventListener('change', ajustar); map.off('drag', alArrastrar); };
+function abrirCreditos(abrir) {
+  creditos.caja.classList.toggle('abiertos', abrir);
+  creditos.boton.setAttribute('aria-expanded', String(abrir));
+  creditos.texto.hidden = !abrir;
+}
+
+class ControlCreditos {
+  onAdd() {
+    const caja = document.createElement('div');
+    caja.className = 'maplibregl-ctrl creditos';
+    caja.innerHTML = `
+      <div class="creditos-texto" id="creditos-texto"></div>
+      <button type="button" class="creditos-boton" aria-controls="creditos-texto">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r="0.6" fill="currentColor"/></svg>
+      </button>`;
+    creditos = { caja, boton: caja.querySelector('button'), texto: caja.querySelector('.creditos-texto') };
+    creditos.boton.addEventListener('click', () => {
+      creditosAbiertos = !caja.classList.contains('abiertos');
+      abrirCreditos(creditosAbiertos);
+    });
+    return caja;
+  }
+  onRemove() {}
+}
+
+export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites de España', paises = 'Países',
+  boton = 'Créditos del mapa', satelite = 'Satélite', mapa = 'Mapa', nombres = 'Nombres' } = {}) {
+  if (!creditos) {
+    // Orden de MapLibre: lo último que se añade abajo queda ENCIMA; así los créditos van debajo de + / −.
+    map.addControl(new ControlCreditos(), 'bottom-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    // En el móvil, los créditos abiertos tapan mapa: se pliegan al arrastrar (como hacía MapLibre).
+    map.on('dragstart', () => {
+      if (ESTRECHA.matches && creditos.caja.classList.contains('abiertos')) { creditosAbiertos = false; abrirCreditos(false); }
+    });
+    // Si el visitante no ha tocado nada y cambia el ancho de la ventana: abiertos en grande, plegados en móvil.
+    ESTRECHA.addEventListener('change', () => { if (creditosAbiertos === null) abrirCreditos(!ESTRECHA.matches); });
+    abrirCreditos(creditosAbiertos ?? !ESTRECHA.matches);
+  }
+  const enlace = (url, txt) => `<a href="${url}" target="_blank" rel="noopener">${txt}</a>`;
+  creditos.texto.innerHTML =
+      `${satelite}: Esri, Maxar, Earthstar Geographics, GIS User Community`
+    + ` · ${mapa}: © ${enlace('https://www.openstreetmap.org/copyright', 'OpenStreetMap')}`
+    + ` · ${nombres}: ${enlace('https://openfreemap.org', 'OpenFreeMap')}, © ${enlace('https://www.openmaptiles.org/', 'OpenMapTiles')}`
+    + ` · ${busqueda}: ${enlace('https://photon.komoot.io', 'Photon')}`
+    + ` · ${limites}: ${enlace('https://www.geoboundaries.org', 'geoBoundaries')} (INE, CC BY 4.0)`
+    + ` · ${paises}: Natural Earth`;
+  creditos.boton.setAttribute('aria-label', boton);
+  creditos.boton.title = boton;
 }
 
 // Cambia el idioma de los nombres de lugares ('es' o 'en').
