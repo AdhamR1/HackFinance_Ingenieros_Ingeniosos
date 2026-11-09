@@ -87,7 +87,7 @@ function rellenarSelector() {
 // ---------- Abrir / cerrar país ----------
 // Margen para que los controles flotantes no tapen lo que se encuadra.
 const margenEncuadre = () => window.innerWidth <= 640
-  ? { top: 170, bottom: 40, left: 10, right: 10 }
+  ? { top: 140, bottom: 60, left: 10, right: 10 } // barra de arriba (~125 px con la etiqueta) y tarjeta de abajo
   : { top: 90, bottom: 50, left: 40, right: 40 };
 
 // encuadrar: false cuando luego se va a hacer zoom a otro sitio (p. ej. desde el buscador).
