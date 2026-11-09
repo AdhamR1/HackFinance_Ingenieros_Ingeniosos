@@ -1,0 +1,12 @@
+[
+  {"viewport":[1400,900,false]},
+  {"go":"http://127.0.0.1:8000/"},
+  {"eval":"localStorage.setItem('cibh_idioma','es'); location.hash='ES'; location.reload(); 1"},
+  {"waitFor":"window.__listo && window.__mapa.getSource('cuadricula') && window.__mapa.isSourceLoaded('cuadricula')"},
+  {"waitFor":"!window.__mapa.isMoving() && window.__mapa.areTilesLoaded()"},{"wait":2000},
+  {"shot":"23_sin_malla.png"},
+  {"eval":"window.escribir = async (txt) => { const i = document.getElementById('buscador-input'); i.focus(); i.value = txt; i.dispatchEvent(new Event('input')); await new Promise(r => setTimeout(r, 2500)); return [...document.querySelectorAll('#buscador-lista li')].map(li => li.innerText.split(String.fromCharCode(10)).join(' · ')); }; 1"},
+  {"eval":"window.escribir('teruel')"},
+  {"eval":"window.escribir('tenerife')"},
+  {"eval":"window.escribir('getafe')"}
+]
