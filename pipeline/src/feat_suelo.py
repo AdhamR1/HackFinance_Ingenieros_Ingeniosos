@@ -7,11 +7,15 @@ For each cell we compute the % of its area covered by each group of classes.
 
 Outputs:
   data/processed/feat_suelo.parquet          site_id + pct columns (model features)
-  data/processed/exclusions_es_3500.parquet  site_id + pct columns + excluded (bool)
+  data/processed/exclusions_es_3500.parquet  site_id + pct columns + excluded, motivo_descarte, avisos
 
-Rules (layer 1 of the model): a cell is EXCLUDED when at least THRESHOLD_PCT of it is
-Natura 2000, residential urban fabric or water / wetland. Industrial and commercial land
-(CORINE 121) is NOT excluded: it is where data centers get built.
+Team decision (9-Nov-2026): RED only for what is FORBIDDEN or impossible; what is allowed
+with permits is scored and carries a warning.
+  * EXCLUDED (red): the cell is almost entirely water / wetland (>= EXCLUDE_PCT).
+    To add when the layers arrive: national parks and preferential flood flow zones.
+  * WARNING (not excluded): Natura 2000 needs an environmental assessment; urban land needs
+    available industrial land or rezoning. Shown in the web panel as "avisos".
+  * Industrial and commercial land (CORINE 121) is neither: it is where data centers get built.
 train.py warns if an existing data center falls in an excluded cell (rule too strict).
 """
 import json
@@ -33,10 +37,13 @@ GROUPS = {   # CORINE 2018 codes
     "industrial": ["121"],                               # industrial or commercial units
     "agua": ["411", "412", "421", "422", "423", "511", "512", "521", "522", "523"],  # wetlands + water
 }
-# PROVISIONAL, under review: at 50 % it excludes 35 of the 100 cells with a data center.
-# Proposal: hard exclusion only for what is forbidden (water, national parks, preferential flood
-# flow zones); Natura 2000 and urban land become warnings (permits), not exclusions.
-THRESHOLD_PCT = {"natura2000": 50, "urbano": 50, "agua": 50}
+EXCLUDE_PCT = {"agua": 90}                      # hard rules: column -> % of the cell
+MOTIVO = {"agua": "agua"}                       # motivo_descarte shown by the web
+WARN_PCT = {"natura2000": 25, "urbano": 50}     # warnings: column -> % of the cell
+WARN_TEXT = {
+    "natura2000": "Natura 2000 en el {v:.0f} % de la celda: requiere evaluación ambiental",
+    "urbano": "Suelo urbano en el {v:.0f} % de la celda: requiere suelo industrial disponible o recalificación",
+}
 TILE_DEG = 1
 SIMPLIFY_M = 50
 
@@ -141,11 +148,18 @@ def main():
 
     ex = out.copy()
     ex["excluded"] = False
-    for name, thr in THRESHOLD_PCT.items():
-        hit = ex[f"{name}_pct"] >= thr
+    ex["motivo_descarte"] = None
+    for name, thr in EXCLUDE_PCT.items():
+        hit = (ex[f"{name}_pct"] >= thr) & ~ex["excluded"]
+        ex.loc[hit, "motivo_descarte"] = MOTIVO[name]
         ex["excluded"] |= hit
         print(f"  excluidas por {name} (>= {thr} %): {hit.sum():,}")
     print(f"Excluidas en total: {ex.excluded.sum():,} de {len(ex):,} ({ex.excluded.mean():.1%})")
+    warn = [[WARN_TEXT[n].format(v=v) for n, thr in WARN_PCT.items() if (v := row[f"{n}_pct"]) >= thr]
+            for _, row in ex.iterrows()]
+    ex["avisos"] = [" | ".join(w) for w in warn]
+    for n, thr in WARN_PCT.items():
+        print(f"  con aviso por {n} (>= {thr} %): {(ex[f'{n}_pct'] >= thr).sum():,}")
 
     PROCESSED.mkdir(parents=True, exist_ok=True)
     out.to_parquet(PROCESSED / "feat_suelo.parquet", index=False)
