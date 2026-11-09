@@ -1,0 +1,170 @@
+/* =========================================================
+   Estilos de "Can I Build Here?" — tema oscuro
+   Los colores principales están aquí arriba, en :root.
+   ========================================================= */
+:root {
+  --fondo: #0a0b0d;           /* casi negro */
+  --superficie: rgba(14, 16, 20, 0.88);
+  --superficie-solida: #121418;
+  --borde: rgba(255, 255, 255, 0.12);
+  --texto: #ffffff;
+  --texto-suave: #a1a1aa;
+  --acento: #f5b301;          /* ámbar / dorado */
+  --radio: 14px;
+  --sombra: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --fuente: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --hueco: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--fuente);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+[hidden] { display: none !important; }
+
+.mono { font-family: var(--fuente-mono); }
+
+/* ---------- Mapa a pantalla completa ---------- */
+.mapa { position: fixed; inset: 0; }
+
+/* ---------- Barra superior ---------- */
+.barra-superior {
+  position: fixed;
+  top: var(--hueco);
+  left: var(--hueco);
+  right: var(--hueco);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;   /* deja pasar los clics al mapa... */
+  z-index: 10;
+}
+.barra-superior > * { pointer-events: auto; } /* ...salvo en los controles */
+
+.marca {
+  background: var(--superficie);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 10px 16px;
+  box-shadow: var(--sombra);
+  display: flex;
+  flex-direction: column;
+}
+.marca-nombre { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.marca-nombre::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 6px;
+  border-radius: 50%; background: var(--acento); vertical-align: middle; }
+.marca-sub { color: var(--texto-suave); font-size: 12.5px; }
+
+.controles-superiores { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- Botones y selector ---------- */
+.boton, .selector {
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0 16px;
+  cursor: pointer;
+  box-shadow: var(--sombra);
+  transition: transform 0.12s, background 0.15s;
+}
+.boton { background: #fff; color: #0a0b0d; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
+.boton:hover { background: #f1f1f1; }
+.boton:active { transform: scale(0.97); }
+.boton-secundario { background: var(--superficie); color: var(--texto); border-color: var(--borde); backdrop-filter: blur(8px); }
+.boton-secundario:hover { background: var(--superficie-solida); }
+
+.selector {
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230a0b0d' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center;
+  color: #0a0b0d;
+  appearance: none;
+  padding-right: 38px;
+  max-width: 220px;
+}
+.selector option { color: #0a0b0d; }
+
+.boton:focus-visible, .selector:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* ---------- Etiqueta DATOS DE PRUEBA ---------- */
+.etiqueta-prueba {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--hueco) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: var(--fuente-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--acento);
+  background: rgba(10, 11, 13, 0.85);
+  border: 1px dashed var(--acento);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: help;
+}
+
+/* ---------- Tooltip ---------- */
+.tooltip {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  background: var(--superficie-solida);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  box-shadow: var(--sombra);
+  white-space: nowrap;
+  transform: translate(12px, 12px);
+}
+.tooltip .tooltip-nota { color: var(--acento); font-size: 12px; }
+
+/* ---------- Aviso ---------- */
+.aviso {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: var(--superficie-solida);
+  border: 1px solid var(--acento);
+  border-radius: var(--radio);
+  padding: 10px 16px;
+  box-shadow: var(--sombra);
+}
+
+/* ---------- Ajustes de MapLibre al tema oscuro ---------- */
+.maplibregl-ctrl-group { background: var(--superficie-solida) !important; border-radius: 12px !important; }
+.maplibregl-ctrl-group button + button { border-top-color: var(--borde) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
+.maplibregl-ctrl-attrib { background: rgba(10, 11, 13, 0.7) !important; color: var(--texto-suave); font-size: 11px; }
+.maplibregl-ctrl-attrib a { color: #d4d4d8 !important; }
+.maplibregl-ctrl-attrib.maplibregl-compact { background: var(--superficie-solida) !important; }
+.maplibregl-ctrl-attrib-button { filter: invert(1); }
+.maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom)); }
+
+/* ---------- Móvil ---------- */
+@media (max-width: 640px) {
+  :root { --hueco: 10px; }
+  .barra-superior { flex-direction: column; align-items: stretch; }
+  .marca { padding: 8px 12px; }
+  .marca-sub { display: none; }
+  .controles-superiores { justify-content: flex-start; flex-wrap: nowrap; }
+  .selector { flex: 1; min-width: 0; max-width: none; }
+  .etiqueta-prueba { left: var(--hueco); transform: none; bottom: calc(var(--hueco) + 4px + env(safe-area-inset-bottom)); }
+}

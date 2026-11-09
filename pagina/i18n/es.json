@@ -1,0 +1,13 @@
+{
+  "titulo_pagina": "Can I Build Here? — ¿Dónde construir un data center?",
+  "subtitulo": "Viabilidad de terrenos para data centers",
+  "elige_pais": "Elige un país",
+  "paises_disponibles": "Disponibles",
+  "paises_proximamente": "Próximamente",
+  "proximamente": "Próximamente",
+  "volver_mundo": "Ver el mundo",
+  "datos_prueba": "DATOS DE PRUEBA",
+  "datos_prueba_ayuda": "Estos valores son inventados mientras recopilamos los datos reales.",
+  "cargando": "Cargando…",
+  "error_carga": "No se han podido cargar los datos de {pais}."
+}

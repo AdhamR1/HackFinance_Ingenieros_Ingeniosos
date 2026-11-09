@@ -1,0 +1,6 @@
+# Dependencias de las herramientas (se instalan con npm install)
+node_modules/
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini

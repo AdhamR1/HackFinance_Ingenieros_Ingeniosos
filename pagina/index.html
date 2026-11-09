@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Can I Build Here?</title>
+  <meta name="description" content="Can I Build Here? — Viabilidad de terrenos para data centers.">
+  <meta name="theme-color" content="#0a0b0d">
+
+  <!-- Fuentes: Inter (textos) y JetBrains Mono (IDs y nombres técnicos) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+
+  <!-- MapLibre GL JS (librería del mapa), versión fija -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div id="mapa" class="mapa"></div>
+
+  <!-- Barra superior flotante -->
+  <header class="barra-superior">
+    <div class="marca">
+      <span class="marca-nombre">Can I Build Here?</span>
+      <span class="marca-sub" data-i18n="subtitulo"></span>
+    </div>
+
+    <div class="controles-superiores">
+      <button id="boton-mundo" class="boton boton-secundario" hidden>
+        <span aria-hidden="true">←</span> <span data-i18n="volver_mundo"></span>
+      </button>
+      <select id="selector-pais" class="selector" data-i18n-aria="elige_pais"></select>
+    </div>
+  </header>
+
+  <!-- Etiqueta de datos de prueba (se quita en config.js) -->
+  <div id="etiqueta-prueba" class="etiqueta-prueba" hidden data-i18n-title="datos_prueba_ayuda">
+    <span data-i18n="datos_prueba"></span>
+  </div>
+
+  <!-- Tooltip que sigue al ratón -->
+  <div id="tooltip" class="tooltip" hidden></div>
+
+  <!-- Avisos breves (p. ej. errores de carga) -->
+  <div id="aviso" class="aviso" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

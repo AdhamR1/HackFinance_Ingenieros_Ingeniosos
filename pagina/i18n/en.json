@@ -1,0 +1,13 @@
+{
+  "titulo_pagina": "Can I Build Here? — Where to build a data center",
+  "subtitulo": "Land suitability for data centers",
+  "elige_pais": "Choose a country",
+  "paises_disponibles": "Available",
+  "paises_proximamente": "Coming soon",
+  "proximamente": "Coming soon",
+  "volver_mundo": "World view",
+  "datos_prueba": "TEST DATA",
+  "datos_prueba_ayuda": "These values are made up while we gather the real data.",
+  "cargando": "Loading…",
+  "error_carga": "Could not load the data for {pais}."
+}
