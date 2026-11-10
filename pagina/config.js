@@ -114,7 +114,7 @@ export const CONFIG = {
   precargar_datos: true,
 
   // Muestra la etiqueta "DATOS DE PRUEBA". Ponla a false con datos reales.
-  mostrar_etiqueta_datos_prueba: true,
+  mostrar_etiqueta_datos_prueba: false,
 
   // Opacidad inicial de la cuadrícula (0 = invisible, 1 = opaca).
   opacidad_inicial: 0.4,
