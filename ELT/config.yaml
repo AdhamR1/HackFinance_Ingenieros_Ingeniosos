@@ -103,7 +103,8 @@ climate:
 
 earthquakes:
   daily_catalog_client: EMSC        # catálogo diario (magnitudes pequeñas)
-  daily_min_magnitude: 1.5
+  daily_min_magnitude: 1.5          # mínimo de la descarga de EMSC (lo que guarda la caché)
+  count_min_magnitude: 2.0          # umbral común del conteo (eq_count/eq_max_mag) en todos los países
   daily_radius_km: 100
   static_client: USGS               # estadísticas históricas M>=4 desde 1976
   static_start: "1976-01-01"

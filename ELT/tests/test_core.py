@@ -96,6 +96,13 @@ def test_country_profiles_and_parts():
     assert usa.lake.name == "USA" and "conus" in usa["bboxes"]
     assert bbox_union(usa, 1)[0] == pytest.approx(-125.9)
 
+    # earthquake counts: one threshold for every country, above the floor of the cached download
+    from dclake.collectors.hazards import count_min_magnitude
+
+    for iso in ("esp", "jpn", "usa"):
+        c = load_config(root / "config.yaml", overrides={"project.country_iso3": iso})
+        assert count_min_magnitude(c) == 2.0
+
     g = pd.DataFrame({"x": np.random.default_rng(0).uniform(0, 1e6, 1001)})
     parts = assign_parts(g, 250)
     assert parts.max() == 4 and np.bincount(parts).max() <= 250

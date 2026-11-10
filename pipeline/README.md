@@ -15,7 +15,8 @@ Desde `pipeline/`, con el entorno del ELT más lo del modelo (`python -m pip ins
 ```
 python src/labels.py      # target: celdas con data center (datacentermap)
 python src/feat_suelo.py  # % de suelo por celda (Natura 2000, CORINE) y exclusiones
-python src/feat_riesgos.py   # zonas inundables oficiales (SNCZI) y parques nacionales
+python src/feat_riesgos.py   # zonas inundables oficiales (SNCZI), parques nacionales y PGA del IGN
+python src/feat_riesgos.py --solo-pga   # solo la PGA del IGN, sobre el parquet existente
 python src/feat_suelo.py --solo-exclusiones   # rehace las exclusiones con feat_riesgos (sin descargas)
 python src/features.py    # variables desde ELT/dataset + feat_*.parquet, sin las que hacen trampa
 python src/train.py --exclusions data/processed/exclusions_es_3500.parquet   # modelo -> scores
@@ -37,7 +38,7 @@ Cuando el ELT tenga columnas nuevas, basta con volver a ejecutar `features.py` y
 | `data/raw/dc_sites_es.csv` | 103 emplazamientos de datacentermap.com (9-nov-2026) con coordenadas. `precision`: `district_approx` (~1–2 km), `municipio` (centro del pueblo), `metro` (centro de la ciudad, a mejorar) |
 | `data/processed/labels_es_3500.parquet` | `site_id, y, y_operational, n_sites, n_buildings, sites` |
 | `data/processed/feat_suelo.parquet` | `site_id` + % de la celda en Natura 2000, suelo urbano, industrial y agua |
-| `data/processed/feat_riesgos.parquet` | `site_id` + % en zona de flujo preferente, zona inundable de 100 y 500 años y parque nacional, y distancia al parque nacional más cercano |
+| `data/processed/feat_riesgos.parquet` | `site_id` + % en zona de flujo preferente, zona inundable de 100 y 500 años y parque nacional, distancia al parque nacional más cercano y `pga475_ign_g` (PGA a 475 años del IGN, en g, interpolada entre las isolíneas de 0,01 g de su visor de terremotos) |
 | `data/processed/exclusions_es_3500.parquet` | `site_id, excluded, motivo_descarte, avisos` + los % que deciden la regla |
 | `data/processed/features_es_3500.parquet` | `site_id` + variables numéricas |
 | `data/processed/scores_es_3500.parquet` | **Para la web:** `site_id, lon, lat, admin1, admin2, y, y_operational, sites, excluded, score_pct, oof_spatial_pct, band, reasons` |

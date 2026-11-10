@@ -12,9 +12,12 @@ Sources
     .html
   * National parks: WDPA (UNEP-WCMC feature service, no registration), designation "Parque
   Nacional".
-  * IGN PGA, 475 years: the IGN does not publish it as downloadable data (no seismic product in the
-    CNIG download centre). If a file is put in data/raw/ign/ (GeoTIFF, or polygons with a PGA
-    column), it is used; otherwise the column is not created. The ELT already has pga_475y_g (GEM).
+  * IGN PGA, 475 years (mapa de peligrosidad sísmica 2012/2015): there is no seismic product in
+    the CNIG download centre, but the IGN earthquake viewer (https://visualizadores.ign.es/tproximos)
+    draws the PGA isolines (0.01 g apart) from a public GeoJSON: it is downloaded once to
+    data/raw/ign/ and interpolated between isolines at every cell centre. Any other IGN file put in
+    data/raw/ign/ (GeoTIFF, zones, or a mesh of points as shapefile/GPKG/CSV with lon/lat; g or
+    cm/s2) is also read. The ELT has pga_475y_g as well (GEM, same for the three countries).
 
 Output: data/processed/feat_riesgos.parquet  (site_id + the columns below; NaN = layer not
 available)
@@ -23,8 +26,10 @@ available)
                                        come in separate files: a region without its file stays NaN)
   parque_nacional_pct                  % of the cell inside a national park
   dist_parque_nacional_km              distance from the cell centre to the nearest national park
-  pga475_ign_g                         IGN PGA (475 years, g) at the cell centre (only with the IGN
-  file)
+  pga475_ign_g                         IGN PGA (475 years, g, rock) at the cell centre
+
+    python src/feat_riesgos.py              # everything
+    python src/feat_riesgos.py --solo-pga   # only pga475_ign_g, on the existing parquet
 """
 
 import json
@@ -190,20 +195,94 @@ def national_parks():
     return list(shapely.make_valid(g.geometry.values))
 
 
+IGN_PGA_URL = "https://www.ign.es/web/resources/sismologia/tproximos/json/pga475.js"
+IGN_ISOLINES = "pga475_isolineas_ign.geojson"
+IGN_PGA_WORDS = ("pga", "acel", "valor", "value")  # name of the column with the PGA
+IGN_POINT_KM = 25  # a grid point of the IGN gives its value to cells up to this distance
+IGN_STEP_M = 500  # isolines are densified to one vertex every 500 m before interpolating
+CANARIAS_MAX_LAT = 32  # interpolated apart: no triangle may join the Canaries and the Peninsula
+
+
+def pga_in_g(v) -> pd.Series:
+    """PGA in g. The IGN may give it in cm/s2 (gal): no PGA in Spain is above 3 g."""
+    v = pd.to_numeric(pd.Series(v), errors="coerce")
+    return v / 980.665 if v.median() > 3 else v
+
+
+def _pga_column(columns) -> str | None:
+    return next((c for c in columns if any(k in c.lower() for k in IGN_PGA_WORDS)), None)
+
+
+def fetch_ign_isolines():
+    """PGA isolines of the IGN earthquake viewer: a GeoJSON (CRS84) inside a JavaScript variable,
+    saved once as plain GeoJSON in data/raw/ign/."""
+    dest = IGN / IGN_ISOLINES
+    if dest.exists():
+        return dest
+    try:
+        r = requests.get(IGN_PGA_URL, headers=HEADERS, timeout=120)
+        r.raise_for_status()
+        js = json.loads(r.text[r.text.index("{") : r.text.rindex("}") + 1])
+    except (requests.RequestException, ValueError) as e:
+        print(f"  pga475_ign_g: no se pudieron bajar las isolíneas del IGN ({e})")
+        return None
+    if not js.get("features"):
+        return None
+    IGN.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(js), encoding="utf-8")
+    return dest
+
+
+def pga_from_isolines(lines, values, x, y, step_m: float = IGN_STEP_M) -> np.ndarray:
+    """Value at (x, y) interpolated linearly between isolines (Delaunay triangles over their
+    densified vertices). Points outside every triangle take the value of the nearest isoline."""
+    from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
+
+    dense = shapely.segmentize(np.asarray(lines, dtype=object), step_m)
+    pts, idx = shapely.get_coordinates(dense, return_index=True)
+    z = np.asarray(values, dtype=float)[idx]
+    pts, first = np.unique(pts, axis=0, return_index=True)
+    z = z[first]
+    xy = np.column_stack([x, y])
+    v = LinearNDInterpolator(pts, z)(xy)
+    out = np.isnan(v)
+    if out.any():
+        v[out] = NearestNDInterpolator(pts, z)(xy[out])
+    return v
+
+
+def _read_ign_table(f):
+    """CSV with longitude/latitude columns (WGS84) -> points."""
+    import geopandas as gpd
+
+    t = pd.read_csv(f, sep=None, engine="python", decimal=",")
+    low = {c.lower(): c for c in t.columns}
+    lon = next((low[k] for k in ("lon", "longitud", "longitude", "x") if k in low), None)
+    lat = next((low[k] for k in ("lat", "latitud", "latitude", "y") if k in low), None)
+    if lon is None or lat is None:
+        return None
+    xy = gpd.points_from_xy(pd.to_numeric(t[lon]), pd.to_numeric(t[lat]))
+    return gpd.GeoDataFrame(t, geometry=xy, crs=4326)
+
+
 def ign_pga(grid) -> pd.Series | None:
-    """IGN PGA at the cell centre from a file in data/raw/ign/ (GeoTIFF, or polygons with a PGA
-    column)."""
+    """IGN PGA (475 years) at the cell centre from a file in data/raw/ign/.
+
+    Accepted: isolines (downloaded from the IGN viewer when the folder is empty); a GeoTIFF;
+    polygons with a PGA column (zones); a mesh of points (shapefile, GPKG or a CSV with lon/lat),
+    where each cell takes the nearest point within IGN_POINT_KM. Values in cm/s2 become g.
+    """
     files = sorted(
         p
         for p in IGN.glob("*")
-        if p.suffix.lower() in (".tif", ".tiff", ".shp", ".gpkg", ".geojson", ".zip")
+        if p.suffix.lower() in (".tif", ".tiff", ".shp", ".gpkg", ".geojson", ".zip", ".csv")
     )
-    if not files:
+    f = files[0] if files else fetch_ign_isolines()
+    if f is None:
         print(
             f"  pga475_ign_g: no hay archivo del IGN en {IGN} (se usa pga_475y_g de GEM del ELT)"
         )
         return None
-    f = files[0]
     x, y = grid["x_m"].to_numpy(), grid["y_m"].to_numpy()
     if f.suffix.lower() in (".tif", ".tiff"):
         import rasterio
@@ -214,24 +293,68 @@ def ign_pga(grid) -> pd.Series | None:
             v = np.array([s[0] for s in ds.sample(zip(xs, ys))], dtype=float)
             if ds.nodata is not None:
                 v[v == ds.nodata] = np.nan
-        return pd.Series(v, index=grid.index)
+        return pga_in_g(v).set_axis(grid.index)
     import geopandas as gpd
 
-    src = f"/vsizip/{f.as_posix()}" if f.suffix.lower() == ".zip" else f
-    g = gpd.read_file(src).to_crs(CRS)
-    col = next(
-        (c for c in g.columns if any(k in c.lower() for k in ("pga", "acel", "valor"))), None
-    )
+    if f.suffix.lower() == ".csv":
+        g = _read_ign_table(f)
+        if g is None:
+            print(f"  pga475_ign_g: {f.name} no tiene columnas de longitud y latitud")
+            return None
+    else:
+        g = gpd.read_file(f"/vsizip/{f.as_posix()}" if f.suffix.lower() == ".zip" else f)
+    g = g.to_crs(CRS)
+    col = _pga_column([c for c in g.columns if c != "geometry"])
     if col is None:
         print(f"  pga475_ign_g: {f.name} no tiene una columna de PGA ({list(g.columns)})")
         return None
     pts = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x, y), crs=CRS, index=grid.index)
-    j = gpd.sjoin(pts, g[[col, "geometry"]], predicate="within", how="left")
-    return pd.to_numeric(j[~j.index.duplicated()][col], errors="coerce").reindex(grid.index)
+    kinds = set(g.geom_type.dropna())
+    if kinds <= {"LineString", "MultiLineString"}:
+        z = pd.to_numeric(g[col], errors="coerce").to_numpy()
+        line_can = (g.geometry.representative_point().to_crs(4326).y < CANARIAS_MAX_LAT).to_numpy()
+        cell_can = (pts.geometry.to_crs(4326).y < CANARIAS_MAX_LAT).to_numpy()
+        v = np.full(len(pts), np.nan)
+        for lm, cm in ((line_can, cell_can), (~line_can, ~cell_can)):
+            if lm.any() and cm.any():
+                v[cm] = pga_from_isolines(g.geometry.values[lm], z[lm], x[cm], y[cm])
+        v = pga_in_g(v).set_axis(grid.index)
+    elif kinds <= {"Point", "MultiPoint"} | {"Polygon", "MultiPolygon"}:
+        if kinds <= {"Point", "MultiPoint"}:
+            j = gpd.sjoin_nearest(
+                pts, g[[col, "geometry"]], how="left", max_distance=IGN_POINT_KM * 1000
+            )
+        else:
+            j = gpd.sjoin(pts, g[[col, "geometry"]], predicate="within", how="left")
+        j = j[~j.index.duplicated()]
+        v = pga_in_g(j[col]).set_axis(j.index).reindex(grid.index)
+    else:
+        print(f"  pga475_ign_g: {f.name} mezcla geometrías {sorted(kinds)}")
+        return None
+    print(
+        f"  pga475_ign_g: {f.name} ({col}), {v.notna().mean():.0%} de celdas, "
+        f"{v.min():.3f}-{v.max():.3f} g"
+    )
+    return v.reindex(grid.index)
 
 
 def main():
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Bloque de riesgos por celda (feat_riesgos.parquet)")
+    ap.add_argument(
+        "--solo-pga", action="store_true", help="solo pga475_ign_g, sobre el parquet existente"
+    )
+    args = ap.parse_args()
     grid = read_grid()
+    if args.solo_pga and (PROCESSED / "feat_riesgos.parquet").exists():
+        out = pd.read_parquet(PROCESSED / "feat_riesgos.parquet")
+        print("Peligrosidad sísmica IGN:", flush=True)
+        pga = ign_pga(grid)
+        if pga is not None:
+            out["pga475_ign_g"] = out["site_id"].map(pd.Series(pga.values, grid["site_id"]))
+        save(out)
+        return
     boxes = shapely.box(
         grid.i * CELL_M, grid.j * CELL_M, (grid.i + 1) * CELL_M, (grid.j + 1) * CELL_M
     )
@@ -254,7 +377,10 @@ def main():
     pga = ign_pga(grid)
     if pga is not None:
         out["pga475_ign_g"] = pga.values
+    save(out)
 
+
+def save(out: pd.DataFrame) -> None:
     out = out.round(3)
     PROCESSED.mkdir(parents=True, exist_ok=True)
     out.to_parquet(PROCESSED / "feat_riesgos.parquet", index=False)

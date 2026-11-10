@@ -77,3 +77,31 @@ def test_exclusions_use_risk_layers(tmp_path, monkeypatch):
     assert "Parque nacional en el 15 %" in ex.loc["c", "avisos"]
     assert "Zona inundable de 100 años" in ex.loc["c", "avisos"]
     assert "Natura 2000" in ex.loc["b", "avisos"]
+
+
+def test_ign_pga_from_point_mesh_in_gal(tmp_path, monkeypatch):
+    from pyproj import Transformer
+
+    # two IGN mesh points (lon/lat, cm/s2) near Granada and Bilbao; a third cell far from both
+    lon, lat = [-3.6, -2.93], [37.18, 43.26]
+    to_m = Transformer.from_crs(4326, feat_riesgos.CRS, always_xy=True)
+    x, y = to_m.transform([*lon, -8.0], [*lat, 40.0])
+    grid = pd.DataFrame({"x_m": np.array(x) + 1000, "y_m": np.array(y)})  # 1 km off the points
+    (tmp_path / "pga_475.csv").write_text(
+        "Longitud;Latitud;PGA_475\n-3,6;37,18;235,4\n-2,93;43,26;39,2\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(feat_riesgos, "IGN", tmp_path)
+    v = feat_riesgos.ign_pga(grid)
+    assert v.iloc[0] == pytest.approx(0.24, abs=0.001)  # 235.4 gal = 0.24 g
+    assert v.iloc[1] == pytest.approx(0.04, abs=0.001)
+    assert np.isnan(v.iloc[2])  # no mesh point within IGN_POINT_KM
+
+
+def test_pga_from_isolines_interpolates_between_rings():
+    # two concentric isolines: 0.20 g at 5 km and 0.10 g at 10 km from the origin
+    ring = shapely.Point(0, 0).buffer
+    lines = [ring(5000, 64).exterior, ring(10_000, 64).exterior]
+    v = feat_riesgos.pga_from_isolines(lines, [0.20, 0.10], [7500, 0, 20_000], [0, 0, 0])
+    assert v[0] == pytest.approx(0.15, abs=0.005)  # halfway between the rings
+    assert v[1] == pytest.approx(0.20)  # inside the highest isoline: its value
+    assert v[2] == pytest.approx(0.10)  # outside every isoline: the nearest one

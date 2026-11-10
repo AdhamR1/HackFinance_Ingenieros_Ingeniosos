@@ -26,6 +26,12 @@ def eq_bbox(cfg, margin: float = 1.5) -> dict:
     return {"minlatitude": s, "maxlatitude": n, "minlongitude": w, "maxlongitude": e}
 
 
+def count_min_magnitude(cfg) -> float:
+    """Common magnitude threshold of the daily counts (never below what was downloaded)."""
+    c = cfg["earthquakes"]
+    return max(float(c.get("count_min_magnitude", 0)), float(c["daily_min_magnitude"]))
+
+
 def daily_counts(
     sites,
     events: pd.DataFrame,
@@ -184,9 +190,11 @@ class EarthquakesCollector(Collector):
         if len(ev):
             ev["date"] = ev["time"].dt.normalize()
         self.lake.catalog("emsc_catalog", "EMSC", EMSC, "CC BY 4.0")
-        # what EMSC really lists varies by country (Spain from M1.5, US ~M2, Japan ~M3): keep it in
-        # the lineage
+        # what EMSC really lists varies by country (Spain from M1.5, US ~M2, Japan ~M3): measured
+        # on the whole download and kept in the lineage
         self._mc = float(ev["mag"].quantile(0.1)) if len(ev) else None
+        if len(ev):  # one threshold for every country, so that the counts can be compared
+            ev = ev[ev["mag"] >= count_min_magnitude(self.cfg)]
         for y in sorted(set(days.year)):
             dy = days[days.year == y]
             sub = ev[ev["date"].dt.year == y] if len(ev) else ev
@@ -229,14 +237,15 @@ class EarthquakesCollector(Collector):
 
     def write_lineage(self, **kw):
         mc = getattr(self, "_mc", None)
-        daily = {
-            "notes": f"EMSC; en {self.cfg['project']['country_iso3']} el catálogo solo es "
-            f"completo "
-            f"desde "
-            f"M{mc:.1f} aprox. (percentil 10): no comparar el conteo entre países sin un umbral "
-            f""
-            f"común"
-        }
+        mmin = count_min_magnitude(self.cfg)
+        note = f"EMSC, solo eventos M>={mmin:.1f} (umbral común a todos los países)"
+        if mc is not None and mc > mmin + 0.25:
+            iso = self.cfg["project"]["country_iso3"]
+            note += (
+                f"; en {iso} EMSC solo es completo desde M{mc:.1f} aprox. (percentil 10): "
+                f"el conteo está infravalorado frente a otros países"
+            )
+        daily = {"notes": note}
         super().write_lineage(
             per_field={
                 "n_eq_m4_100km_50y": {

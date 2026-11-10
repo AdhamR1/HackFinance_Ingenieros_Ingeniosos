@@ -71,7 +71,11 @@ python -m dclake qc --country JPN           # control de calidad -> .cache/JPN/r
 ## Estado (9 nov 2026, tarde)
 - Rejilla pasada a 3,5 km y tres países: España (41.296 celdas), Japón (30.779) y EEUU continental (~640.000). Clima: E-OBS / NASA POWER / gridMET, con los mismos campos calculados por `eobs.daily_fields`.
 - DEM por tesela de 1° leída a ~60 m (`DEM_FACTOR = 2`): cuadra con el método anterior celda a celda (elevación r = 1,00; pendiente r = 0,998). Una tesela solo se da por mar si el servidor dice que no existe (HEAD 403/404); un fallo de red no se cachea.
-- EMSC no es igual de completo en todos los países (ESP desde M1,5; USA ~M2; JPN ~M3): el conteo semanal de terremotos no es comparable entre países y el linaje lo anota.
+- EMSC no es igual de completo en todos los países (ESP desde M1,5; USA ~M2; JPN ~M3). Desde el 10 nov el conteo
+  usa un umbral común M≥2 (`earthquakes.count_min_magnitude`; la descarga sigue desde M1,5); en Japón sigue
+  infravalorado y el linaje lo anota.
+- PGA del IGN (475 años): `pipeline/src/feat_riesgos.py` interpola las isolíneas públicas del visor de terremotos del
+  IGN (`pga475_ign_g`, r = 0,91 con la PGA de GEM).
 - Dataset de 2025: ESP 45 MB, JPN 12 MB, USA 1,25 GB. ESP y JPN están en git; los archivos de EEUU se ignoran en `.gitignore` (van al data lake).
 
 ## Estado (9 nov 2026, mañana)
