@@ -1,0 +1,9 @@
+# Entorno del mapa (angel_modelo/). Python >= 3.11. Sin LightGBM: no hace falta libomp.
+pandas>=2.1
+numpy
+pyarrow
+scipy
+scikit-learn>=1.4
+pyyaml
+pyproj
+pytest

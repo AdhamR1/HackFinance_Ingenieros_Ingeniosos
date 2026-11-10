@@ -1,0 +1,90 @@
+# Contrato de datos del mapa: de dónde se lee, cómo se llaman las columnas y qué valores son plausibles.
+# Nada de esto está escrito en el código: si el equipo cambia nombres, rutas o la rejilla, se cambia aquí.
+
+# Rutas relativas a la raíz del repositorio. Se pueden sobrescribir con variables de entorno
+# (MAPA_ELT_DATASET, MAPA_PIPELINE_PROCESSED, MAPA_PIPELINE_RAW, MAPA_SALIDA) para probar con copias.
+rutas:
+  elt_dataset: ELT/dataset
+  pipeline_src: pipeline/src            # se importa cells.read_elt del equipo
+  pipeline_processed: pipeline/data/processed
+  pipeline_raw: pipeline/data/raw
+  salida: angel_modelo/salida           # intermedios regenerables (ignorado por git)
+  web: angel_modelo/web_mapa            # mapa autocontenido
+  web_integrada: pagina/mapa            # copia publicada dentro de la web de Dani (vacío = no copiar)
+
+pais: ESP
+
+# Tablas del ELT (se leen con pipeline/src/cells.py:read_elt) y capas del pipeline.
+tablas:
+  estatica: sites_static                # una fila por celda
+  anual: sites_yearly                   # celda × año -> se agrega (ver agregacion_temporal)
+  capas_pipeline: "feat_*.parquet"      # cualquier feat_*.parquet nuevo entra solo (gana al ELT)
+  exclusiones_equipo: exclusions_es_3500.parquet
+  finanzas: finanzas_es_3500.parquet
+  etiquetas: labels_es_3500.parquet
+  notas_equipo: scores_es_3500.parquet
+  dc_puntos: dc_sites_es.csv
+
+agregacion_temporal:
+  columna_tiempo: year                  # si existe, se agrega por celda
+  metodo: media                         # media | ultimo  (media de todos los años disponibles)
+  columnas_fecha_dedup: [year, week_start, date]
+
+# Identificador, coordenadas y rejilla. Son los ÚNICOS errores fatales si faltan.
+identificador:
+  columna: site_id
+  alias: [cell_id, id_celda, id]
+  patron: '^[A-Z]{3}_(-?\d+)_(-?\d+)$'  # ESP_<x/tam>_<y/tam>; si no cumple, se usa el centroide
+coordenadas:
+  lon: {columna: lon, alias: [longitude, longitud, x_lon]}
+  lat: {columna: lat, alias: [latitude, latitud, y_lat]}
+admin:
+  provincia: {columna: admin2, alias: [provincia, province]}
+  comunidad: {columna: admin1, alias: [comunidad, region]}
+rejilla:
+  crs: "EPSG:3035"
+  tamano_celda_m: 3500
+  tolerancia_centroide: 0.25            # fracción de celda: si el centroide no cuadra con el id, se avisa y se usa el centroide
+
+# Alias de columnas de datos: nombre canónico (el que usa rubrica.yaml) -> otros nombres aceptados.
+alias:
+  dist_substation_220kv_km: [dist_subestacion_220kv_km, dist_sub220_km]
+  dist_hv_line_km: [dist_alta_tension_km]
+  industrial_pct: [pct_industrial]
+  urbano_pct: [pct_urbano]
+  pga475_ign_g: [pga_475_ign_g]
+  zi_t500_pct: [zona_inundable_t500_pct]
+
+# Rangos plausibles: un valor fuera se convierte en "sin dato" y se cuenta en informe_datos.md.
+# Por sufijo/prefijo del nombre (el primero que coincida) y por columna concreta (gana).
+rangos:
+  por_columna:
+    elevation_m: [-50, 3800]
+    slope_pct: [0, 300]
+    pga475_ign_g: [0, 2]
+    pga_475y_g: [0, 2]
+    free_cooling_hours: [0, 8784]
+    adiabatic_cooling_hours: [0, 8784]
+    wetbulb_p99_c: [-30, 45]
+    annual_precip_mm: [0, 10000]
+    latency_to_hub_ms: [0, 500]
+    newest_cable_year: [1950, 2100]
+  por_patron:
+    - [_pct$, 0, 100]
+    - [_km$, 0, 3000]
+    - [_mw$, 0, 1000000]
+    - [_c$, -60, 60]
+
+# Clasificación automática de columnas (para el informe y para filtrar el experimento de modelo).
+clasificacion:
+  identificadores: [site_id, h3_cell_r7, sample_type, country_iso3, admin1, admin2, sites, nearest_station_id]
+  coordenadas: [lon, lat, x, y, x_m, y_m, utm_x, utm_y]
+  cobertura_minima_modelo: 0.6          # una columna nueva entra al experimento solo con >= 60 % de datos
+  # columnas que delatan dónde hay data centers (fuga): se excluyen del experimento.
+  # Se completa en ejecución con LEAKAGE de pipeline/src/features.py.
+  fuga_patrones: [_dc_, existing_dc, ixp, colo, carrier, is_datacenter, viability, capex, opex]
+
+# Etiquetas de data centers (validación). Si alguna falta, se avisa y se usa la otra.
+data_centers:
+  pipeline: {tabla: etiquetas, columna: y}
+  elt: {tabla: estatica, columna: is_datacenter}

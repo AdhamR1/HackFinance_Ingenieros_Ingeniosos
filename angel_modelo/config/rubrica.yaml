@@ -1,0 +1,219 @@
+# Rúbrica de viabilidad por celda (España, 3,5 km). Ángel, 10-nov-2026.
+# Motor de decisión del mapa. Todo umbral o peso sin fuente externa es un SUPUESTO (marcado).
+# Columnas: nombres canónicos de config/columnas.yaml (los alias se resuelven al cargar).
+# Percentiles de referencia (España / celdas con data center) en CAMBIOS.md.
+# Si falta el dato de un criterio, puntúa `si_falta` (pesimista) y baja la confianza.
+
+salida:
+  umbral_candidata: 75       # SUPUESTO: ~8 % de España candidata (cribado selectivo). Ver CAMBIOS.md
+  margen_duda: 6             # SUPUESTO: [umbral - margen, umbral + margen) = Dudosa ("ante la duda, no viable")
+  cobertura_minima: 0.70     # parte del peso con dato real; por debajo -> "No evaluable"
+  confianza:                 # nivel según cobertura (parte del peso con datos)
+    alta: 0.95
+    media: 0.85
+  # Una capa (criterio, exclusión o condicionante) solo se ACTIVA si su columna tiene datos en al menos
+  # esta fracción de celdas. Si no, se omite con aviso, sus pesos se reparten entre los demás criterios
+  # y la confianza de todas las celdas baja. Cuando el equipo rellene la capa, se activa sola.
+  cobertura_minima_capa: 0.60
+
+# 1) EXCLUSIONES (veto): solo lo prohibido o físicamente imposible.
+#    Las tres primeras son las del equipo (pipeline/src/feat_suelo.py, EXCLUDE_PCT).
+#    Calibración: una exclusión no debe dejar fuera data centers que ya existen.
+exclusiones:
+  - id: agua
+    columna: agua_pct
+    op: ">="
+    valor: 90
+    motivo: "Celda casi toda agua o humedal (CORINE 2018)"
+    fuente: "Equipo (feat_suelo.py, EXCLUDE_PCT)"
+  - id: parque_nacional
+    columna: parque_nacional_pct
+    op: ">="
+    valor: 50
+    motivo: "Al menos la mitad en un parque nacional"
+    fuente: "Equipo (feat_suelo.py). Ley 30/2014 de Parques Nacionales"
+  - id: flujo_preferente
+    columna: zfp_pct
+    op: ">="
+    valor: 50
+    motivo: "Al menos la mitad en zona de flujo preferente (SNCZI)"
+    fuente: "Equipo (feat_suelo.py). RD 9/2008, art. 9 bis Reglamento del DPH"
+  - id: pendiente_extrema
+    columna: slope_pct
+    op: ">="
+    valor: 40
+    motivo: "Pendiente media de la celda >= 40 %: terreno de montaña"
+    fuente: "SUPUESTO (Ángel). Ninguna celda con DC lo supera; ~5 % de España"
+
+# 2) CONDICIONANTES: no vetan; restan puntos y generan un aviso.
+condicionantes:
+  - id: natura2000_alta
+    columna: natura2000_pct
+    op: ">="
+    valor: 50
+    penalizacion: 15
+    aviso: "Natura 2000 en más de la mitad de la celda: evaluación ambiental exigente"
+    fuente: "SUPUESTO. Natura 2000 no prohíbe; exige evaluación (Ley 21/2013)"
+  - id: natura2000_parcial
+    columna: natura2000_pct
+    op: ">="
+    valor: 25
+    penalizacion: 5
+    aviso: "Natura 2000 en parte de la celda: requiere evaluación ambiental"
+    fuente: "Umbral de aviso del equipo (feat_suelo.py, WARN_PCT); penalización SUPUESTO"
+  - id: espacio_protegido
+    columna: in_protected_area
+    op: "=="
+    valor: 1
+    penalizacion: 10
+    aviso: "Centro de la celda en un espacio protegido (WDPA)"
+    fuente: "SUPUESTO. Ley 42/2007; depende de la figura de protección"
+  - id: inundable_t100
+    columna: zi_t100_pct
+    op: ">="
+    valor: 25
+    penalizacion: 10
+    aviso: "Más de un 25 % de la celda en zona inundable de 100 años (SNCZI)"
+    fuente: "SUPUESTO sobre RD 9/2008 (usos limitados en zona inundable)"
+  - id: urbano_denso
+    columna: urbano_pct
+    op: ">="
+    valor: 50
+    penalizacion: 5
+    aviso: "Suelo urbano mayoritario: hace falta suelo industrial disponible o recalificación"
+    fuente: "Umbral del equipo (feat_suelo.py). Penalización baja: muchos DC están en suelo urbano"
+  - id: servidumbre_aeronautica
+    columna: in_flight_path_flag
+    op: "=="
+    valor: 1
+    penalizacion: 5
+    aviso: "En trayectoria de aproximación: servidumbres aeronáuticas limitan la altura"
+    fuente: "SUPUESTO (RD 297/2013)"
+  - id: costa_baja
+    columna: in_low_elevation_coastal_zone
+    op: "=="
+    valor: 1
+    penalizacion: 5
+    aviso: "Zona costera baja: riesgo de inundación costera"
+    fuente: "SUPUESTO"
+  - id: altitud_alta
+    columna: elevation_m
+    op: ">="
+    valor: 1500
+    penalizacion: 10
+    aviso: "Altitud >= 1.500 m: accesos, nieve y obra más caros"
+    fuente: "SUPUESTO; la celda con DC más alta está a ~1.060 m"
+
+# 3) CRITERIOS PONDERADOS (pesos = 100). Curva por tramos: [valor de la columna, nota 0-100],
+#    interpolación lineal y constante fuera de los extremos. `etiqueta` y `unidad` se ven en el mapa.
+criterios:
+  - id: subestacion
+    etiqueta: "Subestación de 220 kV o más"
+    columna: dist_substation_220kv_km
+    unidad: km
+    peso: 20
+    puntos: [[0, 100], [3, 100], [10, 70], [25, 30], [50, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. La conexión a red es el primer cuello de botella. España p50 17 km; DC p50 3,6 km"
+  - id: alta_tension
+    etiqueta: "Línea de alta tensión"
+    columna: dist_hv_line_km
+    unidad: km
+    peso: 10
+    puntos: [[0, 100], [1, 100], [3, 70], [10, 30], [20, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. España p50 2,9 km; DC p50 0,7 km"
+  - id: corredor_fibra
+    etiqueta: "Corredor de autopista o tren (proxy de fibra)"
+    columna: dist_infra_corridor_km
+    unidad: km
+    peso: 10
+    puntos: [[0, 100], [1, 100], [5, 60], [15, 20], [30, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. PROXY: no hay capa de fibra; la fibra troncal suele ir por estos corredores"
+  - id: latencia
+    etiqueta: "Latencia al nodo principal"
+    columna: latency_to_hub_ms
+    unidad: ms
+    peso: 8
+    puntos: [[2, 100], [5, 75], [10, 35], [20, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. Latencia estimada al hub (ELT). España p5-p95: 2,3-8,0 ms"
+  - id: suelo_industrial
+    etiqueta: "Suelo industrial en la celda"
+    columna: industrial_pct
+    unidad: "%"
+    peso: 10
+    puntos: [[0, 20], [1, 50], [5, 85], [10, 100]]
+    si_falta: 40
+    fuente: "SUPUESTO. CORINE 121 = donde se construyen DC. Sin industrial: recalificar"
+  - id: pendiente
+    etiqueta: "Pendiente media"
+    columna: slope_pct
+    unidad: "%"
+    peso: 10
+    puntos: [[0, 100], [5, 100], [10, 70], [20, 30], [35, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. Parcelas llanas; España p50 11,6 %, DC p50 5,9 %"
+  - id: refrigeracion
+    etiqueta: "Horas de free cooling al año"
+    columna: free_cooling_hours
+    unidad: h
+    peso: 8
+    puntos: [[4000, 0], [5000, 40], [6000, 75], [7000, 100]]
+    si_falta: 40
+    fuente: "SUPUESTO. España p5-p95: 4.188-7.127 h"
+  - id: calor_extremo
+    etiqueta: "Bulbo húmedo p99"
+    columna: wetbulb_p99_c
+    unidad: "°C"
+    peso: 4
+    puntos: [[19, 100], [22, 70], [24, 40], [26, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. Limita la refrigeración evaporativa (ASHRAE TC 9.9, por verificar)"
+  - id: estres_hidrico
+    etiqueta: "Estrés hídrico (WRI Aqueduct)"
+    columna: water_stress
+    unidad: "0-5"
+    peso: 4
+    puntos: [[0, 100], [1, 90], [2, 60], [3, 30], [4, 10], [5, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO sobre la escala de WRI Aqueduct 4.0. HOY VACÍA en el ELT: se omite con aviso y se activa sola al rellenarse"
+  - id: agua_proxy
+    etiqueta: "Precipitación anual (proxy de agua)"
+    columna: annual_precip_mm
+    unidad: mm
+    peso: 2
+    puntos: [[250, 0], [400, 40], [600, 80], [800, 100]]
+    si_falta: 40
+    fuente: "SUPUESTO. PROXY: water_stress (WRI Aqueduct) está vacío en el ELT"
+  - id: sismicidad
+    etiqueta: "Peligrosidad sísmica (PGA 475 años, IGN)"
+    columna: pga475_ign_g
+    unidad: g
+    peso: 6
+    puntos: [[0.04, 100], [0.08, 70], [0.16, 30], [0.24, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO sobre NCSE-02 (>= 0,04 g exige cálculo sísmico). Dato: IGN (feat_riesgos.py)"
+  - id: inundacion
+    etiqueta: "Zona inundable de 500 años"
+    columna: zi_t500_pct
+    unidad: "%"
+    peso: 4
+    puntos: [[0, 100], [5, 70], [25, 30], [50, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. SNCZI (feat_riesgos.py). flood_depth_rp100_m (JRC) es 0 en el 95 % y no se usa"
+  - id: accesos
+    etiqueta: "Enlace de autovía"
+    columna: dist_motorway_junction_km
+    unidad: km
+    peso: 4
+    puntos: [[0, 100], [2, 100], [10, 60], [30, 0]]
+    si_falta: 40
+    fuente: "SUPUESTO. Logística de obra y mantenimiento. España p50 12 km; DC p50 1,2 km"
+
+# Capas que el proyecto necesita y no existen todavía (se muestran en el mapa como "no disponibles").
+capas_no_disponibles:
+  - "Fibra óptica troncal (dist_fiber_backbone_km): se usa el corredor de infraestructura como proxy"
+  - "Capacidad de acceso a la red por nudo (grid_capacity_available_mw, REE)"
+  - "Precio y disponibilidad real de suelo industrial por parcela"

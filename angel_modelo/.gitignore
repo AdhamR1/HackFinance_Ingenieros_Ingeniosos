@@ -1,0 +1,12 @@
+salida/
+.venv/
+.env
+.dev.vars
+web_mapa/.dev.vars
+node_modules/
+web_mapa/node_modules/
+web_mapa/package-lock.json
+.wrangler/
+__pycache__/
+.pytest_cache/
+.DS_Store
