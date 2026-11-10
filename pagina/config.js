@@ -18,48 +18,71 @@ export const CONFIG = {
   area_cuadrado_km2: 12,
 
   // ---------------------------------------------------------------
-  // PESOS DE LAS VARIABLES QUE PUNTÚAN
+  // PESOS (PROVISIONALES, SOLO PARA LOS DATOS DE PRUEBA)
   // ---------------------------------------------------------------
-  // Cuánto cuenta cada variable en la puntuación final (0-100).
-  // No hace falta que sumen 1: la web los reparte proporcionalmente.
-  // Las variables sin dato (null) no cuentan: su peso se reparte
-  // entre las que sí tienen dato.
-  // Poner un peso a 0 = la variable se muestra pero no puntúa.
+  // La web NO enseña los pesos en ningún sitio. Solo se usan para calcular una
+  // nota provisional cuando un cuadrado no trae "puntuacion" (datos inventados).
+  // Con los datos reales, la nota vendrá ya calculada por el modelo del equipo
+  // en "puntuacion" y estos pesos no se usarán (así el modelo no está en la web).
+  // No hace falta que sumen 1. Las variables sin dato (null) no cuentan.
   pesos: {
-    energia:      0.25,  // disponibilidad y precio de la electricidad
-    agua:         0.25,  // agua para refrigeración
-    clima:        0.15,  // clima fresco = menos gasto en refrigerar
-    conectividad: 0.15,  // fibra, puntos de intercambio de internet
-    carreteras:   0.10,  // acceso para obra y mantenimiento
-    sismico:      0.10,  // 100 = poco riesgo sísmico
-    inundacion:   0,     // 100 = poco riesgo. Ahora solo sirve para descartar
+    energia:      0.25,
+    agua:         0.20,
+    clima:        0.15,
+    riesgos:      0.15,
+    conectividad: 0.15,
+    suelo:        0.10,
   },
 
-  // Orden y color del icono con que se muestran las variables en el panel.
+  // ---------------------------------------------------------------
+  // VARIABLES
+  // ---------------------------------------------------------------
+  // Orden y color del icono con que se muestran en el panel. Todas van de 0 a 100
+  // y 100 = mejor (en "riesgos", 100 = poco riesgo).
   // Los dibujos de los iconos están en js/iconos.js (misma "clave").
-  // Para añadir una variable: añadirla aquí, en "pesos", en i18n/es.json y en.json
+  // Para añadir una variable: añadirla aquí, en i18n/es.json y en.json
   // ("var_<clave>") y, si se quiere, su dibujo en js/iconos.js.
   variables: [
     { clave: 'energia',      color: '#f5b301' }, // ámbar
     { clave: 'agua',         color: '#38bdf8' }, // azul
     { clave: 'clima',        color: '#fb7185' }, // rosa
+    { clave: 'riesgos',      color: '#fb923c', ayuda: true }, // naranja; "ayuda" = muestra "(100 = poco riesgo)"
     { clave: 'conectividad', color: '#a78bfa' }, // violeta
-    { clave: 'carreteras',   color: '#cbd5e1' }, // gris claro
-    { clave: 'sismico',      color: '#fb923c' }, // naranja
-    { clave: 'inundacion',   color: '#2dd4bf' }, // turquesa
+    { clave: 'suelo',        color: '#d6a46b' }, // marrón tierra
+  ],
+
+  // ---------------------------------------------------------------
+  // PERMISOS NECESARIOS
+  // ---------------------------------------------------------------
+  // Vienen en el archivo de datos, en "permisos" de cada cuadrado (lista con
+  // los que le afectan). En el panel solo salen los que afectan al cuadrado.
+  // descarta: true → si el cuadrado está afectado, sale ROJO ("Descartado").
+  permisos: [
+    { clave: 'natura_2000',      descarta: true  },
+    { clave: 'parque_nacional',  descarta: true  },
+    { clave: 'suelo_urbano',     descarta: false },
+    { clave: 'flujo_preferente', descarta: false },
+    { clave: 'zona_inundable',   descarta: false },
   ],
 
   // ---------------------------------------------------------------
   // REGLAS DE DESCARTE
   // ---------------------------------------------------------------
   // Un cuadrado sale ROJO directamente (sin importar su puntuación) si:
-  //   1) el archivo de datos trae "descartado": true (p. ej. suelo protegido), o
-  //   2) cumple alguna de estas reglas. Recuerda: 100 = mejor, así que un
-  //      valor MUY BAJO de riesgo significa riesgo MUY ALTO.
-  reglas_descarte: [
-    { variable: 'inundacion', menor_que: 20, motivo: 'inundacion' }, // inundación alta
-    { variable: 'sismico',    menor_que: 10, motivo: 'sismico' },    // riesgo sísmico extremo
-  ],
+  //   1) el archivo de datos trae "descartado": true, o
+  //   2) le afecta un permiso con "descarta: true" (arriba), o
+  //   3) CUALQUIERA de las variables baja de este valor (100 = mejor, así que
+  //      un valor muy bajo es muy malo). Una variable sin dato (null) no descarta.
+  //      Poner null para desactivar esta regla.
+  descarte_si_variable_menor_que: 20,
+
+  // ---------------------------------------------------------------
+  // MOTIVOS ("Por qué se acepta" / "Por qué se rechaza")
+  // ---------------------------------------------------------------
+  // Si el cuadrado trae "motivos_a_favor" / "motivos_en_contra", se enseñan esos.
+  // Si no, la web los saca de los datos (mejores y peores variables, permisos).
+  // Verde → a favor · rojo → en contra · amarillo → los dos.
+  motivos_maximos: 3,
 
   // ---------------------------------------------------------------
   // COLORES (umbrales de puntuación)

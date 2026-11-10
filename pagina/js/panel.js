@@ -2,7 +2,8 @@
 // Todo el texto sale de i18n/*.json; los colores y umbrales, de config.js.
 import { CONFIG } from '../config.js';
 import { t, idioma } from './i18n.js';
-import { evaluar, tieneValor } from './puntuacion.js';
+import { evaluar, tieneValor, permisosDe } from './puntuacion.js';
+import { motivosDe, textoMotivoSuelto } from './motivos.js';
 import { icono as dibujarIcono } from './iconos.js';
 
 const $ = id => document.getElementById(id);
@@ -13,11 +14,45 @@ const numero = (n, decimales = 0) => n.toLocaleString(idioma() === 'en' ? 'en-GB
 // Nombre de la categoría: "Viable", "Con condiciones"...
 export const textoCategoria = categoria => t(`categoria_${categoria}`);
 
-// Motivo de descarte: los conocidos se traducen; si no, se muestra tal cual venga en los datos.
-export function textoMotivo(motivo) {
-  const clave = `motivo_${motivo}`;
-  const traducido = t(clave);
-  return traducido === clave ? String(motivo) : traducido;
+// Motivo de descarte (r = resultado de evaluar). Los conocidos se traducen; si no, se muestra
+// tal cual venga en los datos.
+export function textoMotivo(r) {
+  if (r.motivo === 'variable_baja' && r.motivoDatos)
+    return t('motivo_variable_baja', { variable: t(`var_${r.motivoDatos.variable}`), n: Math.round(r.motivoDatos.valor) });
+  return textoMotivoSuelto(r.motivo);
+}
+
+// Iconos pequeños de las listas de motivos (✓ a favor, ✗ en contra).
+const MARCA = {
+  favor: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  contra: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
+};
+const listaMotivos = (tipo, titulo, motivos) => motivos.length ? `
+    <section class="motivos motivos-${tipo}">
+      <h3 class="panel-subtitulo">${escaparHtml(titulo)}</h3>
+      <ul>${motivos.map(m => `<li>${MARCA[tipo]}<span>${escaparHtml(m)}</span></li>`).join('')}</ul>
+    </section>` : '';
+
+// Permisos que afectan al cuadrado (solo esos). Los que descartan, en rojo.
+function bloquePermisos(p) {
+  const afectan = permisosDe(p);
+  let cuerpo;
+  if (p.permisos === undefined || p.permisos === null) cuerpo = `<p class="panel-mini">${escaparHtml(t('sin_datos'))}</p>`;
+  else if (!afectan.length) cuerpo = `<p class="panel-mini">${escaparHtml(t('permisos_ninguno'))}</p>`;
+  else {
+    const conocidos = CONFIG.permisos.filter(x => afectan.includes(x.clave));
+    const otros = afectan.filter(k => !CONFIG.permisos.some(x => x.clave === k)).map(clave => ({ clave, descarta: false }));
+    cuerpo = `<ul class="permisos">${[...conocidos, ...otros].map(({ clave, descarta }) => {
+      const nombre = t(`permiso_${clave}`) === `permiso_${clave}` ? clave : t(`permiso_${clave}`);
+      return `<li class="permiso${descarta ? ' excluye' : ''}">${escaparHtml(nombre)}${descarta
+        ? `<span class="permiso-nota"> · ${escaparHtml(t('permiso_excluye'))}</span>` : ''}</li>`;
+    }).join('')}</ul>`;
+  }
+  return `
+    <section class="permisos-bloque">
+      <h3 class="panel-subtitulo">${escaparHtml(t('permisos_titulo'))}</h3>
+      ${cuerpo}
+    </section>`;
 }
 
 // Color de una barra según su valor (mismos umbrales que la puntuación).
@@ -31,7 +66,7 @@ function colorValor(v) {
 export function textoTooltip(p) {
   const r = evaluar(p);
   let linea;
-  if (r.descartado) linea = `${t('descartado')} · ${textoMotivo(r.motivo)}`;
+  if (r.descartado) linea = `${t('descartado')} · ${textoMotivo(r)}`;
   else if (r.nota === null) linea = t('sin_datos');
   else linea = `${r.nota}/100 · ${textoCategoria(r.categoria)}`;
   return `<span class="mono">${escaparHtml(p.id)}</span><div class="tooltip-nota" style="color:${r.color}">${escaparHtml(linea)}</div>`;
@@ -55,6 +90,7 @@ export function pintarPanel(feature, meta) {
   const c = feature.geometry ? centro(feature.geometry) : null;
 
   const nota = r.nota === null ? '—' : r.nota;
+  const motivos = motivosDe(p, r);
   const origen = r.origen === 'archivo' ? `<p class="panel-mini">${escaparHtml(t('puntuacion_del_archivo'))}</p>` : '';
   // Si está descartado, la nota se enseña (es información útil) pero se aclara que no cuenta.
   const notaDescartada = r.descartado && r.nota !== null
@@ -63,14 +99,14 @@ export function pintarPanel(feature, meta) {
   const aviso = r.descartado ? `
     <div class="panel-aviso" role="alert">
       <span aria-hidden="true">⛔</span>
-      <div><strong>${escaparHtml(t('descartado'))}</strong><br>${escaparHtml(textoMotivo(r.motivo))}</div>
+      <div><strong>${escaparHtml(t('descartado'))}</strong><br>${escaparHtml(textoMotivo(r))}</div>
     </div>` : '';
 
   // Los pesos NO se muestran (no son fijos y no queremos que se copie el modelo).
-  const filas = CONFIG.variables.map(({ clave, color }) => {
+  const filas = CONFIG.variables.map(({ clave, color, ayuda: conAyuda }) => {
     const v = p[clave];
     const hay = tieneValor(v);
-    const ayuda = (clave === 'sismico' || clave === 'inundacion') ? ` <span class="panel-mini">(${escaparHtml(t('ayuda_riesgo'))})</span>` : '';
+    const ayuda = conAyuda ? ` <span class="panel-mini">(${escaparHtml(t('ayuda_riesgo'))})</span>` : '';
     return `
       <li class="variable${hay ? '' : ' sin-dato'}">
         <div class="variable-cabecera">
@@ -104,6 +140,9 @@ export function pintarPanel(feature, meta) {
       </div>
     </div>
     ${aviso}
+    ${listaMotivos('favor', t('motivos_a_favor'), motivos.aFavor)}
+    ${listaMotivos('contra', t('motivos_en_contra'), motivos.enContra)}
+    ${bloquePermisos(p)}
 
     <h3 class="panel-subtitulo">${escaparHtml(t('desglose'))}</h3>
     <ul class="variables">${filas}</ul>

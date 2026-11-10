@@ -168,6 +168,10 @@ const CIUDADES = [[-3.70, 40.42], [2.17, 41.39], [-0.38, 39.47], [-5.98, 37.39],
   [-2.93, 43.26], [-8.41, 43.36], [-4.72, 41.65], [-1.13, 37.99], [2.65, 39.57], [-15.43, 28.12], [-16.25, 28.46]];
 const ZONAS_SISMICAS = [[-3.6, 37.2], [-1.1, 38.0], [-2.4, 36.85]]; // Granada, Murcia, Almería
 const CANARIAS_VOLCAN = [[-17.85, 28.6], [-18.0, 27.75]];          // La Palma, El Hierro
+// Parques nacionales (centros aproximados): Picos de Europa, Ordesa, Aigüestortes, Guadarrama, Cabañeros,
+// Monfragüe, Doñana, Sierra Nevada, Tablas de Daimiel, Teide, Garajonay, Timanfaya, Caldera de Taburiente.
+const PARQUES_NACIONALES = [[-4.85, 43.2], [0.0, 42.65], [0.95, 42.57], [-3.95, 40.85], [-4.48, 39.4], [-6.0, 39.85],
+  [-6.45, 36.98], [-3.3, 37.05], [-3.7, 39.13], [-16.64, 28.27], [-17.24, 28.13], [-13.75, 29.0], [-17.88, 28.73]];
 
 function valoresInventados(c) {
   const [lon, lat] = c.centro;
@@ -179,48 +183,72 @@ function valoresInventados(c) {
   // Agua: más en el norte (lluvia) y cerca de grandes ríos (simulado con ruido).
   const agua = 20 + 55 * Math.min(1, Math.max(0, (lat - 37) / 6.5)) + 30 * r(23, 180) + (canarias ? 15 : 0); // Canarias: desaladoras
   // Clima: fresco = mejor para refrigerar. Mejor al norte y en el interior alto.
-  const clima = 25 + 9 * (lat - 37) + 25 * r(37, 150) + (canarias ? 15 : 0);
+  // (Canarias: clima suave por el océano; con la fórmula de la latitud saldría 0.)
+  const clima = canarias ? 40 + 25 * r(37, 150) : 25 + 9 * (lat - 37) + 25 * r(37, 150);
   // Conectividad: cerca de grandes ciudades (fibra, puntos de intercambio).
   const conectividad = 15 + 70 * cercania(c.centro, CIUDADES, 110) + 20 * r(41, 120);
-  // Carreteras: parecido a conectividad, pero más repartido.
-  const carreteras = 35 + 45 * cercania(c.centro, CIUDADES, 180) + 25 * r(53, 90);
-  // Sísmico (100 = poco riesgo): peor en el sureste y en zonas volcánicas.
+  // Riesgos (100 = poco riesgo): mezcla de riesgo sísmico (sureste, volcanes) e inundación (manchas, costa).
   const sismico = 98 - 95 * cercania(c.centro, ZONAS_SISMICAS, 70) - 50 * cercania(c.centro, CANARIAS_VOLCAN, 25)
     - 15 * Math.max(0, lat - 42.3) * r(61) - 10 * r(67, 60);
-  // Inundación (100 = poco riesgo): manchas pequeñas y más riesgo en la costa mediterránea.
   const inundacion = 92 - 70 * Math.max(0, r(71, 60) - 0.55) * 4 - (c.area < AREA_REAL_KM2 * 0.999 && lon > -1.5 && !canarias ? 25 : 0);
+  const riesgos = 0.55 * Math.min(sismico, inundacion) + 0.45 * (sismico + inundacion) / 2 + 8;
+  // Suelo: terreno apto (llano, estable, disponible). Peor en montaña (simulado con ruido) y cerca de ciudades.
+  let suelo = 20 + 75 * r(131, 140) - 25 * cercania(c.centro, CIUDADES, 15);
+  if (r(137, 45) > 0.705) suelo = 6 + 12 * r(139, 15);   // "montañas": terreno no apto (sale descartado)
 
-  const v = { energia, agua, clima, conectividad, carreteras, sismico, inundacion };
+  const v = { energia, agua, clima, riesgos, conectividad, suelo };
   for (const k in v) v[k] = limitar(v[k]);
 
   // Huecos de datos: algunas variables faltan en algunas zonas (como pasará con los reales).
   if (r(83, 120) > 0.72) v.conectividad = null;
   if (r(89, 90) > 0.78) v.agua = null;
   if (hash(Math.round(lon * 100), Math.round(lat * 100), 97) > 0.985) v.clima = null;
-  if (r(101, 40) > 0.83) for (const k in v) v[k] = null;   // unos pocos cuadrados sin ningún dato
+  const sinDatos = r(101, 40) > 0.83;
+  if (sinDatos) for (const k in v) v[k] = null;   // unos pocos cuadrados sin ningún dato
 
-  // Suelo protegido (parques naturales, Red Natura...): manchas.
-  const protegido = r(113, 70) > 0.74;
-  return { v, protegido };
+  // Permisos que afectan al cuadrado (inventados, con algo de sentido geográfico).
+  const permisos = [];
+  if (r(113, 70) > 0.71) permisos.push('natura_2000');
+  if (PARQUES_NACIONALES.some(pn => distanciaKm(c.centro, pn) < 14) && r(127, 20) > 0.3) permisos.push('parque_nacional');
+  if (cercania(c.centro, CIUDADES, 8) > 0.45 || r(149, 25) > 0.88) permisos.push('suelo_urbano');
+  if (r(71, 60) > 0.65) permisos.push('zona_inundable');
+  if (r(71, 60) > 0.7) permisos.push('flujo_preferente');
+  return { v, permisos: sinDatos ? null : permisos };   // null = no se sabe
 }
+
+// Unos pocos cuadrados llevan motivos ya escritos (como podría mandarlos el modelo del equipo),
+// para probar que la web los enseña tal cual. El resto no los trae: la web los calcula.
+const MOTIVOS_EJEMPLO = {
+  motivos_a_favor: [
+    { es: 'Subestación eléctrica a menos de 5 km', en: 'Electrical substation less than 5 km away' },
+    { es: 'Temperatura media baja todo el año', en: 'Low average temperature all year round' },
+    { es: 'Terreno llano y sin edificar', en: 'Flat, undeveloped land' },
+  ],
+  motivos_en_contra: [
+    { es: 'Lejos de los puntos de intercambio de internet', en: 'Far from internet exchange points' },
+  ],
+};
 
 // ---------------------------------------------------------------------
 // 5. ESCRIBIR EL ARCHIVO
 // ---------------------------------------------------------------------
 celdas.sort((p, q) => (p.huso === q.huso ? 0 : p.huso === 30 ? -1 : 1) || q.y - p.y || p.x - q.x);
 const features = celdas.map((c, i) => {
-  const { v, protegido } = SOLO_GEOMETRIA
-    ? { v: { energia: null, agua: null, clima: null, conectividad: null, carreteras: null, sismico: null, inundacion: null }, protegido: false }
+  const { v, permisos } = SOLO_GEOMETRIA
+    ? { v: { energia: null, agua: null, clima: null, riesgos: null, conectividad: null, suelo: null }, permisos: [] }
     : valoresInventados(c);
+  const conMotivos = !SOLO_GEOMETRIA && v.energia !== null && i % 500 === 0;
   return {
     type: 'Feature',
     geometry: c.geometry,
     properties: {
       id: `ES-${String(i + 1).padStart(5, '0')}`,
       puntuacion: null,
-      descartado: protegido,
-      motivo_descarte: protegido ? 'suelo_protegido' : null,
+      descartado: false,
+      motivo_descarte: null,
       ...v,
+      permisos,
+      ...(conMotivos ? MOTIVOS_EJEMPLO : {}),
       area_km2: c.area,
       utm_huso: c.huso,
       utm_x: c.x,
@@ -256,8 +284,12 @@ console.log(`  enteros: ${enteros} · recortados por costa/frontera: ${n - enter
 console.log(`  por huso: 30 → ${celdas.filter(c => c.huso === 30).length}, 28 (Canarias) → ${celdas.filter(c => c.huso === 28).length}`);
 console.log(`  área total: ${Math.round(celdas.reduce((t, c) => t + c.area, 0)).toLocaleString('es')} km²`);
 if (!SOLO_GEOMETRIA) {
-  console.log(`  suelo protegido: ${contar(p => p.descartado)} · sin ningún dato: ${contar(p => p.energia === null && p.agua === null && p.sismico === null)}`);
-  for (const k of ['energia', 'agua', 'clima', 'conectividad', 'carreteras', 'sismico', 'inundacion'])
+  console.log(`  sin ningún dato: ${contar(p => p.energia === null && p.agua === null && p.riesgos === null)}` +
+    ` · con motivos escritos: ${contar(p => p.motivos_a_favor)}`);
+  for (const k of ['natura_2000', 'parque_nacional', 'suelo_urbano', 'zona_inundable', 'flujo_preferente'])
+    console.log(`  permiso ${k.padEnd(17)} ${contar(p => (p.permisos ?? []).includes(k))}`);
+  console.log(`  alguna variable bajo 20: ${contar(p => ['energia', 'agua', 'clima', 'riesgos', 'conectividad', 'suelo'].some(k => p[k] !== null && p[k] < 20))}`);
+  for (const k of ['energia', 'agua', 'clima', 'riesgos', 'conectividad', 'suelo'])
     console.log(`  ${k.padEnd(13)} nulls: ${String(contar(p => p[k] === null)).padStart(4)}  ` +
       `bajo 20: ${String(contar(p => p[k] !== null && p[k] < 20)).padStart(4)}`);
 }
