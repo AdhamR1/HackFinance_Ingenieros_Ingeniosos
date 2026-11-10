@@ -4,6 +4,7 @@ The dictionary is the single source of truth: every field it lists becomes a
 column of the right table, even if no collector fills it yet (it stays null and
 shows up in the coverage report).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -20,7 +21,7 @@ LINEAGE_EXTRA = ["table", "field", "collector", "coverage_pct", "n_rows", "notes
 class TableSpec:
     name: str
     keys: list[str]
-    fields: dict[str, str]                      # field -> dictionary type
+    fields: dict[str, str]  # field -> dictionary type
     meta: dict[str, dict] = field(default_factory=dict)  # field -> dictionary row
     partition_by_year: bool = False
 
@@ -55,7 +56,9 @@ def _read_weekly(path: str) -> pd.DataFrame:
     try:
         return pd.read_excel(path, sheet_name="Variables semanales").fillna("")
     except ValueError:  # older dictionary without the weekly sheet
-        return pd.DataFrame(columns=["Tabla", "Campo", "Tipo", "Desde (campo diario)", "Agregación"])
+        return pd.DataFrame(
+            columns=["Tabla", "Campo", "Tipo", "Desde (campo diario)", "Agregación"]
+        )
 
 
 def load_schemas(dictionary_path: str | Path) -> dict[str, TableSpec]:
@@ -74,22 +77,39 @@ def load_schemas(dictionary_path: str | Path) -> dict[str, TableSpec]:
 
     sites = dic[dic["Tabla"] == "sites"]
     specs = {
-        "sites_static": spec("sites_static", ["site_id"], sites[sites["Temporalidad"] == "Estático"]),
-        "sites_yearly": spec("sites_yearly", ["site_id", "year"], sites[sites["Temporalidad"] == "Anual"]),
-        "country_context": spec("country_context", ["country_iso3", "year"], dic[dic["Tabla"] == "country_context"]),
+        "sites_static": spec(
+            "sites_static", ["site_id"], sites[sites["Temporalidad"] == "Estático"]
+        ),
+        "sites_yearly": spec(
+            "sites_yearly", ["site_id", "year"], sites[sites["Temporalidad"] == "Anual"]
+        ),
+        "country_context": spec(
+            "country_context", ["country_iso3", "year"], dic[dic["Tabla"] == "country_context"]
+        ),
         "stations": spec("stations", ["station_id"], dic[dic["Tabla"] == "stations"]),
-        "signal_features": spec("signal_features", ["record_id"], dic[dic["Tabla"] == "signal_features"]),
+        "signal_features": spec(
+            "signal_features", ["record_id"], dic[dic["Tabla"] == "signal_features"]
+        ),
+        # unstructured data: literal quotes of public recordings (speech -> text)
+        "audio_evidence": spec(
+            "audio_evidence", ["evidence_id"], dic[dic["Tabla"] == "audio_evidence"]
+        ),
     }
     d = daily.fillna("")
     d = d.rename(columns={"Tabla": "Tabla", "Campo": "Campo", "Tipo": "Tipo"})
-    specs["sites_daily"] = spec("sites_daily", ["site_id", "date"], d[d["Tabla"] == "sites_daily"], year_part=True)
-    specs["country_daily"] = spec("country_daily", ["country_iso3", "date"], d[d["Tabla"] == "country_daily"])
+    specs["sites_daily"] = spec(
+        "sites_daily", ["site_id", "date"], d[d["Tabla"] == "sites_daily"], year_part=True
+    )
+    specs["country_daily"] = spec(
+        "country_daily", ["country_iso3", "date"], d[d["Tabla"] == "country_daily"]
+    )
     w = _read_weekly(str(dictionary_path))
-    specs["sites_weekly"] = spec("sites_weekly", ["site_id", "week_start"], w[w["Tabla"] == "sites_weekly"],
-                                 year_part=True)
+    specs["sites_weekly"] = spec(
+        "sites_weekly", ["site_id", "week_start"], w[w["Tabla"] == "sites_weekly"], year_part=True
+    )
 
     lineage_fields = {r["Campo"]: r["Tipo"] for _, r in dic[dic["Tabla"] == "todas"].iterrows()}
-    lf = {k: "string" for k in LINEAGE_EXTRA}
+    lf = dict.fromkeys(LINEAGE_EXTRA, "string")
     lf["coverage_pct"] = "float"
     lf["n_rows"] = "int"
     lf.update(lineage_fields)
@@ -123,7 +143,13 @@ def conform(df: pd.DataFrame, spec: TableSpec, logger=None, strict: bool = True)
             if dtype.startswith("datetime"):
                 s = pd.to_datetime(s, errors="coerce")
             elif dtype == "boolean":
-                s = s.map(lambda v: pd.NA if v is None or (isinstance(v, float) and pd.isna(v)) or v is pd.NA else bool(v)).astype("boolean")
+                s = s.map(
+                    lambda v: (
+                        pd.NA
+                        if v is None or (isinstance(v, float) and pd.isna(v)) or v is pd.NA
+                        else bool(v)
+                    )
+                ).astype("boolean")
             elif dtype == "Int64":
                 s = pd.to_numeric(s, errors="coerce").round().astype("Int64")
             elif dtype == "float64":

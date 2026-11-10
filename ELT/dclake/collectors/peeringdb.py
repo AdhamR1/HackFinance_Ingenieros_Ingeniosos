@@ -1,4 +1,5 @@
 """PeeringDB (IXPs, colocation facilities) and hub distances/latencies."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -12,12 +13,20 @@ NEIGHBOUR_COUNTRIES = "ES,PT,FR,AD,MA"
 
 def fetch_pdb(lake, obj: str, **params) -> pd.DataFrame | None:
     import os
+
     key = os.environ.get("PEERINGDB_API_KEY")
     headers = {"Authorization": f"Api-Key {key}"} if key else None
     tag = "_".join(f"{k}-{v}" for k, v in sorted(params.items())).replace(",", "-")
-    js = lake.get_json(PDB.format(obj=obj), lake.raw / "peeringdb" / f"{obj}_{tag}.json",
-                       params=params, headers=headers, sleep=3)
-    lake.catalog(f"peeringdb_{obj}", "PeeringDB", PDB.format(obj=obj), "PeeringDB Acceptable Use Policy")
+    js = lake.get_json(
+        PDB.format(obj=obj),
+        lake.raw / "peeringdb" / f"{obj}_{tag}.json",
+        params=params,
+        headers=headers,
+        sleep=3,
+    )
+    lake.catalog(
+        f"peeringdb_{obj}", "PeeringDB", PDB.format(obj=obj), "PeeringDB Acceptable Use Policy"
+    )
     return pd.DataFrame(js["data"]) if js else None
 
 
@@ -28,8 +37,16 @@ class PeeringDBCollector(Collector):
     source_url = "https://www.peeringdb.com/apidocs/"
     license = "PeeringDB Acceptable Use Policy"
     confidence = 0.8
-    fields = {"sites_static": ["dist_ixp_km", "n_ixp_100km", "n_networks_at_ixp", "n_colo_facilities_100km",
-                               "n_networks_100km", "n_carriers_nearest_colo"]}
+    fields = {
+        "sites_static": [
+            "dist_ixp_km",
+            "n_ixp_100km",
+            "n_networks_at_ixp",
+            "n_colo_facilities_100km",
+            "n_networks_100km",
+            "n_carriers_nearest_colo",
+        ]
+    }
 
     def run(self, sites):
         cc = ",".join(self.cfg["project"].get("neighbours_iso2") or NEIGHBOUR_COUNTRIES.split(","))
@@ -71,8 +88,16 @@ class HubsCollector(Collector):
     license = "-"
     imputation_method = "modelo"
     confidence = 0.5
-    fields = {"sites_static": ["dist_major_hub_km", "latency_to_hub_ms", "latency_frankfurt_ms",
-                               "latency_ashburn_ms", "latency_singapore_ms", "latency_tokyo_ms"]}
+    fields = {
+        "sites_static": [
+            "dist_major_hub_km",
+            "latency_to_hub_ms",
+            "latency_frankfurt_ms",
+            "latency_ashburn_ms",
+            "latency_singapore_ms",
+            "latency_tokyo_ms",
+        ]
+    }
 
     def run(self, sites):
         h, lat = self.cfg["hubs"], self.cfg["latency"]
@@ -82,7 +107,11 @@ class HubsCollector(Collector):
             lo, la = h[hub]
             return geo.haversine_km(sites["lon"].values, sites["lat"].values, lo, la)
 
-        kw = dict(route_factor=lat["route_factor"], ms_per_km_rtt=lat["ms_per_km_rtt"], fixed_ms=lat["fixed_ms"])
+        kw = {
+            "route_factor": lat["route_factor"],
+            "ms_per_km_rtt": lat["ms_per_km_rtt"],
+            "fixed_ms": lat["fixed_ms"],
+        }
         df["dist_major_hub_km"] = d(self.cfg["project"].get("main_hub", "madrid"))
         df["latency_to_hub_ms"] = geo.latency_ms(df["dist_major_hub_km"], **kw)
         for hub in ("frankfurt", "ashburn", "singapore", "tokyo"):

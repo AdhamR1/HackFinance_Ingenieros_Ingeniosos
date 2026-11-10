@@ -3,13 +3,18 @@
 Dataset layout: one folder per table and one file per country (and part, for the per-cell tables),
 so the countries add up in the same tables:
   sites_static/ESP-p00.parquet   sites_yearly/ESP-p00.parquet   field_lineage/ESP-p00.parquet
-  sites_weekly/year=2025/ESP-p00-2025.parquet    (ISO year of the week; -2025 = calendar year processed)
-  country_daily/ESP.parquet   stations/ESP.parquet   signal_features/ESP.parquet
+  sites_weekly/year=2025/ESP-p00-2025.parquet    (ISO year of the week; -2025 = calendar year
+  processed)
+  country_daily/ESP.parquet   stations/ESP-p00.parquet   signal_features/ESP-p00.parquet
   country_context.parquet     (the same 8 countries whatever the run)
+  audio_evidence.parquet      (citations of public recordings: every country, one file)
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import shutil
+from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -26,15 +31,22 @@ def _base_keys(lake, cfg, table: str, year: int | None = None) -> pd.DataFrame |
     if table == "sites_yearly":
         return sites[["site_id"]].merge(pd.DataFrame({"year": range(y0, y1 + 1)}), how="cross")
     if table == "country_context":
-        return pd.MultiIndex.from_product([cfg["countries"], range(y0, y1 + 1)],
-                                          names=["country_iso3", "year"]).to_frame(index=False)
+        return pd.MultiIndex.from_product(
+            [cfg["countries"], range(y0, y1 + 1)], names=["country_iso3", "year"]
+        ).to_frame(index=False)
     if table == "sites_daily":
         days = pd.date_range(p["start"], p["end"], freq="D")
         days = days[days.year == year]
-        return pd.MultiIndex.from_product([sites["site_id"].values, days], names=["site_id", "date"]).to_frame(index=False)
+        return pd.MultiIndex.from_product(
+            [sites["site_id"].values, days], names=["site_id", "date"]
+        ).to_frame(index=False)
     if table == "country_daily":
-        return pd.DataFrame({"country_iso3": cfg["project"]["country_iso3"],
-                             "date": pd.date_range(p["start"], p["end"], freq="D")})
+        return pd.DataFrame(
+            {
+                "country_iso3": cfg["project"]["country_iso3"],
+                "date": pd.date_range(p["start"], p["end"], freq="D"),
+            }
+        )
     return None  # stations, signal_features: union of staged keys
 
 
@@ -50,8 +62,14 @@ def _norm_keys(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     return df
 
 
-def merge_staged(lake, cfg, spec: TableSpec, collectors: list[str], year: int | None = None,
-                 provenance: dict | None = None) -> pd.DataFrame:
+def merge_staged(
+    lake,
+    cfg,
+    spec: TableSpec,
+    collectors: list[str],
+    year: int | None = None,
+    provenance: dict | None = None,
+) -> pd.DataFrame:
     """Combine all staged frames for one table. Earlier collectors win on conflicts."""
     keys = spec.keys
     frames = []
@@ -69,12 +87,12 @@ def merge_staged(lake, cfg, spec: TableSpec, collectors: list[str], year: int | 
     for c, df in frames:
         d = df.drop_duplicates(keys, keep="last").set_index(keys)
         cols = [col for col in d.columns if col in spec.fields]
-        d = d[cols].reindex(base.index)          # one alignment per collector, not per column
+        d = d[cols].reindex(base.index)  # one alignment per collector, not per column
         for col in cols:
             new = d[col]
             if col in base.columns:
                 before = base[col].notna().sum()
-                if before < len(base):           # earlier collectors win; only fill their gaps
+                if before < len(base):  # earlier collectors win; only fill their gaps
                     base[col] = base[col].where(base[col].notna(), new)
                 gained = base[col].notna().sum() - before
             else:
@@ -87,31 +105,44 @@ def merge_staged(lake, cfg, spec: TableSpec, collectors: list[str], year: int | 
     return base.reset_index()
 
 
-def clear_outputs(lake) -> int:
-    """Remove this country's per-cell files from the dataset (before rebuilding all its parts)."""
-    files = list(lake.tables.glob(f"*/{lake.iso}-p*.parquet")) + \
-        list(lake.tables.glob(f"sites_weekly/year=*/{lake.iso}-p*.parquet"))
+def clear_outputs(lake, weekly: bool = True) -> int:
+    """Remove this country's per-cell files from the dataset (before rebuilding all its parts).
+    weekly=False keeps the weekly table (a run that does not rebuild it)."""
+    files = list(lake.tables.glob(f"*/{lake.iso}-p*.parquet"))
+    if weekly:
+        files += list(lake.tables.glob(f"sites_weekly/year=*/{lake.iso}-p*.parquet"))
+    # per-country files of an older layout (stations and signals are now per part as well)
+    files += [lake.tables / t / f"{lake.iso}.parquet" for t in ("stations", "signal_features")]
+    files = [f for f in files if f.exists()]
     for f in files:
         f.unlink()
     return len(files)
 
 
 def _out_path(lake, name: str):
-    if name == "country_context":
-        return lake.tables / "country_context.parquet"
+    if name in ("country_context", "audio_evidence"):  # one file, the same whatever the run
+        return lake.tables / f"{name}.parquet"
     d = lake.tables / name
     d.mkdir(parents=True, exist_ok=True)
-    per_part = name in ("sites_static", "sites_yearly", "field_lineage")
+    per_part = name in (
+        "sites_static",
+        "sites_yearly",
+        "field_lineage",
+        "stations",
+        "signal_features",
+    )
     return d / f"{lake.out_name if per_part else lake.iso}.parquet"
 
 
-def assemble(lake, cfg, collectors: list[str] | None = None):
+def assemble(lake, cfg, collectors: list[str] | None = None, weekly: bool = True, previous=None):
+    """Build the tables of one part. weekly=False skips the weekly table (minutes instead of
+    most of the run) and keeps its lineage rows from `previous` (the dataset folder)."""
     specs = load_schemas(cfg.dictionary_path)
     collectors = collectors or lake.staged_collectors()
     log = lake.log
     lineage_rows = []
     lineage_info = {c: lake.read_lineage(c) for c in collectors}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     def add_lineage(spec, df, prov):
         for f in spec.fields:
@@ -125,30 +156,58 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
                 info = li.get(f"{spec.name}.{f}") or li.get("*", {})
                 if info:
                     break
-            lineage_rows.append({"table": spec.name, "field": f, "collector": ",".join(srcs) or None,
-                                 "coverage_pct": cov, "n_rows": len(df), **info})
+            lineage_rows.append(
+                {
+                    "table": spec.name,
+                    "field": f,
+                    "collector": ",".join(srcs) or None,
+                    "coverage_pct": cov,
+                    "n_rows": len(df),
+                    **info,
+                }
+            )
 
-    for name in ("sites_static", "sites_yearly", "country_context", "country_daily", "stations", "signal_features"):
+    for name in (
+        "sites_static",
+        "sites_yearly",
+        "country_context",
+        "country_daily",
+        "stations",
+        "signal_features",
+        "audio_evidence",
+    ):
         spec = specs[name]
         prov = {}
         df = merge_staged(lake, cfg, spec, collectors, provenance=prov)
+        if name == "audio_evidence" and df.empty:
+            continue  # shared by every country: a run without citations must not empty it
         df = conform(df, spec, log, strict=False)
         df.to_parquet(_out_path(lake, name), index=False)
         add_lineage(spec, df, prov)
         log.info("Tabla %-16s %8d filas x %3d columnas", name, len(df), df.shape[1])
 
-    # sites_weekly (what goes to the data lake): built from the merged daily data, one calendar year at a time.
+    # sites_weekly (what goes to the data lake): built from the merged daily data, one calendar
+    # year at a time.
     # The week that straddles New Year is completed with the first days of the next year (carry).
     from .weekly import aggregate, iso_year, week_start, weekly_rules
+
     dspec, wspec = specs["sites_daily"], specs["sites_weekly"]
     rules = weekly_rules(wspec)
-    for old in lake.tables.glob(f"sites_weekly/year=*/{lake.out_name}-*.parquet"):   # rebuilt from staging
-        old.unlink()
+    if weekly:  # rebuilt from staging
+        for old in lake.tables.glob(f"sites_weekly/year=*/{lake.out_name}-*.parquet"):
+            old.unlink()
     p = cfg["period"]
     years = list(range(pd.Timestamp(p["start"]).year, pd.Timestamp(p["end"]).year + 1))
+    if not weekly:
+        years = []
     prov, n_total, nn, carry = {}, 0, {}, None
     for y in years:
-        df = conform(merge_staged(lake, cfg, dspec, collectors, year=y, provenance=prov), dspec, log, strict=False)
+        df = conform(
+            merge_staged(lake, cfg, dspec, collectors, year=y, provenance=prov),
+            dspec,
+            log,
+            strict=False,
+        )
         if carry is not None:
             df = pd.concat([carry, df], ignore_index=True)
             carry = None
@@ -166,7 +225,7 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
         for f in wspec.fields:
             nn[f] = nn.get(f, 0) + int(w[f].notna().sum())
     src_of = {wf: src for wf, src, _ in rules}
-    for f in wspec.fields:
+    for f in wspec.fields if weekly else []:
         if f in wspec.keys:
             continue
         srcs = prov.get(src_of.get(f, ""), [])
@@ -177,14 +236,62 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
             if info:
                 break
         how = wspec.meta.get(f, {}).get("Agregación", "")
-        info["notes"] = "; ".join(x for x in (info.get("notes"), f"Semanal ISO: {how} de {src_of.get(f, 'date')}") if x)
-        lineage_rows.append({"table": "sites_weekly", "field": f, "collector": ",".join(srcs) or None,
-                             "coverage_pct": 100 * nn.get(f, 0) / max(n_total, 1), "n_rows": n_total, **info})
-    log.info("Tabla %-16s %8d filas (particionada por año ISO)", "sites_weekly", n_total)
+        info["notes"] = "; ".join(
+            x for x in (info.get("notes"), f"Semanal ISO: {how} de {src_of.get(f, 'date')}") if x
+        )
+        lineage_rows.append(
+            {
+                "table": "sites_weekly",
+                "field": f,
+                "collector": ",".join(srcs) or None,
+                "coverage_pct": 100 * nn.get(f, 0) / max(n_total, 1),
+                "n_rows": n_total,
+                **info,
+            }
+        )
+    if weekly:
+        log.info("Tabla %-16s %8d filas (particionada por año ISO)", "sites_weekly", n_total)
 
     lin = pd.DataFrame(lineage_rows)
-    lin["reference_year"] = np.where(lin["table"].isin(["sites_weekly", "sites_yearly", "country_context", "country_daily"]),
-                                     np.nan, now.year)
+    lin["reference_year"] = np.where(
+        lin["table"].isin(["sites_weekly", "sites_yearly", "country_context", "country_daily"]),
+        np.nan,
+        now.year,
+    )
     lin = conform(lin, specs["field_lineage"], log, strict=False)
+    if not weekly and previous is not None:  # the weekly table was not rebuilt: keep its lineage
+        old = Path(previous) / "field_lineage" / f"{lake.out_name}.parquet"
+        if old.exists():
+            kept = pd.read_parquet(old)
+            lin = pd.concat([lin, kept[kept["table"] == "sites_weekly"]], ignore_index=True)
     lin.to_parquet(_out_path(lake, "field_lineage"), index=False)
     return lin
+
+
+def assemble_safely(
+    lake, cfg, parts: list[int], replace_all: bool = True, weekly: bool = True
+) -> None:
+    """Assemble into a cache folder, and only then replace the country's files in the dataset.
+
+    If the run is interrupted (closed session, sleep, error), the dataset keeps its previous files
+    instead of a half-written country. weekly=False rebuilds everything but the weekly table.
+    """
+    import copy
+    import os
+
+    work = copy.copy(lake)
+    work.tables = lake.root / "assemble_tmp"
+    shutil.rmtree(work.tables, ignore_errors=True)
+    work.tables.mkdir(parents=True, exist_ok=True)  # OneDrive may keep the empty folders
+    for old in work.tables.rglob("*.parquet"):  # never mix in files of an interrupted run
+        old.unlink()
+    for k in parts:
+        assemble(work.with_part(k), cfg, weekly=weekly, previous=lake.tables)
+    if replace_all:
+        clear_outputs(lake, weekly=weekly)
+    for f in sorted(work.tables.rglob("*.parquet")):
+        dest = lake.tables / f.relative_to(work.tables)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(f, dest)
+    shutil.rmtree(work.tables, ignore_errors=True)
+    lake.log.info("Dataset de %s actualizado en %s", lake.iso, lake.tables)

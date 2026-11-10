@@ -1,4 +1,6 @@
-"""Human-readable Excel sample of the assembled tables for a few cells (for the team to look at)."""
+"""Human-readable Excel sample of the assembled tables for a few cells (for the team to look
+at)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,14 +13,24 @@ from .schema import _read
 def _meta(cfg) -> pd.DataFrame:
     dic, daily = _read(str(cfg.dictionary_path))
     cols = ["Campo", "Bloque", "Unidad", "Descripción", "Prioridad"]
-    m = pd.concat([dic[[c for c in cols if c in dic]], daily[[c for c in cols if c in daily]]], ignore_index=True)
+    m = pd.concat(
+        [dic[[c for c in cols if c in dic]], daily[[c for c in cols if c in daily]]],
+        ignore_index=True,
+    )
     return m.drop_duplicates("Campo").set_index("Campo")
 
 
 def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: int = 3) -> Path:
     static = lake.read_table("sites_static")
     if not site_ids:  # cells that have the most data
-        site_ids = static.set_index("site_id").notna().sum(axis=1).sort_values(ascending=False).index[:n_default].tolist()
+        site_ids = (
+            static.set_index("site_id")
+            .notna()
+            .sum(axis=1)
+            .sort_values(ascending=False)
+            .index[:n_default]
+            .tolist()
+        )
     meta = _meta(cfg)
     lin = lake.read_table("field_lineage")
     src = lin.drop_duplicates("field").set_index("field")["source"]
@@ -28,10 +40,16 @@ def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: i
         tr.columns = [str(c) for c in tr.columns]
         tr.insert(0, "bloque", tr.index.map(meta["Bloque"]) if "Bloque" in meta else "")
         tr.insert(1, "unidad", tr.index.map(meta["Unidad"]) if "Unidad" in meta else "")
-        tr.insert(2, "descripcion", tr.index.map(meta["Descripción"]) if "Descripción" in meta else "")
+        tr.insert(
+            2, "descripcion", tr.index.map(meta["Descripción"]) if "Descripción" in meta else ""
+        )
         tr.insert(3, "fuente", tr.index.map(src))
         tr["con_datos"] = df.set_index(key).T.notna().any(axis=1)
-        return tr.rename_axis("campo").reset_index().sort_values(["con_datos", "bloque", "campo"], ascending=[False, True, True])
+        return (
+            tr.rename_axis("campo")
+            .reset_index()
+            .sort_values(["con_datos", "bloque", "campo"], ascending=[False, True, True])
+        )
 
     sheets = {}
     st = static[static["site_id"].isin(site_ids)]
@@ -47,19 +65,30 @@ def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: i
     cd = lake.read_table("country_daily").dropna(axis=1, how="all")
     sheets["pais_diario"] = cd
     cc = lake.read_table("country_context")
-    sheets["contexto_paises"] = cc[cc.drop(columns=["country_iso3", "year"]).notna().any(axis=1)].dropna(axis=1, how="all")
+    sheets["contexto_paises"] = cc[
+        cc.drop(columns=["country_iso3", "year"]).notna().any(axis=1)
+    ].dropna(axis=1, how="all")
     cov = lake.reports / "coverage.csv"
     if cov.exists():
         sheets["cobertura_campos"] = pd.read_csv(cov)
 
-    info = pd.DataFrame({"hoja": list(sheets), "contenido": [
-        "Campos estáticos de las celdas de ejemplo (una columna por celda; primero los que tienen datos)",
-        "Campos anuales (agregados de clima, precio, macro) por celda y año",
-        "Variables semanales por celda (solo columnas con datos)",
-        "Variables diarias del país (solo España por ahora: precio OMIE, mix REE, EUR/USD)",
-        "Indicadores por país y año (8 países)",
-        "Estado de cada campo del diccionario: con datos / sin datos / pendiente / sin colector",
-    ][: len(sheets)]})
+    info = pd.DataFrame(
+        {
+            "hoja": list(sheets),
+            "contenido": [
+                "Campos estáticos de las celdas de ejemplo (una columna por celda; primero los "
+                "que "
+                "tienen datos)",
+                "Campos anuales (agregados de clima, precio, macro) por celda y año",
+                "Variables semanales por celda (solo columnas con datos)",
+                "Variables diarias del país (solo España por ahora: precio OMIE, mix REE, "
+                "EUR/USD)",
+                "Indicadores por país y año (8 países)",
+                "Estado de cada campo del diccionario: con datos / sin datos / pendiente / sin "
+                "colector",
+            ][: len(sheets)],
+        }
+    )
     info.loc[len(info)] = ["celdas", ", ".join(site_ids)]
     info.loc[len(info)] = ["periodo", f"{cfg['period']['start']} a {cfg['period']['end']}"]
 
@@ -70,7 +99,10 @@ def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: i
         for name, df in sheets.items():
             df = df.copy()
             for c in df.columns:  # Excel cannot store tz-aware datetimes or lists
-                if pd.api.types.is_datetime64_any_dtype(df[c]) and getattr(df[c].dt, "tz", None) is not None:
+                if (
+                    pd.api.types.is_datetime64_any_dtype(df[c])
+                    and getattr(df[c].dt, "tz", None) is not None
+                ):
                     df[c] = df[c].dt.tz_localize(None)
                 elif df[c].dtype == object:
                     df[c] = df[c].map(lambda v: str(v) if isinstance(v, (list, dict)) else v)
@@ -78,7 +110,9 @@ def export_sample(lake, cfg, site_ids: list[str] | None, out: Path, n_default: i
             ws = xw.sheets[name[:31]]
             ws.freeze_panes = "B2"
             for col in ws.columns:
-                width = max(len(str(c.value)) if c.value is not None else 0 for c in list(col)[:200])
+                width = max(
+                    len(str(c.value)) if c.value is not None else 0 for c in list(col)[:200]
+                )
                 ws.column_dimensions[col[0].column_letter].width = min(max(10, width + 2), 60)
     lake.log.info("Ejemplo exportado: %s", out)
     return out

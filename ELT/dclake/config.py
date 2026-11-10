@@ -1,4 +1,5 @@
 """Load config.yaml and secrets from .env / environment variables."""
+
 from __future__ import annotations
 
 import os
@@ -57,13 +58,13 @@ class Config(dict):
 # Environment variables (or .env) that override config.yaml without editing it.
 # Precedence: explicit overrides (CLI, demo) > environment > config.yaml
 ENV_OVERRIDES = {
-    "DCLAKE_COUNTRY": "project.country_iso3",   # country of the run (its profile is in config.yaml)
-    "DCLAKE_LAKE_DIR": "paths.lake_dir",     # cache of downloads and intermediates
+    "DCLAKE_COUNTRY": "project.country_iso3",  # country of the run (its profile is in config.yaml)
+    "DCLAKE_LAKE_DIR": "paths.lake_dir",  # cache of downloads and intermediates
     "DCLAKE_DATASET_DIR": "paths.dataset_dir",
     "DCLAKE_START": "period.start",
     "DCLAKE_END": "period.end",
     "DCLAKE_N_CELLS": "sampling.n_cells",
-    "DCLAKE_OSM_LAYERS": "osm.layers",       # only these OpenStreetMap layers (comma separated)
+    "DCLAKE_OSM_LAYERS": "osm.layers",  # only these OpenStreetMap layers (comma separated)
 }
 
 
@@ -95,7 +96,8 @@ def load_config(path: str | Path | None = None, overrides: dict | None = None) -
 
 
 def apply_country_profile(data: dict, explicit=()) -> None:
-    """Overlay country_profiles[<country_iso3>] on project, bboxes, sampling.focus_regions and period.
+    """Overlay country_profiles[<country_iso3>] on project, bboxes, sampling.focus_regions and
+    period.
 
     A period given on the command line or in the environment (explicit) wins over the profile's.
     """
@@ -103,7 +105,9 @@ def apply_country_profile(data: dict, explicit=()) -> None:
     data["project"]["country_iso3"] = iso
     profiles = data.get("country_profiles") or {}
     if profiles and iso not in profiles:
-        raise ValueError(f"No hay perfil para {iso} en config.yaml (country_profiles: {', '.join(profiles)})")
+        raise ValueError(
+            f"No hay perfil para {iso} en config.yaml (country_profiles: {', '.join(profiles)})"
+        )
     for k, v in (profiles.get(iso) or {}).items():
         if k == "bboxes":
             data["bboxes"] = v

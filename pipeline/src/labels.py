@@ -7,18 +7,19 @@ Why this target (and not 18 hand-made `viabilidad_<bloque>` labels):
     -> Positive-Unlabeled (PU) learning. Hard "no" comes only from exclusion rules.
 
 Input : data/raw/dc_sites_es.csv  (103 sites from datacentermap.com, 9-Nov-2026, already geocoded;
-        `precision` says how exact the point is: district_approx ~1-2 km, municipio, metro = city centre)
+        `precision` says how exact the point is: district_approx ~1-2 km, municipio, metro = city
+        centre)
 Output: data/processed/labels_es_3500.parquet
         (site_id, y, y_operational, n_sites, n_buildings, sites)
 
 A few sites fall in coastal cells that the ELT grid drops (< 50 % land). Their location is
 approximate anyway, so they are moved to the nearest ELT cell (reported, max MAX_SNAP_CELLS away).
 """
-import numpy as np
+
 import pandas as pd
 from scipy.spatial import cKDTree
 
-from cells import PROCESSED, RAW, read_grid, site_id_from_lonlat, cell_index
+from cells import PROCESSED, RAW, cell_index, read_grid, site_id_from_lonlat
 
 MAX_SNAP_CELLS = 2
 
@@ -36,7 +37,11 @@ def main():
         for (k, row), d, n in zip(s[outside].iterrows(), dist, idx):
             new = grid["site_id"].iat[n]
             flag = "" if d <= MAX_SNAP_CELLS else "  <-- LEJOS, revisar coordenadas"
-            print(f"  movido a la celda más cercana ({d:.1f} celdas): {row['site']} {row['site_id']} -> {new}{flag}")
+            print(
+                f"  movido a la celda más cercana ({d:.1f} celdas): {row['site']} "
+                f"{row['site_id']} "
+                f"-> {new}{flag}"
+            )
             if d <= MAX_SNAP_CELLS:
                 s.at[k, "site_id"] = new
         s = s[s["site_id"].isin(grid["site_id"])]
@@ -49,14 +54,20 @@ def main():
     )
     lab = grid[["site_id"]].merge(agg, on="site_id", how="left")
     lab["y"] = lab["n_sites"].notna().astype(int)
-    lab[["n_sites", "n_buildings", "y_operational"]] = lab[["n_sites", "n_buildings", "y_operational"]].fillna(0).astype(int)
+    lab[["n_sites", "n_buildings", "y_operational"]] = (
+        lab[["n_sites", "n_buildings", "y_operational"]].fillna(0).astype(int)
+    )
     lab["sites"] = lab["sites"].fillna("")
     lab = lab[["site_id", "y", "y_operational", "n_sites", "n_buildings", "sites"]]
 
     PROCESSED.mkdir(parents=True, exist_ok=True)
     lab.to_parquet(PROCESSED / "labels_es_3500.parquet", index=False)
-    print(f"emplazamientos={len(s)}  edificios={s.n_buildings.sum()}  celdas positivas={lab.y.sum()} "
-          f"(operativas {lab.y_operational.sum()}) de {len(lab):,} ({lab.y.mean():.2%})")
+    print(
+        f"emplazamientos={len(s)}  edificios={s.n_buildings.sum()}  celdas "
+        f"positivas={lab.y.sum()} "
+        f""
+        f"(operativas {lab.y_operational.sum()}) de {len(lab):,} ({lab.y.mean():.2%})"
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,39 @@
+# Code quality tools for the whole repository (ELT and pipeline).
+#   python -m ruff format .        format (PEP 8 style)
+#   python -m ruff check . --fix   lint: PEP 8, imports, common bugs
+#   python -m pytest               tests of ELT and pipeline
+
+[tool.ruff]
+line-length = 99          # PEP 8 allows up to 99 characters when the team agrees on it
+target-version = "py311"
+# build_dict.py is the data dictionary written as a table of one-line rows: kept as it is
+extend-exclude = ["ELT/.cache", "ELT/dataset", "pipeline/data", "ELT/data_dictionary/build_dict.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle (PEP 8)
+    "F",        # pyflakes: unused names, undefined names
+    "I",        # import order
+    "N",        # PEP 8 naming
+    "B",        # likely bugs (bugbear)
+    "UP",       # modern syntax for the target Python
+    "C4",       # comprehensions
+    "SIM",      # simplifications
+    "RUF",      # ruff-specific checks
+]
+ignore = [
+    "RUF001", "RUF002", "RUF003",   # Spanish text uses typographic characters (–, °, ×) on purpose
+    "B905",     # zip(strict=...) everywhere would only add noise
+    "SIM108",   # ternary operators are not always clearer
+    "RUF012",   # collectors declare their fields as class constants on purpose
+]
+
+[tool.ruff.lint.per-file-ignores]
+"ELT/dclake/hv.py" = ["N806"]                  # H, V, K: notation of the H/V method papers
+"pipeline/src/train.py" = ["N803", "N806"]     # X: usual name of the feature matrix
+
+[tool.ruff.lint.isort]
+known-first-party = ["dclake", "cells", "feat_suelo", "feat_riesgos", "features", "labels", "train"]
+
+[tool.pytest.ini_options]
+testpaths = ["ELT/tests", "pipeline/tests"]

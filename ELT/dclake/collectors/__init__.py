@@ -1,4 +1,6 @@
-"""Collector registry. Order matters: when two collectors fill the same field, the earlier one wins."""
+"""Collector registry. Order matters: when two collectors fill the same field, the earlier one
+wins."""
+
 from .base import Collector, PendingCollector
 from .climate import ERA5LandCollector
 from .country import WorldBankCollector
@@ -13,14 +15,33 @@ from .peeringdb import HubsCollector, PeeringDBCollector
 from .pending import PENDING
 from .rasters import DEMCollector, ManualLayersCollector, RemoteRastersCollector
 from .seismic import SeismicCollector
+from .speech import SpeechCollector
 from .transport import AirportsCollector, CablesCollector, CoastCollector
 
+__all__ = ["BY_NAME", "REGISTRY", "Collector", "PendingCollector"]
+
 REGISTRY = [
-    OSMCollector, PeeringDBCollector, HubsCollector, AirportsCollector, CablesCollector, CoastCollector,
-    DEMCollector, RemoteRastersCollector, ManualLayersCollector,
-    EarthquakesCollector, FIRMSCollector, ERA5LandCollector, EOBSCollector, GridMETCollector, NASAPowerCollector, OpenMeteoCollector, ElectricityESCollector,
+    OSMCollector,
+    PeeringDBCollector,
+    HubsCollector,
+    AirportsCollector,
+    CablesCollector,
+    CoastCollector,
+    DEMCollector,
+    RemoteRastersCollector,
+    ManualLayersCollector,
+    EarthquakesCollector,
+    FIRMSCollector,
+    ERA5LandCollector,
+    EOBSCollector,
+    GridMETCollector,
+    NASAPowerCollector,
+    OpenMeteoCollector,
+    ElectricityESCollector,
     WorldBankCollector,
-    SeismicCollector, *PENDING,
+    SeismicCollector,
+    SpeechCollector,
+    *PENDING,
     DerivedCollector,  # always last
 ]
 BY_NAME = {c.name: c for c in REGISTRY}

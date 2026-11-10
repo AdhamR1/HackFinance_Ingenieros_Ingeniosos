@@ -1,4 +1,5 @@
 """ERA5-Land hourly point time series (Copernicus CDS) -> daily climate variables."""
+
 from __future__ import annotations
 
 import io
@@ -26,14 +27,21 @@ ACCUMULATED = ("tp", "sf", "ssrd")
 
 # ---------------------------------------------------------------- physics
 def rh_from_dewpoint(t_c, td_c):
-    es = lambda t: 6.112 * np.exp(17.62 * t / (243.12 + t))
+    def es(t):
+        return 6.112 * np.exp(17.62 * t / (243.12 + t))
+
     return np.clip(100 * es(td_c) / es(t_c), 0, 100)
 
 
 def wetbulb_stull(t_c, rh):
     """Stull (2011) wet-bulb approximation, valid for RH 5-99 % and T -20..50 °C."""
-    return (t_c * np.arctan(0.151977 * np.sqrt(rh + 8.313659)) + np.arctan(t_c + rh) - np.arctan(rh - 1.676331)
-            + 0.00391838 * rh ** 1.5 * np.arctan(0.023101 * rh) - 4.686035)
+    return (
+        t_c * np.arctan(0.151977 * np.sqrt(rh + 8.313659))
+        + np.arctan(t_c + rh)
+        - np.arctan(rh - 1.676331)
+        + 0.00391838 * rh**1.5 * np.arctan(0.023101 * rh)
+        - 4.686035
+    )
 
 
 def daily_total(series: pd.Series) -> pd.Series:
@@ -57,7 +65,8 @@ def daily_total(series: pd.Series) -> pd.Series:
 
 
 def hourly_to_daily(h: pd.DataFrame, ccfg: dict) -> pd.DataFrame:
-    """h: hourly frame indexed by UTC time with columns t2m (K), d2m (K), u10, v10, tp (m), sf (m), ssrd (J/m2), swvl1."""
+    """h: hourly frame indexed by UTC time with columns t2m (K), d2m (K), u10, v10, tp (m), sf (m),
+    ssrd (J/m2), swvl1."""
     h = h.sort_index()
     t = h["t2m"] - 273.15
     td = h["d2m"] - 273.15
@@ -66,19 +75,34 @@ def hourly_to_daily(h: pd.DataFrame, ccfg: dict) -> pd.DataFrame:
     ws = np.hypot(h["u10"], h["v10"])
     hd = pd.DataFrame({"t": t, "td": td, "rh": rh, "tw": tw, "ws": ws, "swvl1": h.get("swvl1")})
     g = hd.resample("1D")
-    d = pd.DataFrame({
-        "t2m_mean_c": g["t"].mean(), "t2m_max_c": g["t"].max(), "t2m_min_c": g["t"].min(),
-        "td2m_mean_c": g["td"].mean(), "rh_mean_pct": g["rh"].mean(), "wetbulb_max_c": g["tw"].max(),
-        "wind10m_mean_ms": g["ws"].mean(), "wind10m_max_ms": g["ws"].max(),
-        "soil_moisture_l1": g["swvl1"].mean(),
-        "free_cooling_hours": (hd["t"] < ccfg["free_cooling_threshold_c"]).resample("1D").sum(),
-        "adiabatic_cooling_hours": (hd["tw"] < ccfg["adiabatic_wetbulb_threshold_c"]).resample("1D").sum(),
-        "n_hours": g["t"].count(),
-    })
-    for col, short, factor in (("precip_mm", "tp", 1000), ("snowfall_mm_we", "sf", 1000), ("ssrd_kwh_m2", "ssrd", 1 / 3.6e6)):
+    d = pd.DataFrame(
+        {
+            "t2m_mean_c": g["t"].mean(),
+            "t2m_max_c": g["t"].max(),
+            "t2m_min_c": g["t"].min(),
+            "td2m_mean_c": g["td"].mean(),
+            "rh_mean_pct": g["rh"].mean(),
+            "wetbulb_max_c": g["tw"].max(),
+            "wind10m_mean_ms": g["ws"].mean(),
+            "wind10m_max_ms": g["ws"].max(),
+            "soil_moisture_l1": g["swvl1"].mean(),
+            "free_cooling_hours": (hd["t"] < ccfg["free_cooling_threshold_c"])
+            .resample("1D")
+            .sum(),
+            "adiabatic_cooling_hours": (hd["tw"] < ccfg["adiabatic_wetbulb_threshold_c"])
+            .resample("1D")
+            .sum(),
+            "n_hours": g["t"].count(),
+        }
+    )
+    for col, short, factor in (
+        ("precip_mm", "tp", 1000),
+        ("snowfall_mm_we", "sf", 1000),
+        ("ssrd_kwh_m2", "ssrd", 1 / 3.6e6),
+    ):
         if short in h:
             d[col] = daily_total(h[short]).reindex(d.index) * factor
-    d = d[d["n_hours"] >= 20].drop(columns="n_hours")   # incomplete days are dropped
+    d = d[d["n_hours"] >= 20].drop(columns="n_hours")  # incomplete days are dropped
     d["cdd_18"] = (d["t2m_mean_c"] - 18).clip(lower=0)
     d["hdd_18"] = (18 - d["t2m_mean_c"]).clip(lower=0)
     d["heatwave_flag"] = d["t2m_max_c"] > ccfg["heatwave_threshold_c"]
@@ -118,7 +142,9 @@ def read_cds_output(path: Path) -> pd.DataFrame:
 
 def _from_nc(raw: bytes) -> pd.DataFrame:
     import tempfile
+
     import xarray as xr
+
     with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
         f.write(raw)
         name = f.name
@@ -137,10 +163,30 @@ class ERA5LandCollector(Collector):
     license = "Licence to use Copernicus Products"
     spatial_resolution_m = 9000
     confidence = 0.85
-    fields = {"sites_daily": ["t2m_mean_c", "t2m_max_c", "t2m_min_c", "td2m_mean_c", "rh_mean_pct", "wetbulb_max_c",
-                              "wind10m_mean_ms", "wind10m_max_ms", "precip_mm", "snowfall_mm_we", "ssrd_kwh_m2",
-                              "soil_moisture_l1", "cdd_18", "hdd_18", "free_cooling_hours", "adiabatic_cooling_hours",
-                              "heatwave_flag", "tropical_night_flag", "frost_flag", "extreme_cold_flag"]}
+    fields = {
+        "sites_daily": [
+            "t2m_mean_c",
+            "t2m_max_c",
+            "t2m_min_c",
+            "td2m_mean_c",
+            "rh_mean_pct",
+            "wetbulb_max_c",
+            "wind10m_mean_ms",
+            "wind10m_max_ms",
+            "precip_mm",
+            "snowfall_mm_we",
+            "ssrd_kwh_m2",
+            "soil_moisture_l1",
+            "cdd_18",
+            "hdd_18",
+            "free_cooling_hours",
+            "adiabatic_cooling_hours",
+            "heatwave_flag",
+            "tropical_night_flag",
+            "frost_flag",
+            "extreme_cold_flag",
+        ]
+    }
 
     def missing_requirements(self):
         has_env = self.cfg.secret("CDSAPI_KEY") is not None
@@ -148,17 +194,23 @@ class ERA5LandCollector(Collector):
         return [] if (has_env or has_rc) else ["CDSAPI_KEY (o archivo ~/.cdsapirc)"]
 
     def run(self, sites):
+        import os
+
         import cdsapi
         from tqdm import tqdm
-        import os
+
         if self.cfg.secret("CDSAPI_KEY") and not os.environ.get("CDSAPI_URL"):
             os.environ["CDSAPI_URL"] = "https://cds.climate.copernicus.eu/api"
         client = cdsapi.Client(quiet=True, progress=False)
         p = self.cfg["period"]
-        raw_dir = self.lake.raw / "era5land" / self.cfg.period_tag   # one request per site and period
+        raw_dir = (
+            self.lake.raw / "era5land" / self.cfg.period_tag
+        )  # one request per site and period
         day_dir = raw_dir / "daily"
         day_dir.mkdir(parents=True, exist_ok=True)
-        for sid, lon, lat in tqdm(list(zip(sites["site_id"], sites["lon"], sites["lat"])), desc="ERA5-Land"):
+        for sid, lon, lat in tqdm(
+            list(zip(sites["site_id"], sites["lon"], sites["lat"])), desc="ERA5-Land"
+        ):
             out = day_dir / f"{sid}.parquet"
             if out.exists():
                 continue
@@ -166,12 +218,19 @@ class ERA5LandCollector(Collector):
             target.parent.mkdir(parents=True, exist_ok=True)
             if not target.exists():
                 try:
-                    client.retrieve(DATASET, {
-                        "variable": list(VARIABLES),
-                        "location": {"longitude": round(float(lon), 3), "latitude": round(float(lat), 3)},
-                        "date": [f"{p['start']}/{p['end']}"],
-                        "data_format": "csv",
-                    }, str(target))
+                    client.retrieve(
+                        DATASET,
+                        {
+                            "variable": list(VARIABLES),
+                            "location": {
+                                "longitude": round(float(lon), 3),
+                                "latitude": round(float(lat), 3),
+                            },
+                            "date": [f"{p['start']}/{p['end']}"],
+                            "data_format": "csv",
+                        },
+                        str(target),
+                    )
                 except Exception as e:
                     self.log.error("  %s: petición CDS fallida (%s)", sid, e)
                     continue
@@ -190,6 +249,7 @@ class ERA5LandCollector(Collector):
     def _stage_by_year(self, day_dir: Path):
         import pyarrow.compute as pc
         import pyarrow.dataset as ds
+
         files = [str(f) for f in day_dir.glob("*.parquet")]
         if not files:
             return
