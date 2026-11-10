@@ -1,0 +1,9 @@
+{
+  "name": "mapa-cribado-datacenters",
+  "private": true,
+  "description": "Mapa estático + Pages Function /api/explicar (Cloudflare Pages). El mapa funciona sin esto.",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0"
+  }
+}
