@@ -77,3 +77,12 @@ def test_force_dry_run_and_failures(env):
     with pytest.raises(RuntimeError, match="sites.parquet"):
         env(fs, force=True)
     assert len(fs.uploads) == 2          # the other files were still uploaded
+
+
+def test_dry_run_without_azure(env):
+    fs = FakeFS(remote={"dataset/sites.parquet": 10})
+    fs.exists = MagicMock(side_effect=Exception("DefaultAzureCredential failed\n(long details)"))
+    assert env(fs, dry_run=True) == 3     # lists every local file, nothing compared or uploaded
+    assert fs.uploads == []
+    with pytest.raises(Exception, match="DefaultAzureCredential"):
+        env(fs)                           # a real upload still fails loudly

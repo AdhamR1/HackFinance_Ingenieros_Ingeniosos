@@ -70,9 +70,11 @@ def cmd_status(cfg, lake, create=False):
         if c.requires or miss:
             lake.log.info("  %-18s %s", c.name, "OK" if not miss else f"FALTA {miss}")
     lake.log.info("Capas manuales (en %s):", lake.manual)
+    from .autolayers import layer_path
     for layer in cfg.get("manual_layers", []):
-        ok = (lake.manual / layer["file"]).exists()
-        lake.log.info("  %-16s %s  %s", layer["name"], "OK   " if ok else "FALTA", "" if ok else layer.get("download", ""))
+        ok = layer_path(lake, cfg, layer).exists()
+        state = "OK   " if ok else ("AUTO " if layer.get("auto") else "FALTA")   # AUTO: se descarga sola
+        lake.log.info("  %-16s %s  %s", layer["name"], state, "" if ok else layer.get("download", ""))
 
 
 def cmd_collect(cfg, lake, only=None, skip=None, limit=None, ids=None):

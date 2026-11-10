@@ -5,7 +5,7 @@ fits; this layer says HOW MUCH it costs. Mixing them would let land price act as
 "near Madrid" (where the existing data centers are).
 
 Sources (public, no registration):
-  * Electricity: OMIE day-ahead price, Spain, mean of 2025 (already in ELT/dataset/country_daily).
+  * Electricity: OMIE day-ahead price, Spain, mean of the last full year in ELT/dataset/country_daily (2025).
     Same price in the whole country: the islands are also billed at the peninsular price.
   * PUE: est_pue from the ELT (depends on the climate of the cell).
   * Land: Ministerio de Transportes, Estadística de Precios de Suelo, per province:
@@ -115,12 +115,14 @@ def main():
     grid = read_grid()
     out = grid[["site_id", "admin1", "admin2"]].copy()
 
-    omie = pd.read_parquet(ELT_DATASET / "country_daily" / "ESP.parquet")["omie_price_mean_eur_mwh"].mean()
+    daily = pd.read_parquet(ELT_DATASET / "country_daily" / "ESP.parquet")
+    daily = daily[daily.date.dt.year == daily.dropna(subset=["omie_price_mean_eur_mwh"]).date.dt.year.max()]
+    omie, eur_usd, year = daily.omie_price_mean_eur_mwh.mean(), daily.eur_usd.mean(), daily.date.dt.year.iloc[0]
     pue = read_elt("sites_yearly", ["site_id", "est_pue"]).groupby("site_id").est_pue.mean()
     out["est_pue"] = out.site_id.map(pue).fillna(pue.median())
     out["precio_luz_eur_mwh"] = round(omie, 2)
     out["coste_energia_meur_ano"] = IT_MW * out.est_pue * HOURS * omie / 1e6
-    print(f"Luz: OMIE 2025 = {omie:.2f} EUR/MWh; PUE de {out.est_pue.min():.2f} a {out.est_pue.max():.2f}")
+    print(f"Luz: OMIE {year} = {omie:.2f} EUR/MWh; PUE de {out.est_pue.min():.2f} a {out.est_pue.max():.2f}")
 
     land = land_price()
     print("Suelo (EUR/m2, últimos 4 trimestres):")
@@ -131,7 +133,6 @@ def main():
     print("Coste laboral (EUR/trabajador/mes, últimos 4 trimestres):")
     out["coste_laboral_eur_mes"] = match(out.admin1, lab, CCAA_ALIAS, lab.get("total nacional"))
 
-    eur_usd = pd.read_parquet(ELT_DATASET / "country_daily" / "ESP.parquet")["eur_usd"].mean()
     madrid = lab.get("madrid comunidad de")
     base = BUILD_MADRID_USD_W * IT_MW / eur_usd                       # M EUR for IT_MW in Madrid
     out["coste_construccion_meur"] = base * (1 - LABOUR_SHARE + LABOUR_SHARE * out.coste_laboral_eur_mes / madrid)

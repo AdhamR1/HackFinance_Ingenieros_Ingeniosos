@@ -178,7 +178,12 @@ class OSMCollector(Collector):
 
     def run(self, sites):
         L = {}
+        wanted = (self.cfg.get("osm") or {}).get("layers")       # DCLAKE_OSM_LAYERS=a,b: only these layers
+        wanted = {s.strip() for s in str(wanted).split(",") if s.strip()} if wanted else None
         for name, body, out in LAYERS:
+            if wanted and name not in wanted:
+                L[name] = None
+                continue
             try:
                 L[name] = overpass_layer(self.lake, self.cfg, name, body, out)
             except Exception as e:

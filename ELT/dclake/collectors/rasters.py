@@ -108,6 +108,16 @@ def dem_stats_bounds(lon0, lat0, lon1, lat1, target_px: int = 100) -> dict:
 DEM_FACTOR = 2          # each 1 deg tile is read at half resolution (~60 m), the same in every country
 
 
+def dem_tile_exists(lat: int, lon: int) -> bool:
+    """False for tiles that do not exist (open sea); raises on network errors, which must not be cached."""
+    import requests
+    r = requests.head(dem_tile_url(lat, lon), timeout=60)
+    if r.status_code in (403, 404):
+        return False
+    r.raise_for_status()
+    return True
+
+
 def dem_tile_sums(lat: int, lon: int, crs: str, cell_m: float, factor: int = DEM_FACTOR) -> pd.DataFrame:
     """Terrain sums per grid cell (cell indices ix, iy as in the site_id) for one 1 deg Copernicus tile.
 
@@ -127,7 +137,9 @@ def dem_tile_sums(lat: int, lon: int, crs: str, cell_m: float, factor: int = DEM
                 a, e = t.a * ds.width / w, t.e * ds.height / h
                 c, f = t.c, t.f
         except rasterio.errors.RasterioIOError:
-            return pd.DataFrame(columns=cols)
+            if not dem_tile_exists(lat, lon):      # sea: there is no tile
+                return pd.DataFrame(columns=cols)
+            raise                                   # network failure: not cached, retried in the next run
     lons = c + (np.arange(w) + 0.5) * a
     lats = f + (np.arange(h) + 0.5) * e
     gy, gx = np.gradient(z)
@@ -198,7 +210,18 @@ class DEMCollector(Collector):
         def path(t):
             return cache / f"{t[0]:+03d}_{t[1]:+04d}.parquet"
 
-        todo = [t for t in tiles if not path(t).exists()]
+        def cached_ok(t):
+            p = path(t)
+            if not p.exists():
+                return False
+            if len(pd.read_parquet(p, columns=["ix"])):
+                return True
+            try:        # empty = sea; an older run could have cached a network failure as empty
+                return not dem_tile_exists(*t)
+            except Exception:
+                return False
+
+        todo = [t for t in tiles if not cached_ok(t)]
         self.log.info("  DEM: %d teselas de 1° (%d ya calculadas)", len(tiles), len(tiles) - len(todo))
 
         def one(t):
@@ -257,7 +280,19 @@ class DEMCollector(Collector):
 
 def _sample_raster(path_or_url: str, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
     import rasterio
+    from pathlib import Path
     from rasterio.warp import transform
+    folder = Path(str(path_or_url))
+    if folder.is_dir():          # lon/lat tiles (e.g. JRC flood maps): each point from the tile that holds it
+        lon, lat = np.asarray(lon, dtype=float), np.asarray(lat, dtype=float)
+        out = np.full(len(lon), np.nan)
+        for t in sorted(folder.glob("*.tif")):
+            with rasterio.open(t) as ds:
+                b = ds.bounds
+            m = (lon >= b.left) & (lon < b.right) & (lat > b.bottom) & (lat <= b.top) & np.isnan(out)
+            if m.any():
+                out[m] = _sample_raster(str(t), lon[m], lat[m])
+        return out
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(path_or_url) as ds:
             xs, ys = transform("EPSG:4326", ds.crs, list(lon), list(lat))
@@ -339,10 +374,16 @@ class ManualLayersCollector(Collector):
         self._done = []
         bb = self.cfg["bboxes"]
         area = gpd.GeoSeries([box(*b).buffer(1) for b in bb.values()], crs=4326)   # the country's boxes
+        from ..autolayers import ensure_layer, layer_path
         for layer in self.cfg.get("manual_layers", []):
-            path = self.lake.manual / layer["file"]
-            if not path.exists():
-                self.log.warning("  [%s] falta %s (descarga: %s)", layer["name"], path, layer.get("download", "?"))
+            try:
+                path = ensure_layer(self.lake, self.cfg, layer)     # layers with `auto` download themselves
+            except Exception as e:
+                self.log.error("  [%s] descarga automática fallida: %s", layer["name"], e)
+                path = None
+            if path is None:
+                self.log.warning("  [%s] falta %s (descarga: %s)", layer["name"], layer_path(self.lake, self.cfg, layer),
+                                 layer.get("download", "?"))
                 continue
             try:
                 if layer["kind"] == "vector":
@@ -357,7 +398,10 @@ class ManualLayersCollector(Collector):
                         elif op["op"] == "contains":
                             df[f] = geo.contains(pts, g)
                         elif op["op"] == "nearest_attr":
-                            df[f] = geo.nearest(pts, g, [op["attr"]])[op["attr"]].values
+                            v = geo.nearest(pts, g, [op["attr"]])[op["attr"]]
+                            if op.get("parse") == "first_number":     # e.g. GEM slip rate "(1.55,0.8,2.22)"
+                                v = pd.to_numeric(v.astype(str).str.extract(r"(-?\d+(?:\.\d+)?)")[0], errors="coerce")
+                            df[f] = v.values
                         elif op["op"] == "point_attr":
                             df[f] = geo.point_attr(pts, g, op["attr"])
                         elif op["op"] == "count_within_km":
@@ -384,7 +428,8 @@ class ManualLayersCollector(Collector):
         for layer in getattr(self, "_done", []):
             for op in layer["ops"]:
                 info[f"sites_static.{op['field']}"] = {
-                    "source": layer["name"], "source_url": layer.get("download", ""), "license": layer.get("license", ""),
+                    "source": layer.get("source", layer["name"]), "source_url": layer.get("download", ""),
+                    "license": layer.get("license", ""),
                     "is_synthetic": False, "imputation_method": "ninguno",
                     "pipeline_version": self.cfg["project"]["pipeline_version"]}
         self.lake.write_lineage(self.name, info)

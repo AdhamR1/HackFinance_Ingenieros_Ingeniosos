@@ -38,7 +38,11 @@ def _client(cfg):
     elif key:
         cred = key
     else:
+        import logging
+
         from azure.identity import DefaultAzureCredential
+        # its per-credential warnings are repeated in the exception it raises; avoid printing them twice
+        logging.getLogger("azure.identity").setLevel(logging.ERROR)
         cred = DefaultAzureCredential()
     return DataLakeServiceClient(account_url=url, credential=cred)
 
@@ -110,16 +114,24 @@ def upload_dataset(lake, cfg, *, force: bool = False, dry_run: bool = False,
     (uploaded + skipped; in dry-run, the ones that would be). Raises RuntimeError at the end if any failed."""
     log = lake.log
     container = cfg.secret("AZURE_STORAGE_CONTAINER")
-    if not container:
-        raise RuntimeError("Falta AZURE_STORAGE_CONTAINER en .env")
     account = cfg.secret("AZURE_STORAGE_ACCOUNT")
     prefix = (cfg.secret("AZURE_STORAGE_PREFIX") or "dataset").strip("/")
-    fs = _client(cfg).get_file_system_client(container)
-    _ensure_container(fs, container, log, dry_run)
+    try:
+        if not container:
+            raise RuntimeError("Falta AZURE_STORAGE_CONTAINER en .env")
+        fs = _client(cfg).get_file_system_client(container)
+        _ensure_container(fs, container, log, dry_run)
+    except Exception as e:
+        if not dry_run:
+            raise
+        # A dry run must also work without Azure: list the local files, without comparing with the remote ones
+        log.warning("[dry-run] Sin conexión con Azure (%s): se listan todos los archivos locales "
+                    "sin comparar con lo ya subido", str(e).splitlines()[0])
+        fs = None
 
     tables = Path(lake.tables)
     files = sorted(tables.rglob("*.parquet"))
-    remote = {} if force else _remote_sizes(fs, prefix, log)
+    remote = {} if force or fs is None else _remote_sizes(fs, prefix, log)
     s = UploadSummary()
     todo: list[tuple[Path, str, int]] = []
     for p in files:
