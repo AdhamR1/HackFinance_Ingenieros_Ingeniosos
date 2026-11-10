@@ -238,14 +238,22 @@ const features = celdas.map((c, i) => {
     ? { v: { energia: null, agua: null, clima: null, riesgos: null, conectividad: null, suelo: null }, permisos: [] }
     : valoresInventados(c);
   const conMotivos = !SOLO_GEOMETRIA && v.energia !== null && i % 500 === 0;
+  // Descarte (lo decide el "modelo"; la web no descarta nada por su cuenta). Inventado así:
+  // Parque Nacional o Natura 2000, o alguna variable por debajo de 20.
+  const enPermiso = ['parque_nacional', 'natura_2000'].find(k => (permisos ?? []).includes(k));
+  const baja = Object.entries(v).filter(([, x]) => x !== null && x < 20).sort((a, b) => a[1] - b[1])[0];
+  const NOMBRES = { energia: ['Energía', 'Energy'], agua: ['Agua', 'Water'], clima: ['Clima', 'Climate'],
+    riesgos: ['Riesgos', 'Risks'], conectividad: ['Conectividad', 'Connectivity'], suelo: ['Suelo', 'Land'] };
+  const motivo = enPermiso ?? (baja ? { es: `${NOMBRES[baja[0]][0]}: valor demasiado bajo (${baja[1]}/100)`,
+    en: `${NOMBRES[baja[0]][1]}: value too low (${baja[1]}/100)` } : null);
   return {
     type: 'Feature',
     geometry: c.geometry,
     properties: {
       id: `ES-${String(i + 1).padStart(5, '0')}`,
       puntuacion: null,
-      descartado: false,
-      motivo_descarte: null,
+      descartado: motivo !== null,
+      motivo_descarte: motivo,
       ...v,
       permisos,
       ...(conMotivos ? MOTIVOS_EJEMPLO : {}),
@@ -284,7 +292,7 @@ console.log(`  enteros: ${enteros} · recortados por costa/frontera: ${n - enter
 console.log(`  por huso: 30 → ${celdas.filter(c => c.huso === 30).length}, 28 (Canarias) → ${celdas.filter(c => c.huso === 28).length}`);
 console.log(`  área total: ${Math.round(celdas.reduce((t, c) => t + c.area, 0)).toLocaleString('es')} km²`);
 if (!SOLO_GEOMETRIA) {
-  console.log(`  sin ningún dato: ${contar(p => p.energia === null && p.agua === null && p.riesgos === null)}` +
+  console.log(`  descartados: ${contar(p => p.descartado)} · sin ningún dato: ${contar(p => p.energia === null && p.agua === null && p.riesgos === null)}` +
     ` · con motivos escritos: ${contar(p => p.motivos_a_favor)}`);
   for (const k of ['natura_2000', 'parque_nacional', 'suelo_urbano', 'zona_inundable', 'flujo_preferente'])
     console.log(`  permiso ${k.padEnd(17)} ${contar(p => (p.permisos ?? []).includes(k))}`);

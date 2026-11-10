@@ -94,8 +94,8 @@ Es un archivo **GeoJSON** (formato estándar de mapas: lo leen QGIS, Python/geop
 | Campo | Obligatorio | Valores | Qué es |
 |---|---|---|---|
 | `puntuacion` | no* | 0-100 o `null` | **Nota final del cuadrado**, ya calculada por el modelo del equipo. Es lo que decide el color. |
-| `descartado` | no | `true` / `false` | `true` = el cuadrado no sirve, sea cual sea su nota (sale en rojo). |
-| `motivo_descarte` | no | texto o `null` | Por qué se descarta (se enseña en el panel). |
+| `descartado` | no | `true` / `false` | `true` = el cuadrado no sirve, sea cual sea su nota (sale en rojo). **La web no descarta nada por su cuenta**: solo lo que diga este campo. |
+| `motivo_descarte` | no | texto, `{ "es", "en" }` o `null` | Por qué se descarta (se enseña en el panel). Ver 3.6. |
 
 \* Si `puntuacion` viene vacía (`null`), la web calcula una nota provisional por su cuenta (ver punto 5).
 
@@ -119,7 +119,6 @@ Reglas de los valores:
 - **`null` = "no tenemos el dato".** La web enseña "Sin datos". No es lo mismo que `0`, que significa "malísimo".
 - `null` se escribe **sin comillas** (`"null"` con comillas sería un texto, y estaría mal).
 - Los números van **sin comillas** y con **punto** decimal: `72.5`, no `"72,5"`.
-- **Si cualquiera de las variables baja de 20, la web descarta el cuadrado** (ver punto 5).
 - Los campos que empiezan por `_` (guion bajo) los usa la web internamente: no deben venir en el archivo.
 
 ### 3.4. Permisos
@@ -127,16 +126,18 @@ Reglas de los valores:
 `permisos` es la **lista de permisos que afectan al cuadrado**. Lista vacía `[]` = no le afecta ninguno.
 En el panel solo aparecen los que le afectan.
 
-| Valor | Se muestra como | ¿Descarta el cuadrado? |
-|---|---|---|
-| `"natura_2000"` | Red Natura 2000 | **Sí** (sale rojo) |
-| `"parque_nacional"` | Parque Nacional | **Sí** (sale rojo) |
-| `"suelo_urbano"` | Suelo urbano | No, solo se informa |
-| `"flujo_preferente"` | Zona de flujo preferente | No, solo se informa |
-| `"zona_inundable"` | Zona inundable | No, solo se informa |
+| Valor | Se muestra como |
+|---|---|
+| `"natura_2000"` | Red Natura 2000 |
+| `"parque_nacional"` | Parque Nacional |
+| `"suelo_urbano"` | Suelo urbano |
+| `"flujo_preferente"` | Zona de flujo preferente |
+| `"zona_inundable"` | Zona inundable |
 
+Los permisos son **solo información**: no cambian el color. Si un permiso hace que el cuadrado no sirva
+(por ejemplo, un Parque Nacional), el archivo tiene que traer `"descartado": true`.
 También se acepta la forma de objeto: `"permisos": { "natura_2000": true, "zona_inundable": false, ... }`.
-Qué permisos descartan se cambia en `config.js` (`permisos`, `descarta: true/false`).
+`null` (o sin el campo) = no se sabe; el panel pone "Sin datos".
 
 ### 3.5. Motivos principales (opcional)
 
@@ -164,8 +165,8 @@ el motivo de descarte, los permisos que le afectan y las variables con peor valo
 | `"natura_2000"` | Dentro de la Red Natura 2000 |
 | `"parque_nacional"` | Dentro de un Parque Nacional |
 
-Cualquier otro texto (por ejemplo `"zona militar"`) se muestra tal cual. Para que salga traducido
-a los dos idiomas, se añade en `i18n/es.json` y `i18n/en.json` como `"motivo_<valor>"`.
+Cualquier otro texto (por ejemplo `"zona militar"`) se muestra tal cual. Para que salga en los dos
+idiomas se puede mandar como objeto: `{ "es": "Pendiente excesiva", "en": "Slope too steep" }`.
 
 ---
 
@@ -181,11 +182,8 @@ a los dos idiomas, se añade en `i18n/es.json` y `i18n/en.json` como `"motivo_<v
 
 ## 5. Cómo decide la web el color
 
-1. **Rojo ("Descartado")**, sea cual sea su nota, si se cumple cualquiera de estas cosas:
-   - el archivo trae `"descartado": true`;
-   - le afecta un permiso que descarta (Red Natura 2000 o Parque Nacional);
-   - **alguna de las 6 variables vale menos de 20** (una variable sin dato no cuenta).
-     El límite se cambia en `config.js` (`descarte_si_variable_menor_que`).
+1. **Rojo ("Descartado")**, sea cual sea su nota, si el archivo trae `"descartado": true`.
+   La web **no** descarta nada por su cuenta (ni por permisos ni por valores bajos): eso lo decide el modelo.
 2. Si no está descartado y trae `puntuacion` → se usa esa nota.
 3. Si no la trae → la web calcula una **nota provisional** con los valores de las variables. Sirve
    solo para probar con datos inventados: con los datos reales, lo previsto es que la nota venga ya

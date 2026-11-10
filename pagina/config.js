@@ -55,26 +55,15 @@ export const CONFIG = {
   // PERMISOS NECESARIOS
   // ---------------------------------------------------------------
   // Vienen en el archivo de datos, en "permisos" de cada cuadrado (lista con
-  // los que le afectan). En el panel solo salen los que afectan al cuadrado.
-  // descarta: true → si el cuadrado está afectado, sale ROJO ("Descartado").
-  permisos: [
-    { clave: 'natura_2000',      descarta: true  },
-    { clave: 'parque_nacional',  descarta: true  },
-    { clave: 'suelo_urbano',     descarta: false },
-    { clave: 'flujo_preferente', descarta: false },
-    { clave: 'zona_inundable',   descarta: false },
-  ],
+  // los que le afectan). En el panel solo salen los que afectan al cuadrado,
+  // en este orden. Son solo información: no cambian el color.
+  permisos: ['natura_2000', 'parque_nacional', 'suelo_urbano', 'flujo_preferente', 'zona_inundable'],
 
   // ---------------------------------------------------------------
-  // REGLAS DE DESCARTE
+  // DESCARTES
   // ---------------------------------------------------------------
-  // Un cuadrado sale ROJO directamente (sin importar su puntuación) si:
-  //   1) el archivo de datos trae "descartado": true, o
-  //   2) le afecta un permiso con "descarta: true" (arriba), o
-  //   3) CUALQUIERA de las variables baja de este valor (100 = mejor, así que
-  //      un valor muy bajo es muy malo). Una variable sin dato (null) no descarta.
-  //      Poner null para desactivar esta regla.
-  descarte_si_variable_menor_que: 20,
+  // La web NO descarta nada por su cuenta: un cuadrado sale ROJO ("Descartado")
+  // solo si el archivo de datos trae "descartado": true (y su "motivo_descarte").
 
   // ---------------------------------------------------------------
   // MOTIVOS ("Por qué se acepta" / "Por qué se rechaza")

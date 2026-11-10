@@ -73,7 +73,6 @@
   "motivos_en_contra": "Why it is not suitable",
   "permisos_titulo": "Required permits",
   "permisos_ninguno": "None of the reviewed permits apply.",
-  "permiso_excluye": "excluded area",
   "permiso_natura_2000": "Natura 2000 network",
   "permiso_parque_nacional": "National Park",
   "permiso_suelo_urbano": "Urban land",
@@ -81,7 +80,5 @@
   "permiso_zona_inundable": "Flood zone",
   "motivo_natura_2000": "Inside the Natura 2000 network",
   "motivo_parque_nacional": "Inside a National Park",
-  "motivo_variable_baja": "{variable}: value too low ({n}/100)",
-  "motivo_permiso_excluye": "{permiso}: excluded area",
   "motivo_permiso_requiere": "{permiso}: permit required"
 }

@@ -73,7 +73,6 @@
   "motivos_en_contra": "Por qué se rechaza",
   "permisos_titulo": "Permisos necesarios",
   "permisos_ninguno": "No le afecta ninguno de los permisos revisados.",
-  "permiso_excluye": "zona excluida",
   "permiso_natura_2000": "Red Natura 2000",
   "permiso_parque_nacional": "Parque Nacional",
   "permiso_suelo_urbano": "Suelo urbano",
@@ -81,7 +80,5 @@
   "permiso_zona_inundable": "Zona inundable",
   "motivo_natura_2000": "Dentro de la Red Natura 2000",
   "motivo_parque_nacional": "Dentro de un Parque Nacional",
-  "motivo_variable_baja": "{variable}: valor demasiado bajo ({n}/100)",
-  "motivo_permiso_excluye": "{permiso}: zona excluida",
   "motivo_permiso_requiere": "{permiso}: requiere permiso"
 }

@@ -16,11 +16,7 @@ export const textoCategoria = categoria => t(`categoria_${categoria}`);
 
 // Motivo de descarte (r = resultado de evaluar). Los conocidos se traducen; si no, se muestra
 // tal cual venga en los datos.
-export function textoMotivo(r) {
-  if (r.motivo === 'variable_baja' && r.motivoDatos)
-    return t('motivo_variable_baja', { variable: t(`var_${r.motivoDatos.variable}`), n: Math.round(r.motivoDatos.valor) });
-  return textoMotivoSuelto(r.motivo);
-}
+export const textoMotivo = r => textoMotivoSuelto(r.motivo);
 
 // Iconos pequeños de las listas de motivos (✓ a favor, ✗ en contra).
 const MARCA = {
@@ -33,19 +29,17 @@ const listaMotivos = (tipo, titulo, motivos) => motivos.length ? `
       <ul>${motivos.map(m => `<li>${MARCA[tipo]}<span>${escaparHtml(m)}</span></li>`).join('')}</ul>
     </section>` : '';
 
-// Permisos que afectan al cuadrado (solo esos). Los que descartan, en rojo.
+// Permisos que afectan al cuadrado (solo esos).
 function bloquePermisos(p) {
   const afectan = permisosDe(p);
   let cuerpo;
   if (p.permisos === undefined || p.permisos === null) cuerpo = `<p class="panel-mini">${escaparHtml(t('sin_datos'))}</p>`;
   else if (!afectan.length) cuerpo = `<p class="panel-mini">${escaparHtml(t('permisos_ninguno'))}</p>`;
   else {
-    const conocidos = CONFIG.permisos.filter(x => afectan.includes(x.clave));
-    const otros = afectan.filter(k => !CONFIG.permisos.some(x => x.clave === k)).map(clave => ({ clave, descarta: false }));
-    cuerpo = `<ul class="permisos">${[...conocidos, ...otros].map(({ clave, descarta }) => {
+    const orden = [...CONFIG.permisos.filter(k => afectan.includes(k)), ...afectan.filter(k => !CONFIG.permisos.includes(k))];
+    cuerpo = `<ul class="permisos">${orden.map(clave => {
       const nombre = t(`permiso_${clave}`) === `permiso_${clave}` ? clave : t(`permiso_${clave}`);
-      return `<li class="permiso${descarta ? ' excluye' : ''}">${escaparHtml(nombre)}${descarta
-        ? `<span class="permiso-nota"> · ${escaparHtml(t('permiso_excluye'))}</span>` : ''}</li>`;
+      return `<li class="permiso">${escaparHtml(nombre)}</li>`;
     }).join('')}</ul>`;
   }
   return `
