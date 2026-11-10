@@ -194,7 +194,7 @@ function valoresInventados(c) {
   const riesgos = 0.55 * Math.min(sismico, inundacion) + 0.45 * (sismico + inundacion) / 2 + 8;
   // Suelo: terreno apto (llano, estable, disponible). Peor en montaña (simulado con ruido) y cerca de ciudades.
   let suelo = 20 + 75 * r(131, 140) - 25 * cercania(c.centro, CIUDADES, 15);
-  if (r(137, 45) > 0.705) suelo = 6 + 12 * r(139, 15);   // "montañas": terreno no apto (sale descartado)
+  if (r(137, 45) > 0.705) suelo = 6 + 12 * r(139, 15);   // "montañas": terreno poco apto (valor de suelo muy bajo)
 
   const v = { energia, agua, clima, riesgos, conectividad, suelo };
   for (const k in v) v[k] = limitar(v[k]);
@@ -238,22 +238,14 @@ const features = celdas.map((c, i) => {
     ? { v: { energia: null, agua: null, clima: null, riesgos: null, conectividad: null, suelo: null }, permisos: [] }
     : valoresInventados(c);
   const conMotivos = !SOLO_GEOMETRIA && v.energia !== null && i % 500 === 0;
-  // Descarte (lo decide el "modelo"; la web no descarta nada por su cuenta). Inventado así:
-  // Parque Nacional o Natura 2000, o alguna variable por debajo de 20.
-  const enPermiso = ['parque_nacional', 'natura_2000'].find(k => (permisos ?? []).includes(k));
-  const baja = Object.entries(v).filter(([, x]) => x !== null && x < 20).sort((a, b) => a[1] - b[1])[0];
-  const NOMBRES = { energia: ['Energía', 'Energy'], agua: ['Agua', 'Water'], clima: ['Clima', 'Climate'],
-    riesgos: ['Riesgos', 'Risks'], conectividad: ['Conectividad', 'Connectivity'], suelo: ['Suelo', 'Land'] };
-  const motivo = enPermiso ?? (baja ? { es: `${NOMBRES[baja[0]][0]}: valor demasiado bajo (${baja[1]}/100)`,
-    en: `${NOMBRES[baja[0]][1]}: value too low (${baja[1]}/100)` } : null);
   return {
     type: 'Feature',
     geometry: c.geometry,
     properties: {
       id: `ES-${String(i + 1).padStart(5, '0')}`,
       puntuacion: null,
-      descartado: motivo !== null,
-      motivo_descarte: motivo,
+      descartado: false,       // los descartes los decide el equipo en su JSON: aquí ninguno
+      motivo_descarte: null,
       ...v,
       permisos,
       ...(conMotivos ? MOTIVOS_EJEMPLO : {}),
