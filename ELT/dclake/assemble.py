@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import shutil
 from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -104,11 +105,12 @@ def merge_staged(
     return base.reset_index()
 
 
-def clear_outputs(lake) -> int:
-    """Remove this country's per-cell files from the dataset (before rebuilding all its parts)."""
-    files = list(lake.tables.glob(f"*/{lake.iso}-p*.parquet")) + list(
-        lake.tables.glob(f"sites_weekly/year=*/{lake.iso}-p*.parquet")
-    )
+def clear_outputs(lake, weekly: bool = True) -> int:
+    """Remove this country's per-cell files from the dataset (before rebuilding all its parts).
+    weekly=False keeps the weekly table (a run that does not rebuild it)."""
+    files = list(lake.tables.glob(f"*/{lake.iso}-p*.parquet"))
+    if weekly:
+        files += list(lake.tables.glob(f"sites_weekly/year=*/{lake.iso}-p*.parquet"))
     # per-country files of an older layout (stations and signals are now per part as well)
     files += [lake.tables / t / f"{lake.iso}.parquet" for t in ("stations", "signal_features")]
     files = [f for f in files if f.exists()]
@@ -132,7 +134,9 @@ def _out_path(lake, name: str):
     return d / f"{lake.out_name if per_part else lake.iso}.parquet"
 
 
-def assemble(lake, cfg, collectors: list[str] | None = None):
+def assemble(lake, cfg, collectors: list[str] | None = None, weekly: bool = True, previous=None):
+    """Build the tables of one part. weekly=False skips the weekly table (minutes instead of
+    most of the run) and keeps its lineage rows from `previous` (the dataset folder)."""
     specs = load_schemas(cfg.dictionary_path)
     collectors = collectors or lake.staged_collectors()
     log = lake.log
@@ -189,12 +193,13 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
 
     dspec, wspec = specs["sites_daily"], specs["sites_weekly"]
     rules = weekly_rules(wspec)
-    for old in lake.tables.glob(
-        f"sites_weekly/year=*/{lake.out_name}-*.parquet"
-    ):  # rebuilt from staging
-        old.unlink()
+    if weekly:  # rebuilt from staging
+        for old in lake.tables.glob(f"sites_weekly/year=*/{lake.out_name}-*.parquet"):
+            old.unlink()
     p = cfg["period"]
     years = list(range(pd.Timestamp(p["start"]).year, pd.Timestamp(p["end"]).year + 1))
+    if not weekly:
+        years = []
     prov, n_total, nn, carry = {}, 0, {}, None
     for y in years:
         df = conform(
@@ -220,7 +225,7 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
         for f in wspec.fields:
             nn[f] = nn.get(f, 0) + int(w[f].notna().sum())
     src_of = {wf: src for wf, src, _ in rules}
-    for f in wspec.fields:
+    for f in wspec.fields if weekly else []:
         if f in wspec.keys:
             continue
         srcs = prov.get(src_of.get(f, ""), [])
@@ -244,7 +249,8 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
                 **info,
             }
         )
-    log.info("Tabla %-16s %8d filas (particionada por año ISO)", "sites_weekly", n_total)
+    if weekly:
+        log.info("Tabla %-16s %8d filas (particionada por año ISO)", "sites_weekly", n_total)
 
     lin = pd.DataFrame(lineage_rows)
     lin["reference_year"] = np.where(
@@ -253,15 +259,22 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
         now.year,
     )
     lin = conform(lin, specs["field_lineage"], log, strict=False)
+    if not weekly and previous is not None:  # the weekly table was not rebuilt: keep its lineage
+        old = Path(previous) / "field_lineage" / f"{lake.out_name}.parquet"
+        if old.exists():
+            kept = pd.read_parquet(old)
+            lin = pd.concat([lin, kept[kept["table"] == "sites_weekly"]], ignore_index=True)
     lin.to_parquet(_out_path(lake, "field_lineage"), index=False)
     return lin
 
 
-def assemble_safely(lake, cfg, parts: list[int], replace_all: bool = True) -> None:
+def assemble_safely(
+    lake, cfg, parts: list[int], replace_all: bool = True, weekly: bool = True
+) -> None:
     """Assemble into a cache folder, and only then replace the country's files in the dataset.
 
     If the run is interrupted (closed session, sleep, error), the dataset keeps its previous files
-    instead of a half-written country.
+    instead of a half-written country. weekly=False rebuilds everything but the weekly table.
     """
     import copy
     import os
@@ -273,9 +286,9 @@ def assemble_safely(lake, cfg, parts: list[int], replace_all: bool = True) -> No
     for old in work.tables.rglob("*.parquet"):  # never mix in files of an interrupted run
         old.unlink()
     for k in parts:
-        assemble(work.with_part(k), cfg)
+        assemble(work.with_part(k), cfg, weekly=weekly, previous=lake.tables)
     if replace_all:
-        clear_outputs(lake)
+        clear_outputs(lake, weekly=weekly)
     for f in sorted(work.tables.rglob("*.parquet")):
         dest = lake.tables / f.relative_to(work.tables)
         dest.parent.mkdir(parents=True, exist_ok=True)

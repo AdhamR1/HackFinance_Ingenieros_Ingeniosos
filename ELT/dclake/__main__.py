@@ -189,6 +189,11 @@ def main(argv=None):
     )
     ap.add_argument("--config", help="ruta a config.yaml (por defecto ELT/config.yaml)")
     ap.add_argument("--terms", help="excerpts: expresión regular de los términos a buscar")
+    ap.add_argument(
+        "--static-only",
+        action="store_true",
+        help="assemble: rehace todo menos la tabla semanal (minutos en vez de la mayor parte)",
+    )
     ap.add_argument("--only", help="colectores separados por comas")
     ap.add_argument("--skip", help="colectores separados por comas")
     ap.add_argument(
@@ -275,7 +280,9 @@ def main(argv=None):
     if args.command in ("assemble", "all"):
         from .assemble import assemble_safely
 
-        assemble_safely(lake, cfg, parts, replace_all=args.part is None)
+        assemble_safely(
+            lake, cfg, parts, replace_all=args.part is None, weekly=not args.static_only
+        )
     if args.command in ("report", "all", "assemble"):
         from .report import coverage_report
 

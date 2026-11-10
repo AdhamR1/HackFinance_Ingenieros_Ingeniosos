@@ -28,6 +28,8 @@ python -m dclake collect --country JPN [--skip a,b] [--part N] [--start AAAA-MM-
 python -m dclake assemble --country JPN     # dataset en ELT/dataset/ (+ .cache/JPN/reports/coverage.csv)
 python -m dclake export --sites a,b,c --out x.xlsx   # solo si lo piden
 python -m dclake qc --country JPN           # control de calidad -> .cache/JPN/reports/qc.csv
+python -m dclake assemble --country JPN --static-only   # sin rehacer la tabla semanal
+python -m dclake transcribe | excerpts --only <id> | cite   # audio público -> citas verificadas
 ```
 
 ## Arquitectura
@@ -42,6 +44,23 @@ python -m dclake qc --country JPN           # control de calidad -> .cache/JPN/r
 - Colectores celda a celda solo con `run_by_default = False` (p. ej. `openmeteo`).
 - Una parte de 25.000 celdas son ~9 millones de filas diarias por año en `assemble`: evitar `astype(object)` y operaciones columna a columna sobre el índice completo. Más celdas por parte puede agotar los 32 GB del portátil.
 - Overpass no puede con EEUU entero ni va fino con Japón: OSM está en `skip_collectors` de esos países (se lanza aparte con `--only osm`).
+
+## Estado (10 nov 2026, noche): datos no estructurados (audio)
+- `speech.py` + `collectors/speech.py`: 89 grabaciones públicas (39 h) transcritas con ElevenLabs Scribe v2 por
+  `source_url` (ElevenLabs lee la URL; si el servidor del audio lo rechaza, p. ej. iVoox, se envía el archivo
+  y no se guarda copia). Transcripciones en `.cache/audio/transcripts/` (no van a git).
+- `audio/claims.csv` (245 citas) lo escribe Claude leyendo `python -m dclake excerpts`; **toda cita debe ser
+  literal**: `python -m dclake cite` la busca palabra por palabra (sin tildes ni puntuación, pero con las
+  muletillas «eh») y calcula segundo y hablante. `tests/test_speech.py` falla si hay una cita sin verificar.
+- Tabla nueva del diccionario `audio_evidence` (aprobada por el usuario): un solo archivo, igual desde
+  cualquier país; un ensamblado sin citas no lo vacía.
+- Los campos que rellena (regulación, oposición, red) son dispersos y por zona: en `pipeline/src/features.py`
+  están en `LEAKAGE` a propósito. No sacarlos de ahí sin revisar la fuga de la target.
+- `assemble --static-only`: rehace todo menos `sites_weekly` (España 10 s en vez de 40 min) y conserva el
+  linaje semanal del dataset. Usarlo siempre que el cambio no toque datos diarios.
+- El SDK de ElevenLabs lee la clave al importarse: `.env` se carga después, por eso `speech._client` se la pasa.
+- No abrir ni imprimir `ELT/.env`; `elevenlabs onboard check` comprueba la clave.
+- Heredocs largos en bash se corrompen aquí (pierden `\n`): los parches se escriben con Write y se ejecutan.
 
 ## Estado (9 nov 2026, noche)
 - España con datos semanales 2010–2025 (34,5 M filas, ~600 MB). Capas automáticas (`auto` en `manual_layers` de

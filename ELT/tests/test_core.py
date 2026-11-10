@@ -171,3 +171,50 @@ def test_collectors_declare_fields_in_their_dictionary_table(tmp_path):
         if table not in specs or field not in specs[table].fields
     ]
     assert not wrong, wrong
+
+
+def test_static_only_assembly_keeps_the_weekly_table(tmp_path):
+    """--static-only rebuilds the per-cell tables without touching the weekly files."""
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    from dclake.assemble import assemble_safely
+    from dclake.config import load_config
+    from dclake.lake import Lake
+
+    cfg = load_config(
+        Path(__file__).resolve().parents[1] / "config.yaml",
+        overrides={"period.start": "2025-01-01", "period.end": "2025-01-31"},
+    )
+    lake = Lake(tmp_path / "cache", tmp_path / "dataset", iso=cfg.iso)
+    ids = ["ESP_1_1", "ESP_2_1"]
+    grid = gpd.GeoDataFrame(
+        {"site_id": ids, "part": [0, 0]}, geometry=[Point(0, 0), Point(1, 1)], crs=4326
+    )
+    (lake.processed / "grid").mkdir(parents=True)
+    grid.to_parquet(lake.processed / "grid" / "sample_cells.parquet")
+    days = pd.date_range("2025-01-01", "2025-01-31")
+    daily = pd.DataFrame(
+        {"site_id": np.repeat(ids, len(days)), "date": np.tile(days, 2), "t2m_mean_c": 10.0}
+    )
+    part = lake.with_part(0)
+    part.write_stage("fake", "sites_daily", daily, year=2025)
+    part.write_stage(
+        "fake", "sites_static", pd.DataFrame({"site_id": ids, "elevation_m": [100.0, 200.0]})
+    )
+    assemble_safely(lake, cfg, [0])
+    weekly = sorted((lake.tables / "sites_weekly").rglob("*.parquet"))
+    assert weekly
+    before = {f: (f.stat().st_mtime_ns, f.stat().st_size) for f in weekly}
+
+    part.write_stage(
+        "fake", "sites_static", pd.DataFrame({"site_id": ids, "elevation_m": [150.0, 250.0]})
+    )
+    assemble_safely(lake, cfg, [0], weekly=False)
+    after = sorted((lake.tables / "sites_weekly").rglob("*.parquet"))
+    assert {f: (f.stat().st_mtime_ns, f.stat().st_size) for f in after} == before
+    static = pd.read_parquet(lake.tables / "sites_static" / f"{cfg.iso}-p00.parquet")
+    assert static.sort_values("site_id")["elevation_m"].tolist() == [150.0, 250.0]
+    lin = pd.read_parquet(lake.tables / "field_lineage" / f"{cfg.iso}-p00.parquet")
+    assert (lin["table"] == "sites_weekly").any() and (lin["table"] == "sites_static").any()
+    assert not lin.duplicated(["table", "field"]).any()

@@ -65,7 +65,9 @@ def evidence_table(claims: pd.DataFrame, sources: pd.DataFrame, languages: dict)
     if claims.empty:
         return pd.DataFrame(columns=EVIDENCE_FIELDS)
     c = claims.sort_values(["source_id", "t_start_s"]).copy()
-    c["evidence_id"] = c["source_id"] + "#" + (c.groupby("source_id").cumcount() + 1).map("{:02d}".format)
+    c["evidence_id"] = (
+        c["source_id"] + "#" + (c.groupby("source_id").cumcount() + 1).map("{:02d}".format)
+    )
     s = sources.set_index("source_id")
     c["source_title"] = c["source_id"].map(s["title"])
     c["source_publisher"] = c["source_id"].map(s["publisher"])
@@ -84,14 +86,32 @@ def cells_of_claim(row, sites: pd.DataFrame, tree) -> np.ndarray:
     if scope in ("admin1", "admin2") and scope in sites:
         want = speech.fold(row["place_name"])
         names = sites[scope].fillna("").map(speech.fold)
-        # "Cataluña/Catalunya" matches "Cataluña"; "Aichi Prefecture" matches "Aichi"
-        hit = names.map(lambda n: bool(want) and (n == want or want in n.split() or n.startswith(want + " ")))
-        return np.flatnonzero((names == want) | hit)
+        # "Cataluña" matches "Cataluña/Catalunya" and "Aichi" matches "Aichi Prefecture", but
+        # "Virginia" must not match "West Virginia"
+        hit = (names == want) | names.str.startswith(want + " ")
+        return np.flatnonzero(hit.to_numpy() & bool(want))
     if scope == "point" and np.isfinite(row["lat"]) and np.isfinite(row["lon"]):
-        p = geo.xy(geo.points_from_lonlat(pd.DataFrame({"lon": [row["lon"]], "lat": [row["lat"]]})))
+        p = geo.xy(
+            geo.points_from_lonlat(pd.DataFrame({"lon": [row["lon"]], "lat": [row["lat"]]}))
+        )
         r_km = row["radius_km"] if np.isfinite(row["radius_km"]) else 15.0
         return np.asarray(tree.query_ball_point(p[0], r=r_km * 1000.0), dtype=int)
     return np.empty(0, dtype=int)
+
+
+def usable_claims(claims: pd.DataFrame, iso: str, rules: dict) -> pd.DataFrame:
+    """Citations of one country that may fill fields (all of them are kept as evidence).
+
+    A citation needs a minimum confidence. One that covers a whole region (province, state)
+    also needs a second recording saying the same about that place, or to be very clear.
+    """
+    min_conf = float(rules.get("min_confidence", 0.4))
+    need = int(rules.get("min_sources_region", 2))
+    solo = float(rules.get("solo_confidence", 0.7))
+    c = claims[(claims["country_iso3"] == iso) & (claims["confidence"].fillna(0) >= min_conf)]
+    regional = c["scope"].isin(["admin1", "admin2"])
+    n_src = c.groupby(["scope", "place_name", "target_field"])["source_id"].transform("nunique")
+    return c[~regional | (n_src >= need) | (c["confidence"] >= solo)]
 
 
 class SpeechCollector(Collector):
@@ -99,7 +119,9 @@ class SpeechCollector(Collector):
     description = "Citas de grabaciones públicas (ElevenLabs Scribe): evidencia y regulación"
     source = "Grabaciones públicas (ELT/audio/sources.csv) transcritas con ElevenLabs Scribe v2"
     source_url = "https://elevenlabs.io/docs/overview/capabilities/speech-to-text"
-    license = "Citas breves con atribución; el audio y la transcripción completa no se redistribuyen"
+    license = (
+        "Citas breves con atribución; el audio y la transcripción completa no se redistribuyen"
+    )
     confidence = 0.5
     imputation_method = "lectura por LLM de citas literales"
     fields = {
@@ -112,6 +134,8 @@ class SpeechCollector(Collector):
     def run(self, sites):
         from scipy.spatial import cKDTree
 
+        for old in self.lake.stage_dir(self.name).glob("*.parquet"):
+            old.unlink()  # a citation that is withdrawn must not survive in the staging
         claims = speech.load_claims(self.cfg)
         src = speech.load_sources(self.cfg)
         claims = claims[claims["source_id"].isin(src["source_id"])]
@@ -123,12 +147,19 @@ class SpeechCollector(Collector):
         ev = evidence_table(claims, src, langs)
         self.stage("audio_evidence", ev)
         iso = self.cfg.iso
-        mine = claims[claims["country_iso3"] == iso]
-        self.log.info("  %d citas verificadas (%d de %s) de %d grabaciones", len(claims), len(mine), iso,
-                      claims["source_id"].nunique())
+        mine = usable_claims(claims, iso, self.cfg.get("speech") or {})
+        self.log.info(
+            "  %d citas verificadas (%d de %s) de %d grabaciones",
+            len(claims),
+            len(mine),
+            iso,
+            claims["source_id"].nunique(),
+        )
         p = self.cfg["period"]
         y0, y1 = pd.Timestamp(p["start"]).year, pd.Timestamp(p["end"]).year
-        year_of = pd.to_datetime(mine["source_id"].map(src.set_index("source_id")["date"]), errors="coerce").dt.year
+        year_of = pd.to_datetime(
+            mine["source_id"].map(src.set_index("source_id")["date"]), errors="coerce"
+        ).dt.year
         tree = cKDTree(np.column_stack([sites["x"].to_numpy(float), sites["y"].to_numpy(float)]))
         long = []  # (cell position, field, year, value)
         for (_, r), yr in zip(mine.iterrows(), year_of):
@@ -159,7 +190,9 @@ class SpeechCollector(Collector):
         cc = mine[mine["target_field"].isin(COUNTRY_FIELDS) & (mine["scope"] == "country")].copy()
         if len(cc):
             cc["year"] = year_of[cc.index].clip(y0, y1).astype(int)
-            wide = cc.pivot_table(index="year", columns="target_field", values="value", aggfunc="median")
+            wide = cc.pivot_table(
+                index="year", columns="target_field", values="value", aggfunc="median"
+            )
             wide = wide.reset_index()
             wide.insert(0, "country_iso3", iso)
             self.stage("country_context", wide)

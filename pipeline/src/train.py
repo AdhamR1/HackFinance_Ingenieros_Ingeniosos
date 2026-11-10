@@ -19,10 +19,11 @@ Usage (from pipeline/):
     python src/labels.py
     python src/features.py
     python src/train.py [--exclusions data/processed/exclusions_es_3500.parquet] [--target
-    y_operational]
+    y_operational] [--priors data/processed/priors_voz.csv]
 
 Inputs : data/processed/labels_es_3500.parquet, data/processed/features_es_3500.parquet
          exclusions (optional): site_id, excluded (bool)
+         priors (optional): feature, monotone (+1 / -1), from src/priors_voz.py
 Outputs: data/processed/scores_es_3500.parquet  (+ _cv_report.csv, _importance.csv)
 """
 
@@ -65,11 +66,27 @@ def recall_at_top(y, s, frac=0.10):
     return y[top].sum() / max(1, y.sum())
 
 
-def cv(X, y, splitter, groups=None):
+def monotone_params(priors_path, feat_cols) -> dict:
+    """LightGBM constraints from the expert priors (priors_voz.py); {} when there are none.
+
+    A constrained variable can only push the score in the direction the experts state (closer
+    to a substation never lowers it), which keeps ~100 positives from teaching the opposite.
+    """
+    if not priors_path:
+        return {}
+    pri = pd.read_csv(priors_path)
+    sign = dict(zip(pri["feature"], pri["monotone"]))
+    mono = [int(sign.get(c, 0)) for c in feat_cols]
+    if not any(mono):
+        return {}
+    return {"monotone_constraints": mono, "monotone_constraints_method": "advanced"}
+
+
+def cv(X, y, splitter, groups=None, extra=None):
     oof = np.zeros(len(y))
     for tr, te in splitter.split(X, y, groups):
         pos_w = (y[tr] == 0).sum() / max(1, (y[tr] == 1).sum())
-        m = lgb.LGBMClassifier(**PARAMS, scale_pos_weight=pos_w)
+        m = lgb.LGBMClassifier(**PARAMS, **(extra or {}), scale_pos_weight=pos_w)
         m.fit(X.iloc[tr], y[tr])
         oof[te] = m.predict_proba(X.iloc[te])[:, 1]
     return oof
@@ -117,8 +134,13 @@ def main(a):
         + "_"
         + (train["y_m"] // (BLOCK_KM * 1000)).astype(int).astype(str)
     )
-    oof_rand = cv(X, y, StratifiedKFold(5, shuffle=True, random_state=0))
-    oof_spat = cv(X, y, GroupKFold(5), groups=blocks)
+    extra = monotone_params(a.priors, feat_cols)
+    if extra:
+        held = {c: s for c, s in zip(feat_cols, extra["monotone_constraints"]) if s}
+        print(f"sentido obligado por los criterios de expertos ({len(held)}): {held}")
+        print()
+    oof_rand = cv(X, y, StratifiedKFold(5, shuffle=True, random_state=0), extra=extra)
+    oof_spat = cv(X, y, GroupKFold(5), groups=blocks, extra=extra)
     report = pd.DataFrame(
         {
             "AUC (P vs U)": [roc_auc_score(y, oof_rand), roc_auc_score(y, oof_spat)],
@@ -131,7 +153,7 @@ def main(a):
 
     # --- final model + explanations ---------------------------------------------------
     pos_w = (y == 0).sum() / y.sum()
-    model = lgb.LGBMClassifier(**PARAMS, scale_pos_weight=pos_w).fit(X, y)
+    model = lgb.LGBMClassifier(**PARAMS, **extra, scale_pos_weight=pos_w).fit(X, y)
     raw = model.predict_proba(X)[:, 1]
     train["score_pct"] = pd.Series(raw).rank(pct=True).values * 100  # rank, not probability
     train["oof_spatial_pct"] = pd.Series(oof_spat).rank(pct=True).values * 100
@@ -174,6 +196,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--features", default=str(PROCESSED / "features_es_3500.parquet"))
     ap.add_argument("--exclusions")
+    ap.add_argument(
+        "--priors",
+        help="criterios de expertos (priors_voz.csv): sentido obligado de cada variable",
+    )
     ap.add_argument("--target", default="y", choices=["y", "y_operational"])
     ap.add_argument("--out", default=str(PROCESSED / "scores_es_3500.parquet"))
     main(ap.parse_args())

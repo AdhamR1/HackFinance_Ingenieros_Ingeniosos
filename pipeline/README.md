@@ -19,13 +19,21 @@ python src/feat_riesgos.py   # zonas inundables oficiales (SNCZI), parques nacio
 python src/feat_riesgos.py --solo-pga   # solo la PGA del IGN, sobre el parquet existente
 python src/feat_suelo.py --solo-exclusiones   # rehace las exclusiones con feat_riesgos (sin descargas)
 python src/features.py    # variables desde ELT/dataset + feat_*.parquet, sin las que hacen trampa
+python src/priors_voz.py  # criterios de expertos (citas de audio del ELT) -> sentido obligado por variable
 python src/train.py --exclusions data/processed/exclusions_es_3500.parquet   # modelo -> scores
+python src/train.py --exclusions data/processed/exclusions_es_3500.parquet --priors data/processed/priors_voz.csv
 ```
 
 `feat_riesgos.py` necesita los zips de datos del SNCZI (MITECO pide una verificación en el navegador, así que se
 descargan a mano) en cualquier carpeta de `data/raw/`: `laminas-zfp-PB.zip`, `laminas-zfp-can.zip`,
 `laminasPB-q100.zip`, `laminasCanarias-q100.zip`, `laminasPB-q500.zip` y `laminasCanarias-q500.zip`. Los de estilo
 (`lyr-...zip`) no sirven: solo traen la simbología.
+
+`--priors` hace que el modelo respete lo que dicen quienes eligen emplazamientos en 81 grabaciones públicas
+(`ELT/dataset/audio_evidence.parquet`): estar más cerca de una subestación, de una línea de alta tensión o de
+un corredor de fibra, o tener más suelo industrial o más generación cerca, nunca puede bajar la nota. Un
+criterio se aplica si lo sostienen al menos 3 grabaciones distintas y menos del 20 % dice lo contrario
+(12 variables hoy; `priors_voz.py` imprime cuáles y por qué no las demás).
 
 Opciones de `train.py`: `--exclusions <parquet>` (columnas `site_id, excluded`) y `--target y_operational` (entrenar solo con data centers operativos, sin los anunciados).
 
@@ -39,6 +47,7 @@ Cuando el ELT tenga columnas nuevas, basta con volver a ejecutar `features.py` y
 | `data/processed/labels_es_3500.parquet` | `site_id, y, y_operational, n_sites, n_buildings, sites` |
 | `data/processed/feat_suelo.parquet` | `site_id` + % de la celda en Natura 2000, suelo urbano, industrial y agua |
 | `data/processed/feat_riesgos.parquet` | `site_id` + % en zona de flujo preferente, zona inundable de 100 y 500 años y parque nacional, distancia al parque nacional más cercano y `pga475_ign_g` (PGA a 475 años del IGN, en g, interpolada entre las isolíneas de 0,01 g de su visor de terremotos) |
+| `data/processed/priors_voz.csv` | `feature, monotone (+1 sube / -1 baja), criterion, n_sources_for, n_sources_against` + la cita más clara con su segundo y enlace |
 | `data/processed/exclusions_es_3500.parquet` | `site_id, excluded, motivo_descarte, avisos` + los % que deciden la regla |
 | `data/processed/features_es_3500.parquet` | `site_id` + variables numéricas |
 | `data/processed/scores_es_3500.parquet` | **Para la web:** `site_id, lon, lat, admin1, admin2, y, y_operational, sites, excluded, score_pct, oof_spatial_pct, band, reasons` |

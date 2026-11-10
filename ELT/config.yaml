@@ -317,3 +317,6 @@ manual_layers:
 # Audio público -> texto (ElevenLabs Scribe v2). Catálogo en audio/sources.csv, citas en audio/claims.csv.
 speech:
   max_hours_per_run: 60             # tope de horas de audio por ejecución de `transcribe` (cuota del plan)
+  min_confidence: 0.4               # las citas menos seguras quedan como evidencia, no rellenan campos
+  min_sources_region: 2             # un dato para toda una región (provincia, estado) pide dos grabaciones…
+  solo_confidence: 0.7              # …o una sola cita muy clara

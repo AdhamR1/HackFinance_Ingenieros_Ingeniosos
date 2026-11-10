@@ -21,6 +21,7 @@ import re
 import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from itertools import pairwise
 from pathlib import Path
 
 import pandas as pd
@@ -84,7 +85,9 @@ def _fetch_audio(url: str, dest: Path) -> Path:
     import requests
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, stream=True, timeout=300, headers={"User-Agent": "dclake/podcast"}) as r:
+    with requests.get(
+        url, stream=True, timeout=300, headers={"User-Agent": "dclake/podcast"}
+    ) as r:
         r.raise_for_status()
         with open(dest, "wb") as f:
             for chunk in r.iter_content(1 << 20):
@@ -170,7 +173,9 @@ def transcribe_sources(cfg, log, only: set | None = None, workers: int = 4) -> d
                 t = fut.result()
             except Exception as e:  # one failing recording must not stop the rest
                 failed[r["source_id"]] = _error_text(e)
-                log.warning("  FALLO %s (%s): %s", r["source_id"], r["title"][:50], failed[r["source_id"]])
+                log.warning(
+                    "  FALLO %s (%s): %s", r["source_id"], r["title"][:50], failed[r["source_id"]]
+                )
             else:
                 done.append(r["source_id"])
                 log.info(
@@ -198,8 +203,15 @@ def spoken_words(transcript: dict) -> list[dict]:
         if w.get("type") != "word":
             continue
         for tok in fold(w.get("text") or "").split():
-            out.append({"tok": tok, "start": w.get("start"), "end": w.get("end"),
-                        "speaker": w.get("speaker_id"), "text": w.get("text")})
+            out.append(
+                {
+                    "tok": tok,
+                    "start": w.get("start"),
+                    "end": w.get("end"),
+                    "speaker": w.get("speaker_id"),
+                    "text": w.get("text"),
+                }
+            )
     return out
 
 
@@ -249,10 +261,12 @@ def load_claims(cfg, verified_only: bool = True) -> pd.DataFrame:
     if not p.exists():
         return pd.DataFrame(columns=CLAIM_COLUMNS)
     df = pd.read_csv(p, dtype=str).reindex(columns=CLAIM_COLUMNS)
-    for c in ("lat", "lon", "radius_km", "value", "confidence", "t_start_s", "t_end_s"):
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    for c in ("source_id", "quote", "country_iso3", "scope", "place_name", "topic", "target_field"):
-        df[c] = df[c].fillna("").str.strip()
+    numeric = ("lat", "lon", "radius_km", "value", "confidence", "t_start_s", "t_end_s")
+    for c in CLAIM_COLUMNS:
+        if c in numeric:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+        else:  # text: empty cells are "", also in a column that is missing from the file
+            df[c] = df[c].astype(object).where(df[c].notna(), "").astype(str).str.strip()
     return df[df["t_start_s"].notna()].reset_index(drop=True) if verified_only else df
 
 
@@ -283,7 +297,10 @@ def cite(cfg, log) -> pd.DataFrame:
             df.loc[i, "speaker_id"] = ""
         else:
             found += 1
-            df.loc[i, ["t_start_s", "t_end_s"]] = [round(loc["t_start_s"], 2), round(loc["t_end_s"], 2)]
+            df.loc[i, ["t_start_s", "t_end_s"]] = [
+                round(loc["t_start_s"], 2),
+                round(loc["t_end_s"], 2),
+            ]
             df.loc[i, "speaker_id"] = loc["speaker_id"] or ""
     df.to_csv(p, index=False, encoding="utf-8", lineterminator="\n")
     log.info(
@@ -299,8 +316,12 @@ def cite(cfg, log) -> pd.DataFrame:
 def audio_stats(transcript: dict) -> dict:
     """Conversation metrics that need no reading: speakers, turns and audience reactions."""
     words = [w for w in transcript.get("words") or [] if w.get("type") == "word"]
-    events = [fold(w.get("text") or "") for w in transcript.get("words") or [] if w.get("type") == "audio_event"]
-    turns = sum(1 for a, b in zip(words, words[1:]) if a.get("speaker_id") != b.get("speaker_id"))
+    events = [
+        fold(w.get("text") or "")
+        for w in transcript.get("words") or []
+        if w.get("type") == "audio_event"
+    ]
+    turns = sum(a.get("speaker_id") != b.get("speaker_id") for a, b in pairwise(words))
     minutes = max(float(transcript.get("audio_duration_secs") or 0) / 60, 1e-9)
     return {
         "n_speakers": len({w.get("speaker_id") for w in words if w.get("speaker_id")}),

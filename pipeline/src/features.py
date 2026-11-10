@@ -51,6 +51,16 @@ LEAKAGE = {
     # grid artefacts: only say whether the cell is cut by the coast or the border
     "area_ha": "artefacto de la rejilla",
     "parcel_compactness": "artefacto de la rejilla",
+    # read from public recordings (ELT speech collector): they only have a value where projects
+    # are already being discussed, so "has a value" would stand for "there is a data center".
+    # They feed the warnings of the exclusions and the report, not the model.
+    "permitting_months": "dato de audio: solo existe donde ya se habla de proyectos",
+    "grid_congestion_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    "grid_connection_wait_months": "dato de audio: solo existe donde ya se habla de proyectos",
+    "local_opposition_index": "dato de audio: solo existe donde ya se habla de proyectos",
+    "moratorium_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    "water_restriction_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    "dc_tax_incentive_flag": "dato de audio: solo existe donde ya se habla de proyectos",
     # outputs of a model, not inputs
     "viability_score": "es una salida",
     "capex_per_mw_usd": "es una salida",

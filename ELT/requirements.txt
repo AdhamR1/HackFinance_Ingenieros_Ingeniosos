@@ -25,6 +25,7 @@ h3>=4
 openpyxl
 pyyaml
 python-dotenv
+elevenlabs          # speech: audio público a texto (Scribe v2); solo hace falta para `transcribe`
 requests
 truststore
 tqdm
