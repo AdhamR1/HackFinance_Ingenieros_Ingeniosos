@@ -50,7 +50,6 @@ const coordenadas = ([lon, lat]) =>
 export function pintarPanel(feature, meta) {
   const p = feature.properties;
   const r = evaluar(p);
-  const pesoTotal = Object.values(CONFIG.pesos).reduce((a, b) => a + b, 0) || 1;
   const area = meta?.area_cuadrado_km2 ?? CONFIG.area_cuadrado_km2;
   const lado = meta?.lado_cuadrado_km ?? Math.sqrt(area);
   const c = feature.geometry ? centro(feature.geometry) : null;
@@ -67,11 +66,10 @@ export function pintarPanel(feature, meta) {
       <div><strong>${escaparHtml(t('descartado'))}</strong><br>${escaparHtml(textoMotivo(r.motivo))}</div>
     </div>` : '';
 
+  // Los pesos NO se muestran (no son fijos y no queremos que se copie el modelo).
   const filas = CONFIG.variables.map(({ clave, color }) => {
     const v = p[clave];
     const hay = tieneValor(v);
-    const peso = CONFIG.pesos[clave] ?? 0;
-    const pesoTxt = peso > 0 ? t('peso', { n: Math.round(peso / pesoTotal * 100) }) : t('solo_descarta');
     const ayuda = (clave === 'sismico' || clave === 'inundacion') ? ` <span class="panel-mini">(${escaparHtml(t('ayuda_riesgo'))})</span>` : '';
     return `
       <li class="variable${hay ? '' : ' sin-dato'}">
@@ -83,7 +81,6 @@ export function pintarPanel(feature, meta) {
         <div class="barra" role="meter" aria-valuemin="0" aria-valuemax="100" ${hay ? `aria-valuenow="${v}"` : ''} aria-label="${escaparHtml(t(`var_${clave}`))}">
           ${hay ? `<span style="width:${Math.max(0, Math.min(100, v))}%;background:${colorValor(v)}"></span>` : ''}
         </div>
-        <div class="variable-peso">${escaparHtml(pesoTxt)}</div>
       </li>`;
   }).join('');
 

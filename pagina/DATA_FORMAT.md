@@ -1,50 +1,32 @@
-# Formato de los datos — guía para rellenar el archivo real
+# Formato de los datos — qué lee la web
 
-Esta guía explica cómo es el archivo con los datos de un país (por ejemplo `data/ES.json`)
-para que podáis sustituir los datos inventados por los reales. **No hace falta tocar el código**:
-basta con cambiar el archivo y recargar la web.
-
----
-
-## 1. La idea en una frase
-
-El país está dividido en **cuadrados de 12 km²** (3,46 × 3,46 km; en España salen unos 43.000).
-Para cada cuadrado ponemos una nota
-de 0 a 100 en cada variable (energía, agua…). La web calcula la puntuación final y lo pinta
-verde, amarillo o rojo.
-
-## 2. La forma más fácil de hacerlo (recomendada)
-
-Los cuadrados **ya están dibujados** en `data/ES.json`. Lo más sencillo es:
-
-1. **No tocar la geometría** (las coordenadas de cada cuadrado).
-2. Buscar cada cuadrado por su `id` (por ejemplo `ES-01234`) o por sus columnas `utm_huso`, `utm_x`, `utm_y`
-   (esquina suroeste del cuadrado en metros, en la proyección UTM que usa el Instituto Geográfico Nacional).
-3. **Cambiar solo los números** de las variables (`energia`, `agua`, etc.).
-
-Si queréis empezar de una plantilla con todo vacío (todas las variables a `null`):
-
-```
-cd herramientas
-npm install                                   (solo la primera vez)
-node generar_datos_prueba.mjs --solo-geometria --salida ../data/ES_plantilla.json
-```
-
-> **Consejo:** si trabajáis en Excel o Python, sacad una tabla con columnas
-> `id, energia, agua, clima, conectividad, carreteras, sismico, inundacion, descartado, motivo_descarte`
-> y luego se mezcla con la geometría por el `id`. Pedídmelo y preparo un script que lo haga.
+Este documento describe **qué archivo espera la web y qué significa cada campo**. No dice cómo
+hay que preparar los datos: da igual de dónde salgan (data lake, Azure, Python, una base de datos…),
+siempre que al final se entregue un archivo con esta forma. Basta con sustituir el archivo
+(por ejemplo `data/ES.json`) y recargar la web; no hace falta tocar el código.
 
 ---
 
-## 3. Estructura del archivo
+## 1. La idea
 
-Es un archivo **GeoJSON** (el formato estándar para mapas; lo abren QGIS, Python/geopandas,
-geojson.io, etc.). Por fuera tiene esta forma:
+- El país está dividido en **cuadrados de 12 km²** (3,46 × 3,46 km). En España hay **43.213**.
+- Cada cuadrado tiene un **identificador** (`id`), su **forma** (coordenadas) y una serie de **valores**.
+- Con esos valores la web pinta cada cuadrado **verde, amarillo o rojo** y, al pulsarlo, enseña el detalle.
+
+Los cuadrados ya están dibujados en `data/ES.json` (ahora con valores inventados). Cada uno lleva
+también su posición en coordenadas UTM (`utm_huso`, `utm_x`, `utm_y`), que puede servir para
+cruzarlos con otros datos geográficos.
+
+---
+
+## 2. Estructura del archivo
+
+Es un archivo **GeoJSON** (formato estándar de mapas: lo leen QGIS, Python/geopandas, PostGIS, etc.):
 
 ```json
 {
   "type": "FeatureCollection",
-  "meta": { ...información del archivo... },
+  "meta": { ...información sobre el archivo... },
   "features": [
     { ...cuadrado 1... },
     { ...cuadrado 2... }
@@ -52,18 +34,18 @@ geojson.io, etc.). Por fuera tiene esta forma:
 }
 ```
 
-### 3.1. `meta` — información del archivo
+### 2.1. `meta` — información sobre el archivo
 
 | Campo | Obligatorio | Qué es | Ejemplo |
 |---|---|---|---|
 | `pais` | sí | Código del país (2 letras) | `"ES"` |
-| `area_cuadrado_km2` | sí | Superficie de cada cuadrado en km². Se muestra en el panel | `12` |
+| `area_cuadrado_km2` | sí | Superficie de cada cuadrado en km² (se muestra en el panel) | `12` |
 | `lado_cuadrado_km` | no | Lado del cuadrado en km | `3.464` |
-| `datos_de_prueba` | no | `true` si son datos inventados | `false` |
-| `fuente` | no | De dónde salen los datos | `"Equipo datos, REE + AEMET"` |
+| `datos_de_prueba` | no | `true` si los datos son inventados | `false` |
+| `fuente` | no | De dónde salen los datos | `"Equipo de datos"` |
 | `fecha` | no | Fecha de los datos (AAAA-MM-DD) | `"2026-12-01"` |
 
-### 3.2. Cada cuadrado (`feature`)
+### 2.2. Cada cuadrado (`feature`)
 
 ```json
 {
@@ -74,7 +56,7 @@ geojson.io, etc.). Por fuera tiene esta forma:
   },
   "properties": {
     "id": "ES-21404",
-    "puntuacion": null,
+    "puntuacion": 74,
     "descartado": false,
     "motivo_descarte": null,
     "energia": 85,
@@ -92,100 +74,116 @@ geojson.io, etc.). Por fuera tiene esta forma:
 }
 ```
 
-### 3.3. Campos de `properties`, uno a uno
+---
 
-| Campo | Obligatorio | Valores | Qué significa |
+## 3. Qué es cada campo de `properties`
+
+### 3.1. Identificación
+
+| Campo | Obligatorio | Valores | Qué es |
 |---|---|---|---|
-| `id` | **sí** | texto, `"ES-00001"`… | Identificador único del cuadrado. No repetir. |
-| `energia` | sí* | 0-100 o `null` | Disponibilidad/precio de electricidad. **100 = mejor.** |
-| `agua` | sí* | 0-100 o `null` | Agua disponible para refrigeración. **100 = mejor.** |
-| `clima` | sí* | 0-100 o `null` | Clima favorable (fresco = refrigerar cuesta menos). **100 = mejor.** |
-| `conectividad` | sí* | 0-100 o `null` | Fibra, cercanía a puntos de intercambio. **100 = mejor.** |
-| `carreteras` | sí* | 0-100 o `null` | Acceso por carretera. **100 = mejor.** |
-| `sismico` | sí* | 0-100 o `null` | Riesgo sísmico. **100 = POCO riesgo** (¡ojo, al revés de lo intuitivo!). |
-| `inundacion` | sí* | 0-100 o `null` | Riesgo de inundación. **100 = POCO riesgo.** |
-| `descartado` | no | `true` / `false` | `true` = el cuadrado no vale (sale rojo directamente). |
-| `motivo_descarte` | no | texto o `null` | Por qué se descarta. Valores conocidos abajo. |
-| `puntuacion` | no | 0-100 o `null` | Nota final ya calculada (p. ej. por vuestro modelo). Si es `null`, la calcula la web. |
-| `area_km2` | no | número | Superficie de tierra del cuadrado (los de costa y frontera son menores de 12). |
-| `utm_huso`, `utm_x`, `utm_y` | no | números | Esquina suroeste del cuadrado en metros (UTM huso 30; huso 28 en Canarias). Útil para cruzar con datos en QGIS. |
+| `id` | **sí** | texto: `"ES-00001"`… | Identificador único del cuadrado. Es la clave para unir cualquier dato con su cuadrado. |
+| `utm_huso`, `utm_x`, `utm_y` | no | números | Esquina suroeste del cuadrado, en metros, en coordenadas UTM (huso 30; huso 28 en Canarias). |
+| `area_km2` | no | número | Superficie de tierra del cuadrado. Los de costa y frontera son menores de 12 porque están recortados. |
 
-\* "sí" = el campo debe existir, pero puede valer `null`.
+### 3.2. Resultado
 
-**Reglas importantes:**
+| Campo | Obligatorio | Valores | Qué es |
+|---|---|---|---|
+| `puntuacion` | no* | 0-100 o `null` | **Nota final del cuadrado**, ya calculada por el modelo del equipo. Es lo que decide el color. |
+| `descartado` | no | `true` / `false` | `true` = el cuadrado no sirve, sea cual sea su nota (sale en rojo). |
+| `motivo_descarte` | no | texto o `null` | Por qué se descarta. Ver la tabla de motivos más abajo. |
 
-- **Todas las variables van de 0 a 100 y 100 es siempre lo mejor.** Si vuestro dato original es
-  "cuanto más, peor" (por ejemplo, riesgo sísmico), hay que darle la vuelta: `100 - valor`.
-- **`null` significa "no tenemos el dato".** La web pondrá "Sin datos" y **no** lo usará para la
-  media (su peso se reparte entre las demás). **No pongáis 0 cuando falte el dato**: 0 significa "malísimo".
-- `null` se escribe tal cual, **sin comillas**. `"null"` (con comillas) estaría mal.
+\* Si `puntuacion` viene vacía (`null`), la web calcula una nota provisional por su cuenta (ver punto 5).
+
+### 3.3. Variables (el desglose que se ve en el panel)
+
+Son los factores que explican la nota. **Todos van de 0 a 100, y 100 es siempre lo mejor.**
+
+| Campo | Qué representa |
+|---|---|
+| `energia` | Disponibilidad y precio de la electricidad. |
+| `agua` | Agua disponible para la refrigeración. |
+| `clima` | Clima favorable (más fresco = refrigerar cuesta menos). |
+| `conectividad` | Fibra óptica y cercanía a puntos de intercambio de internet. |
+| `carreteras` | Acceso por carretera para la obra y el mantenimiento. |
+| `sismico` | Riesgo sísmico. **100 = POCO riesgo** (al revés de lo intuitivo). |
+| `inundacion` | Riesgo de inundación. **100 = POCO riesgo.** |
+
+La lista de variables **no es definitiva**: se pueden añadir o quitar (ver punto 6).
+
+### 3.4. Reglas de los valores
+
+- **0 a 100, y 100 = mejor**, también en los riesgos. Un dato del tipo "cuanto más, peor" tiene que
+  darse la vuelta (`100 − valor`) antes de llegar a la web.
+- **`null` = "no tenemos el dato".** La web enseña "Sin datos". No es lo mismo que `0`, que significa "malísimo".
+- `null` se escribe **sin comillas** (`"null"` con comillas sería un texto, y estaría mal).
 - Los números van **sin comillas** y con **punto** decimal: `72.5`, no `"72,5"`.
-- Los campos que empiezan por `_` (guion bajo) los usa la web internamente: no los pongáis.
+- Los campos que empiezan por `_` (guion bajo) los usa la web internamente: no deben venir en el archivo.
 
-**Motivos de descarte conocidos** (la web los traduce):
+### 3.5. Motivos de descarte
 
-| Valor | Se muestra como |
+| Valor de `motivo_descarte` | Se muestra como |
 |---|---|
 | `"suelo_protegido"` | Suelo protegido |
 | `"inundacion"` | Riesgo de inundación alto |
 | `"sismico"` | Riesgo sísmico extremo |
 
-Si ponéis otro texto (por ejemplo `"zona militar"`), la web lo muestra tal cual.
-
-**Descartes automáticos:** aunque `descartado` sea `false`, la web descarta el cuadrado si
-`inundacion` < 20 o `sismico` < 10. Estos límites se cambian en `config.js` (`reglas_descarte`).
-
-### 3.4. La geometría
-
-- Coordenadas en grados, sistema **WGS84** (el de GPS), en orden **[longitud, latitud]**, con 4 decimales (≈ 10 m)
-  (¡primero la longitud! En España la longitud es negativa en casi toda la península).
-- Tipo `"Polygon"` para cuadrados normales y `"MultiPolygon"` para los de costa que quedan partidos
-  en varios trozos (islotes).
-- Los cuadrados de la costa y de la frontera están **recortados**: solo cubren tierra española.
+Cualquier otro texto (por ejemplo `"zona militar"`) se muestra tal cual. Para que salga traducido
+a los dos idiomas, se añade en `i18n/es.json` y `i18n/en.json` como `"motivo_<valor>"`.
 
 ---
 
-> **Sobre el tamaño del archivo:** con 43.000 cuadrados ocupa ~18 MB, pero al publicarlo en
-> Cloudflare se descarga comprimido (~1 MB). No añadáis campos extra innecesarios: cada campo se repite
-> 43.000 veces.
+## 4. La geometría
 
-## 4. Cómo se calcula la puntuación (para que sepáis qué afecta a qué)
-
-1. Si el cuadrado trae `puntuacion` y en `config.js` está `usar_puntuacion_del_archivo: true`,
-   se usa esa nota.
-2. Si no, se hace la **media ponderada** de las variables que tienen dato, con estos pesos
-   (se cambian en `config.js`):
-
-   | Variable | Peso |
-   |---|---|
-   | energía | 0.25 |
-   | agua | 0.25 |
-   | clima | 0.15 |
-   | conectividad | 0.15 |
-   | carreteras | 0.10 |
-   | sísmico | 0.10 |
-   | inundación | 0 (solo descarta) |
-
-3. Color: **verde** ≥ 70 · **amarillo** 40-69 · **rojo** < 40 o descartado · **gris** sin ningún dato.
+- Coordenadas en grados, sistema **WGS84** (el del GPS), en orden **[longitud, latitud]** y con
+  4 decimales (≈ 10 m). Ojo: primero la longitud, que en casi toda España es negativa.
+- `"Polygon"` para los cuadrados normales y `"MultiPolygon"` para los de costa que quedan partidos en varios trozos.
+- Los cuadrados de costa y frontera están **recortados** con los límites oficiales del INE: solo cubren tierra española.
+- Si solo cambian los valores, **la geometría no hace falta tocarla**: basta con unir los datos por el `id`.
 
 ---
 
-## 5. Comprobar que el archivo está bien
+## 5. Cómo decide la web el color
 
-1. Abrid el archivo en QGIS (Capa → Añadir capa vectorial): si se ven los cuadrados sobre España,
-   la geometría está bien. (El archivo pesa unos 18 MB: webs como geojson.io pueden ir muy lentas.)
-2. Si el archivo tiene un error de formato, la web mostrará "No se han podido cargar los datos".
-   Pegad el contenido en <https://jsonlint.com> y os dirá en qué línea está el fallo
-   (lo típico: una coma de más al final de una lista, o comillas que faltan).
-3. Cuando sean los datos reales, cambiad en `meta` → `"datos_de_prueba": false` y en
-   `config.js` → `mostrar_etiqueta_datos_prueba: false`.
+1. Si el cuadrado está **descartado** → **rojo**, sea cual sea su nota.
+2. Si trae `puntuacion` → se usa esa nota.
+3. Si no la trae → la web calcula una **nota provisional** con los valores de las variables. Sirve
+   solo para probar con datos inventados: con los datos reales, lo previsto es que la nota venga ya
+   calculada en `puntuacion`, para que **el modelo (cómo se combinan las variables) no esté en la web**.
+4. Color según la nota: **verde** ≥ 70 · **amarillo** 40-69 · **rojo** < 40 · **gris** sin ningún dato.
+   Estos límites se cambian en `config.js` (`umbrales`).
 
-## 6. Añadir otro país
+La web también puede descartar cuadrados automáticamente con reglas sencillas (ahora: inundación < 20
+o sísmico < 10). Están en `config.js` (`reglas_descarte`) y se pueden cambiar o quitar si el
+descarte ya viene decidido en los datos.
 
-1. Crear `data/FR.json` con este mismo formato (`id` tipo `"FR-00001"`).
-2. Añadir una línea en `data/paises.json`:
+---
+
+## 6. Añadir o quitar una variable
+
+Si el equipo cambia la lista de variables, en la web hay que tocar:
+
+1. `config.js` → `variables` (orden y color del icono).
+2. `i18n/es.json` y `i18n/en.json` → el nombre visible, `"var_<clave>"`.
+3. `js/iconos.js` → su dibujo (si no tiene, sale un círculo).
+
+Y en el archivo de datos, un campo nuevo en `properties` con ese mismo nombre (`<clave>`), de 0 a 100.
+
+---
+
+## 7. Otros países
+
+1. Un archivo `data/XX.json` con este mismo formato (`id` del tipo `"FR-00001"`).
+2. Una línea en `data/paises.json`:
    ```json
    "FR": { "archivo": "data/FR.json", "limites": [[-5.2, 42.3], [8.3, 51.1]] }
    ```
-   (`limites` = esquina suroeste y noreste [longitud, latitud] para encuadrar el país).
-3. Listo: el país pasa a salir en dorado y se puede abrir.
+   (`limites` = esquinas suroeste y noreste, [longitud, latitud], para encuadrar el país).
+
+---
+
+## 8. Tamaño
+
+Con 43.000 cuadrados el archivo ocupa unos 18 MB, pero la web lo descarga comprimido (~1,8 MB).
+Cada campo se repite 43.000 veces, así que conviene no añadir campos que la web no use.

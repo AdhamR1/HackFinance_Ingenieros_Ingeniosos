@@ -3,9 +3,9 @@
 Mapa que estima si un terreno es viable para construir un **data center**.
 El país se divide en cuadrados de 12 km² (3,46 × 3,46 km) y cada uno se pinta verde, amarillo o rojo según su puntuación.
 
-Dominio previsto: **canibuildhere.online** (alojado en Cloudflare Pages).
+Publicada en **https://canibuildhere.online** (alojada en Cloudflare).
 
-> ⚠️ Ahora mismo los datos de España son **inventados** (ver `DATA_FORMAT.md` para sustituirlos por los reales).
+> ⚠️ Ahora mismo los datos de España son **inventados** (en `DATA_FORMAT.md` se explica qué archivo espera la web).
 
 ## Cómo abrir la web en tu ordenador
 
@@ -29,7 +29,7 @@ Si cambias algo y no lo ves, recarga forzando con `Ctrl + F5`.
 
 | Quiero cambiar…                                  | Archivo |
 |--------------------------------------------------|---------|
-| Pesos, colores, umbrales, descartes, opciones    | `config.js` |
+| Colores, umbrales, descartes, variables, opciones | `config.js` |
 | Textos de la web (español / inglés)              | `i18n/es.json`, `i18n/en.json` |
 | Los datos de un país                             | `data/ES.json` (formato en `DATA_FORMAT.md`) |
 | Qué países tienen datos                          | `data/paises.json` |

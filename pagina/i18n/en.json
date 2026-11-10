@@ -54,8 +54,6 @@
   "var_sismico": "Seismic risk",
   "var_inundacion": "Flood risk",
   "ayuda_riesgo": "100 = low risk",
-  "peso": "Weight {n} %",
-  "solo_descarta": "Not scored; only rules out",
   "coordenadas": "Centre coordinates",
   "superficie_tierra": "Land area",
   "oeste_abrev": "W",

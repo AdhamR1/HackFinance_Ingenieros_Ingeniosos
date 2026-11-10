@@ -320,7 +320,6 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
 .barra { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); margin: 6px 0 3px 28px; overflow: hidden; }
 .barra span { display: block; height: 100%; border-radius: 999px; }
 .sin-dato .barra { background: repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 4px, transparent 4px 8px); }
-.variable-peso { margin-left: 28px; font-size: 11.5px; color: var(--texto-suave); }
 
 .panel-datos { margin: 18px 0 0; display: grid; gap: 8px; font-size: 13px; }
 .panel-datos div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
@@ -488,7 +487,7 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
   .panel-aviso { margin: 10px 0 0; padding: 8px 10px; font-size: 13px; }
   .panel-subtitulo { margin: 12px 0 6px; font-size: 11px; }
 
-  /* Cada variable en UNA línea: icono · nombre · barra · valor (el "peso" se ve en pantalla grande). */
+  /* Cada variable en UNA línea: icono · nombre · barra · valor. */
   .variables { gap: 8px; }
   .variable { display: grid; grid-template-columns: 20px 1fr 64px 58px; column-gap: 8px; align-items: center; }
   .variable-cabecera { display: contents; }
@@ -498,6 +497,5 @@ input[type="range"] { width: 100%; accent-color: var(--acento); cursor: pointer;
   .barra { grid-column: 3; grid-row: 1; margin: 0; }
   .variable-valor { grid-column: 4; grid-row: 1; text-align: right; }
   .sin-dato .variable-valor { font-size: 12px; }
-  .variable-peso { display: none; }
   .panel-datos { margin-top: 12px; }
 }
