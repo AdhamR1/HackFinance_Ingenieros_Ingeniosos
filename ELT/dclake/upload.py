@@ -1,5 +1,4 @@
-"""Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year=
-partitions).
+"""Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year=).
 
 Configuration in .env:
   AZURE_STORAGE_ACCOUNT     storage account name (with hierarchical namespace = ADLS Gen2)
@@ -7,13 +6,13 @@ Configuration in .env:
   AZURE_STORAGE_PREFIX      folder inside the container (default: dataset)
   and one way to authenticate:
   AZURE_STORAGE_SAS_TOKEN   SAS token with write permission, or
-  AZURE_STORAGE_KEY         account key, or nothing: `az login` / managed identity
-  (DefaultAzureCredential)
+  AZURE_STORAGE_KEY         account key, or
+  nothing                   `az login` / managed identity (DefaultAzureCredential)
 
 Uploads run in parallel, are retried with exponential backoff and are incremental: a file that
-already
-exists in Azure with the same size is skipped unless force=True. A SAS token without permission to
-check/create the container or to list paths is tolerated (everything is then uploaded).
+already exists in Azure with the same size is skipped unless force=True. A SAS token without
+permission to check/create the container or to list paths is tolerated (everything is then
+uploaded).
 """
 
 from __future__ import annotations
@@ -43,8 +42,12 @@ def _client(cfg):
     elif key:
         cred = key
     else:
+        import logging
+
         from azure.identity import DefaultAzureCredential
 
+        # its per-credential warnings are repeated in the exception it raises: print them once
+        logging.getLogger("azure.identity").setLevel(logging.ERROR)
         cred = DefaultAzureCredential()
     return DataLakeServiceClient(account_url=url, credential=cred)
 
@@ -59,8 +62,7 @@ class UploadSummary:
 
 
 def _status(e: BaseException) -> int | None:
-    """HTTP status of an azure.core HttpResponseError (duck-typed so azure is not needed at
-    import)."""
+    """HTTP status of an azure.core HttpResponseError (duck-typed: azure not needed at import)."""
     return getattr(e, "status_code", None)
 
 
@@ -120,20 +122,31 @@ def upload_dataset(
     lake, cfg, *, force: bool = False, dry_run: bool = False, workers: int = DEFAULT_WORKERS
 ) -> int:
     """Upload lake.tables/**/*.parquet to Azure. Returns the number of files that are in Azure
-    (uploaded + skipped; in dry-run, the ones that would be). Raises RuntimeError at the end if any
-    failed."""
+    (uploaded + skipped; in dry-run, the ones that would be). Raises RuntimeError at the end if
+    any failed."""
     log = lake.log
     container = cfg.secret("AZURE_STORAGE_CONTAINER")
-    if not container:
-        raise RuntimeError("Falta AZURE_STORAGE_CONTAINER en .env")
     account = cfg.secret("AZURE_STORAGE_ACCOUNT")
     prefix = (cfg.secret("AZURE_STORAGE_PREFIX") or "dataset").strip("/")
-    fs = _client(cfg).get_file_system_client(container)
-    _ensure_container(fs, container, log, dry_run)
+    try:
+        if not container:
+            raise RuntimeError("Falta AZURE_STORAGE_CONTAINER en .env")
+        fs = _client(cfg).get_file_system_client(container)
+        _ensure_container(fs, container, log, dry_run)
+    except Exception as e:
+        if not dry_run:
+            raise
+        # A dry run must also work without Azure: list the local files, compare with nothing
+        log.warning(
+            "[dry-run] Sin conexión con Azure (%s): se listan todos los archivos locales "
+            "sin comparar con lo ya subido",
+            str(e).splitlines()[0],
+        )
+        fs = None
 
     tables = Path(lake.tables)
     files = sorted(tables.rglob("*.parquet"))
-    remote = {} if force else _remote_sizes(fs, prefix, log)
+    remote = {} if force or fs is None else _remote_sizes(fs, prefix, log)
     s = UploadSummary()
     todo: list[tuple[Path, str, int]] = []
     for p in files:
@@ -169,9 +182,8 @@ def upload_dataset(
 
     verb = "se subirían" if dry_run else "subidos"
     log.info(
-        "Azure abfss://%s@%s.dfs.core.windows.net/%s: %s %d (%.1f MB), omitidos %d sin cambios "
-        "(%.1f MB), "
-        "fallidos %d, %.0f s",
+        "Azure abfss://%s@%s.dfs.core.windows.net/%s: %s %d (%.1f MB), "
+        "omitidos %d sin cambios (%.1f MB), fallidos %d, %.0f s",
         container,
         account,
         prefix,

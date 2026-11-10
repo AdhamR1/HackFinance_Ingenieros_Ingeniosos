@@ -1,17 +1,12 @@
-# Pipeline (desde pipeline/):  python -m pip install -r requirements.txt
-# Sirve el mismo entorno del ELT (%USERPROFILE%\.venvs\dclake) añadiendo lo del modelo.
-pandas>=2.1
-pyarrow
-numpy
-scipy
-shapely>=2.0
-pyproj
-requests
-truststore          # redes corporativas que inspeccionan TLS
-geopandas           # feat_riesgos: shapefiles del SNCZI
-pyogrio
-rasterio            # feat_riesgos: PGA del IGN si llega en GeoTIFF
-scikit-learn        # train
-lightgbm            # train
-shap                # train: las 3 razones de cada celda
-pytest              # pruebas: python -m pytest desde la raíz
+# Pipeline (modelo y puntuación). Requiere Python >= 3.11.
+# Desde la raíz del repo, con el entorno activado:
+#   python -m pip install -r pipeline/requirements.txt
+# LightGBM necesita la librería de sistema OpenMP (entrenamiento en paralelo):
+#   macOS:   brew install libomp
+#   Windows: viene con Microsoft Visual C++ Redistributable (suele estar ya instalado);
+#            si falla con WinError 126 / vcomp140.dll: winget install Microsoft.VCRedist.2015+.x64
+#   Linux:   suele venir; si no: sudo apt install libgomp1
+-r ../ELT/requirements.txt   # pandas, numpy, scipy, pyproj, geopandas, rasterio, requests, truststore...
+scikit-learn
+lightgbm
+shap
