@@ -103,3 +103,15 @@ Detalle de lo que se mantiene, fusiona, elimina y renombra: `docs/LIMPIEZA.md`. 
 | E2 · columnas nuevas y capa rellena (sintético, solo en la copia temporal) | termina · el informe lista las columnas nuevas · la capa `water_stress` se activa sola · el mapa avisa «los datos han cambiado» |
 | E3 · columna desaparecida, tipo cambiado, duplicados e imposibles | termina · `free_cooling_hours` desaparecida y criterio `refrigeracion` omitido con aviso · tipo cambiado de `slope_pct` · 25 duplicados descartados · valores imposibles a «sin dato» |
 | E4 · dos ejecuciones con los mismos datos | resultados idénticos byte a byte · mapa sin errores |
+
+**Después de la limpieza (11-nov-2026):**
+- Tests: 31/31.
+- Aceptación en el árbol de trabajo: **23/23** (577 s).
+- **Verificación final en un clon limpio de solo `angel/mapa-viabilidad`**, siguiendo el README:
+  - venv + `pip install` → tests (27 aprobados y 4 omitidos porque aún no hay salida);
+  - `make -C angel_modelo actualizar` termina y después pasan 31/31;
+  - `git status` limpio tras regenerar: los mismos datos dan los mismos archivos;
+  - aceptación **23/23** (427 s);
+  - ningún archivo supera 50 MB (el mayor: 2,5 MB);
+  - ningún secreto en el árbol ni en el historial de la rama;
+  - `.gitignore` excluye `.venv/`, `salida/` y `__pycache__/`.
