@@ -5,8 +5,9 @@ so the countries add up in the same tables:
   sites_static/ESP-p00.parquet   sites_yearly/ESP-p00.parquet   field_lineage/ESP-p00.parquet
   sites_weekly/year=2025/ESP-p00-2025.parquet    (ISO year of the week; -2025 = calendar year
   processed)
-  country_daily/ESP.parquet   stations/ESP.parquet   signal_features/ESP.parquet
+  country_daily/ESP.parquet   stations/ESP-p00.parquet   signal_features/ESP-p00.parquet
   country_context.parquet     (the same 8 countries whatever the run)
+  audio_evidence.parquet      (citations of public recordings: every country, one file)
 """
 
 from __future__ import annotations
@@ -117,8 +118,8 @@ def clear_outputs(lake) -> int:
 
 
 def _out_path(lake, name: str):
-    if name == "country_context":
-        return lake.tables / "country_context.parquet"
+    if name in ("country_context", "audio_evidence"):  # one file, the same whatever the run
+        return lake.tables / f"{name}.parquet"
     d = lake.tables / name
     d.mkdir(parents=True, exist_ok=True)
     per_part = name in (
@@ -169,10 +170,13 @@ def assemble(lake, cfg, collectors: list[str] | None = None):
         "country_daily",
         "stations",
         "signal_features",
+        "audio_evidence",
     ):
         spec = specs[name]
         prov = {}
         df = merge_staged(lake, cfg, spec, collectors, provenance=prov)
+        if name == "audio_evidence" and df.empty:
+            continue  # shared by every country: a run without citations must not empty it
         df = conform(df, spec, log, strict=False)
         df.to_parquet(_out_path(lake, name), index=False)
         add_lineage(spec, df, prov)

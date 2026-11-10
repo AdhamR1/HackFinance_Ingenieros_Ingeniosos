@@ -15,6 +15,7 @@ from .peeringdb import HubsCollector, PeeringDBCollector
 from .pending import PENDING
 from .rasters import DEMCollector, ManualLayersCollector, RemoteRastersCollector
 from .seismic import SeismicCollector
+from .speech import SpeechCollector
 from .transport import AirportsCollector, CablesCollector, CoastCollector
 
 __all__ = ["BY_NAME", "REGISTRY", "Collector", "PendingCollector"]
@@ -39,6 +40,7 @@ REGISTRY = [
     ElectricityESCollector,
     WorldBankCollector,
     SeismicCollector,
+    SpeechCollector,
     *PENDING,
     DerivedCollector,  # always last
 ]

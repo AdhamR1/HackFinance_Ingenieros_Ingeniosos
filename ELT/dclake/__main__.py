@@ -12,6 +12,9 @@ export     Excel legible con las tablas de unas celdas (--sites a,b,c --out arch
 upload     sube ELT/dataset/ a Azure Data Lake (credenciales en .env;
            --force, --dry-run, --workers N)
 qc         control de calidad del dataset del país: claves, rangos físicos y coherencia
+transcribe audio público del catálogo (ELT/audio/sources.csv) a texto con ElevenLabs Scribe
+excerpts   pasajes de una transcripción para leer antes de citar (--only id [--terms "a|b"])
+cite       comprueba las citas de ELT/audio/claims.csv contra las transcripciones
 """
 
 from __future__ import annotations
@@ -176,12 +179,16 @@ def main(argv=None):
             "export",
             "upload",
             "qc",
+            "transcribe",
+            "excerpts",
+            "cite",
         ],
     )
     ap.add_argument(
         "--out", help="export: archivo Excel de salida (por defecto <lake>/reports/ejemplo.xlsx)"
     )
     ap.add_argument("--config", help="ruta a config.yaml (por defecto ELT/config.yaml)")
+    ap.add_argument("--terms", help="excerpts: expresión regular de los términos a buscar")
     ap.add_argument("--only", help="colectores separados por comas")
     ap.add_argument("--skip", help="colectores separados por comas")
     ap.add_argument(
@@ -230,6 +237,21 @@ def main(argv=None):
 
     cfg, lake = _setup(args)
     from .collectors import REGISTRY
+
+    if args.command in ("transcribe", "excerpts", "cite"):  # unstructured audio (speech.py)
+        from . import speech
+
+        if args.command == "transcribe":
+            res = speech.transcribe_sources(cfg, lake.log, only, args.workers)
+            return 1 if res["failed"] else 0
+        if args.command == "cite":
+            speech.cite(cfg, lake.log)
+            return 0
+        for sid in sorted(only or []):
+            t = speech.load_transcript(cfg, sid)
+            print(f"===== {sid}")
+            print(speech.excerpts(t, args.terms or speech.TERMS) if t else "(sin transcripción)")
+        return 0
 
     if args.command in ("init", "status"):
         cmd_status(cfg, lake, create=args.command == "init")

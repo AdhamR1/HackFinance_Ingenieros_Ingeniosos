@@ -313,3 +313,7 @@ manual_layers:
     download: "https://www.whymap.org (WOKAM)"
     kind: vector
     ops: [{op: contains, field: karst_flag}]
+
+# Audio público -> texto (ElevenLabs Scribe v2). Catálogo en audio/sources.csv, citas en audio/claims.csv.
+speech:
+  max_hours_per_run: 60             # tope de horas de audio por ejecución de `transcribe` (cuota del plan)

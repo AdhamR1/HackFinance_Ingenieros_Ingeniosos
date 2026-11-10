@@ -566,6 +566,32 @@ B.append(("14 Etiquetas y salidas", "sites", [
  ("time_to_power_months","float","meses","Plazo estimado hasta tener energía","Modelo propio","-",A,L,D),
 ]))
 
+# Datos no estructurados: citas literales de grabaciones públicas (audio -> texto con ElevenLabs Scribe).
+# Una fila por cita; el segundo y el hablante se calculan localizando la cita en la transcripción.
+B.append(("16 Evidencia de audio", "audio_evidence", [
+ ("evidence_id","string","-","Identificador de la cita (grabación + orden)","-","-",A,K,D),
+ ("source_id","string","-","Grabación de la que sale la cita (ELT/audio/sources.csv)","-","-",A,K,R),
+ ("country_iso3","string","ISO 3166-1","País al que se refiere lo dicho (vacío si es un criterio general)","-","-",A,K,R),
+ ("place_name","string","-","Lugar al que se refiere (municipio, provincia, condado, región)","-","-",A,F,R),
+ ("lat","float","grados WGS84","Latitud del lugar","-","-",A,K,R),
+ ("lon","float","grados WGS84","Longitud del lugar","-","-",A,K,R),
+ ("topic","category","-","Tema: energía, agua, permisos, oposición, moratoria, suelo, conectividad, incentivos, mercado, proyecto, riesgo, clima","-","-",A,F,D),
+ ("target_field","string","-","Campo del diccionario o variable del modelo que apoya la cita","-","-",A,C,D),
+ ("value","float","según el campo","Valor que afirma la cita (meses, MW, 0/1) o sentido del criterio (+1 favorece, -1 penaliza)","-","-",A,F,D),
+ ("quote","string","-","Cita literal de la transcripción","ElevenLabs Scribe v2","-",A,F,R),
+ ("quote_language","string","ISO 639-3","Idioma de la grabación","ElevenLabs Scribe v2","-",A,C,R),
+ ("t_start_s","float","s","Segundo de la grabación en que empieza la cita","ElevenLabs Scribe v2","-",A,F,R),
+ ("t_end_s","float","s","Segundo en que termina la cita","ElevenLabs Scribe v2","-",A,F,R),
+ ("speaker_id","string","-","Hablante según la diarización","ElevenLabs Scribe v2","-",A,F,R),
+ ("source_title","string","-","Título de la grabación","-","-",A,C,R),
+ ("source_publisher","string","-","Programa o entidad que la publica","-","-",A,C,R),
+ ("source_date","date","AAAA-MM-DD","Fecha de publicación","-","-",A,C,R),
+ ("audio_url","string","URL","Enlace al audio","-","-",A,C,R),
+ ("page_url","string","URL","Página del episodio o de la sesión","-","-",A,C,R),
+ ("extraction_method","category","-","Cómo se extrajo la cita (lectura por LLM, reglas)","-","-",A,C,R),
+ ("evidence_confidence","float","0-1","Confianza en la interpretación de la cita","-","-",A,C,D),
+]))
+
 B.append(("15 Control y linaje", "todas", [
  ("source","string","-","Fuente de cada dato o capa","-","-",M,C,R),
  ("source_url","string","URL","Enlace a la fuente","-","-",M,C,R),
@@ -600,6 +626,7 @@ def temporalidad(tabla, campo):
     if tabla == "signal_features": return "Por registro"
     if tabla == "todas": return "Metadato"
     if tabla == "stations": return "Estático"
+    if tabla == "audio_evidence": return "Por cita"
     return "Anual" if campo in YEARLY else "Estático"
 
 # Variables diarias (tabla sites_daily o country_daily) y a qué campo del diccionario alimentan
@@ -745,6 +772,7 @@ for r in [
  ["stations","Estación sísmica","station_id","signal_features por station_id","processed/","GeoParquet"],
  ["signal_features","Registro de ruido analizado","record_id","stations por station_id","features/","Parquet (formas de onda crudas en raw/ como MiniSEED)"],
  ["country_context","País","country_iso3","sites por country_iso3","processed/","Parquet"],
+ ["audio_evidence","Cita literal de una grabación pública (dato no estructurado)","evidence_id","sites por cercanía (lat, lon) y country_iso3","processed/","Parquet (las transcripciones completas quedan en la caché)"],
  ["grid_h3_r7","Celda H3 resolución 7 con capas precalculadas","h3_cell_r7","sites por h3_cell_r7","features/","Parquet"],
  ["catalog","Dataset descargado","dataset_id","-","metadata/","CSV"],
 ]: tl.append(r)

@@ -90,6 +90,10 @@ def load_schemas(dictionary_path: str | Path) -> dict[str, TableSpec]:
         "signal_features": spec(
             "signal_features", ["record_id"], dic[dic["Tabla"] == "signal_features"]
         ),
+        # unstructured data: literal quotes of public recordings (speech -> text)
+        "audio_evidence": spec(
+            "audio_evidence", ["evidence_id"], dic[dic["Tabla"] == "audio_evidence"]
+        ),
     }
     d = daily.fillna("")
     d = d.rename(columns={"Tabla": "Tabla", "Campo": "Campo", "Tipo": "Tipo"})
