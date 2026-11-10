@@ -1,4 +1,6 @@
-"""Daily -> weekly (ISO weeks, Monday start) following the 'Variables semanales' sheet of the dictionary."""
+"""Daily -> weekly (ISO weeks, Monday start) following the 'Variables semanales' sheet of the
+dictionary."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -37,7 +39,9 @@ def aggregate(daily: pd.DataFrame, rules) -> pd.DataFrame:
     for wf, src, how in rules:
         if src not in d:
             continue
-        col = pd.to_numeric(d[src].astype("Float64") if d[src].dtype == "boolean" else d[src], errors="coerce")
+        col = pd.to_numeric(
+            d[src].astype("Float64") if d[src].dtype == "boolean" else d[src], errors="coerce"
+        )
         gc = col.groupby([d["site_id"], d["week_start"]], observed=True, sort=True)
         val = gc.agg(how)
         if how == "sum":

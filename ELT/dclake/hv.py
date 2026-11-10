@@ -3,6 +3,7 @@
 Pure numpy/scipy so it can be unit-tested without network access.
 SESAME (2004) criteria are implemented in a simplified but faithful form.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -27,15 +28,31 @@ def _windows(x: np.ndarray, n: int) -> np.ndarray:
 
 
 def sesame_thresholds(f0: float) -> tuple[float, float]:
-    """(epsilon(f0) as a fraction-free frequency threshold, theta(f0) amplitude-factor threshold)."""
-    for lim, eps, theta in ((0.2, 0.25, 3.0), (0.5, 0.20, 2.5), (1.0, 0.15, 2.0), (2.0, 0.10, 1.78)):
+    """(epsilon(f0) as a fraction-free frequency threshold, theta(f0) amplitude-factor
+    threshold)."""
+    for lim, eps, theta in (
+        (0.2, 0.25, 3.0),
+        (0.5, 0.20, 2.5),
+        (1.0, 0.15, 2.0),
+        (2.0, 0.10, 1.78),
+    ):
         if f0 < lim:
             return eps * f0, theta
     return 0.05 * f0, 1.58
 
 
-def hv_ratio(z, n, e, fs: float, win_s: float = 60, fmin: float = 0.2, fmax: float = 20,
-             b: float = 40, n_freq: int = 100, reject_factor: float = 2.0) -> dict:
+def hv_ratio(
+    z,
+    n,
+    e,
+    fs: float,
+    win_s: float = 60,
+    fmin: float = 0.2,
+    fmax: float = 20,
+    b: float = 40,
+    n_freq: int = 100,
+    reject_factor: float = 2.0,
+) -> dict:
     """Compute the H/V curve and its peak from three components of ambient noise."""
     m = min(len(z), len(n), len(e))
     z, n, e = (np.asarray(a[:m], dtype=float) for a in (z, n, e))
@@ -44,7 +61,7 @@ def hv_ratio(z, n, e, fs: float, win_s: float = 60, fmin: float = 0.2, fmax: flo
     if W[0].shape[0] == 0:
         return {"n_windows_valid": 0}
     # reject windows with transients (RMS far above the median in any component)
-    rms = np.stack([np.sqrt((w ** 2).mean(axis=1)) for w in W])
+    rms = np.stack([np.sqrt((w**2).mean(axis=1)) for w in W])
     med = np.median(rms, axis=1, keepdims=True)
     ok = (rms <= reject_factor * med).all(axis=0)
     if ok.sum() < 3:
@@ -54,14 +71,14 @@ def hv_ratio(z, n, e, fs: float, win_s: float = 60, fmin: float = 0.2, fmax: flo
     freqs = np.fft.rfftfreq(nwin, 1 / fs)
     centers = np.logspace(np.log10(fmin), np.log10(min(fmax, fs / 2.5)), n_freq)
     K = konno_ohmachi_weights(freqs, centers, b)
-    spec = [np.abs(np.fft.rfft(w * taper, axis=1)) @ K.T for w in W]   # (nw, n_freq)
+    spec = [np.abs(np.fft.rfft(w * taper, axis=1)) @ K.T for w in W]  # (nw, n_freq)
     H = np.sqrt((spec[1] ** 2 + spec[2] ** 2) / 2)
     with np.errstate(divide="ignore", invalid="ignore"):
         hv = H / spec[0]
     hv = np.where(np.isfinite(hv) & (hv > 0), hv, np.nan)
     logc = np.nanmean(np.log(hv), axis=0)
     curve = np.exp(logc)
-    sigA = np.exp(np.nanstd(np.log(hv), axis=0))      # multiplicative std factor
+    sigA = np.exp(np.nanstd(np.log(hv), axis=0))  # multiplicative std factor
     i0 = int(np.nanargmax(curve))
     f0, a0 = float(centers[i0]), float(curve[i0])
     peaks_w = centers[np.nanargmax(hv, axis=1)]
@@ -88,10 +105,17 @@ def hv_ratio(z, n, e, fs: float, win_s: float = 60, fmin: float = 0.2, fmax: flo
     c5 = f0_std < eps
     c6 = sigA[i0] < theta
     clear = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) >= 5
-    return {"hv_f0_hz": f0, "hv_a0": a0, "hv_f0_std": f0_std, "hv_second_peak_hz": f2,
-            "hv_sesame_reliable": reliable, "hv_sesame_clear_peak": bool(clear),
-            "hv_curve": curve.astype(float).tolist(), "hv_freqs": centers.tolist(),
-            "n_windows_valid": int(nw)}
+    return {
+        "hv_f0_hz": f0,
+        "hv_a0": a0,
+        "hv_f0_std": f0_std,
+        "hv_second_peak_hz": f2,
+        "hv_sesame_reliable": reliable,
+        "hv_sesame_clear_peak": bool(clear),
+        "hv_curve": curve.astype(float).tolist(),
+        "hv_freqs": centers.tolist(),
+        "n_windows_valid": int(nw),
+    }
 
 
 def psd_db(x: np.ndarray, fs: float, seg_s: float = 60) -> tuple[np.ndarray, np.ndarray]:
@@ -118,20 +142,27 @@ def spectral_features(x: np.ndarray, fs: float, vel_units: bool = True) -> dict:
     roll = float(f[m][np.searchsorted(cum, 0.85)]) if tot > 0 else np.nan
     out = {
         "dominant_freq_hz": float(f[m][np.argmax(p[m])]),
-        "spectral_centroid_hz": cen, "spectral_bandwidth_hz": bw, "spectral_rolloff_hz": roll,
-        "rms_velocity": float(np.sqrt(np.mean(np.asarray(x, float) ** 2))) if vel_units else np.nan,
+        "spectral_centroid_hz": cen,
+        "spectral_bandwidth_hz": bw,
+        "spectral_rolloff_hz": roll,
+        "rms_velocity": float(np.sqrt(np.mean(np.asarray(x, float) ** 2)))
+        if vel_units
+        else np.nan,
         "kurtosis": float(stats.kurtosis(x)),
     }
     if vel_units:  # PSD bands only make sense in physical units
         # convert velocity PSD to acceleration PSD: + 20 log10(2 pi f)
         with np.errstate(divide="ignore"):
             pacc = pdb + 20 * np.log10(2 * np.pi * np.where(f > 0, f, np.nan))
-        out.update({
-            "psd_p50_db_0_1_1hz": band_median(f, pacc, 0.1, 1),
-            "psd_p50_db_1_10hz": band_median(f, pacc, 1, 10),
-            "psd_p50_db_10_30hz": band_median(f, pacc, 10, 30),
-            "_f": f, "_pacc": pacc,
-        })
+        out.update(
+            {
+                "psd_p50_db_0_1_1hz": band_median(f, pacc, 0.1, 1),
+                "psd_p50_db_1_10hz": band_median(f, pacc, 1, 10),
+                "psd_p50_db_10_30hz": band_median(f, pacc, 10, 30),
+                "_f": f,
+                "_pacc": pacc,
+            }
+        )
     return out
 
 
@@ -150,6 +181,7 @@ def psd_vs_nlnm(f, pacc_db, lo=1.0, hi=10.0) -> float:
 
 def count_transients(x: np.ndarray, fs: float, sta=1.0, lta=30.0, on=3.5) -> int:
     from obspy.signal.trigger import classic_sta_lta, trigger_onset
+
     cft = classic_sta_lta(np.asarray(x, float), int(sta * fs), int(lta * fs))
     return len(trigger_onset(cft, on, 1.5))
 

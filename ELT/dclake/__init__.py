@@ -1,4 +1,5 @@
 """Data lake de viabilidad de data centers (hackathon)."""
+
 __version__ = "0.1.0"
 
 # Corporate networks with TLS inspection re-sign HTTPS traffic with their own root CA,

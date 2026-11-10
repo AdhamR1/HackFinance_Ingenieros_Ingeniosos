@@ -4,6 +4,7 @@ The grid is the ELT one (ELT/dclake/grid.py): EPSG:3035, 3.5 x 3.5 km cells.
     site_id = ESP_{floor(x / 3500)}_{floor(y / 3500)}   (x, y in metres, lower-left corner)
 Nobody builds another grid: every point is mapped to a cell with `site_id_from_lonlat`.
 """
+
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +30,9 @@ def site_id_from_xy(x, y) -> np.ndarray:
 def site_id_from_lonlat(lon, lat) -> np.ndarray:
     from pyproj import Transformer
 
-    x, y = Transformer.from_crs("EPSG:4326", CRS, always_xy=True).transform(np.asarray(lon), np.asarray(lat))
+    x, y = Transformer.from_crs("EPSG:4326", CRS, always_xy=True).transform(
+        np.asarray(lon), np.asarray(lat)
+    )
     return site_id_from_xy(x, y)
 
 
@@ -37,7 +40,9 @@ def cell_index(site_id: pd.Series) -> pd.DataFrame:
     """Grid indices (i, j) and the cell centre in metres (x_m, y_m) from the site_id."""
     parts = site_id.str.split("_", expand=True)
     i, j = parts[1].astype(int), parts[2].astype(int)
-    return pd.DataFrame({"i": i, "j": j, "x_m": (i + 0.5) * CELL_M, "y_m": (j + 0.5) * CELL_M}, index=site_id.index)
+    return pd.DataFrame(
+        {"i": i, "j": j, "x_m": (i + 0.5) * CELL_M, "y_m": (j + 0.5) * CELL_M}, index=site_id.index
+    )
 
 
 def read_elt(table: str, columns=None) -> pd.DataFrame:

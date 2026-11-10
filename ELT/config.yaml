@@ -114,9 +114,12 @@ fires:
 
 seismic:
   networks_clients: ["eida-routing", "IRIS"]
+  # registros de estas redes, directos a su centro de datos (el enrutado de EIDA no sirve la red ES del IGN)
+  waveform_clients: {ES: "https://fdsnws.sismologia.ign.es"}
   channels: "HH?,BH?,HN?"
   max_station_km: 100
-  days_per_year: 4                  # días muestreados por año y estación
+  days_per_year: 2                  # días muestreados por año y estación (2 x 2 ventanas de 1 h)
+  period_years: 1                   # solo el último año del periodo: f0 es del terreno, no cambia
   windows_utc: ["01:00", "11:00"]   # noche y día (inicio)
   window_minutes: 60
   hv_window_s: 60
@@ -145,11 +148,13 @@ overpass_endpoints:
   - "https://overpass.kumi.systems/api/interpreter"
 
 # Rásteres remotos que se leen sin descargarlos enteros (COG/VRT por HTTP)
+# SoilGrids 2.0 (ISRIC) por su servicio WCS: teselas de 10° a 0,01° (~1 km) sobre las cajas del país.
+# map/coverage: nombres del WCS; scale: unidades del WCS -> unidades del diccionario.
 remote_rasters:
-  - {field: clay_pct, url: "https://files.isric.org/soilgrids/latest/data/clay/clay_0-5cm_mean.vrt", scale: 0.1, source: "SoilGrids (ISRIC)", license: "CC BY 4.0"}
-  - {field: sand_pct, url: "https://files.isric.org/soilgrids/latest/data/sand/sand_0-5cm_mean.vrt", scale: 0.1, source: "SoilGrids (ISRIC)", license: "CC BY 4.0"}
-  - {field: bulk_density, url: "https://files.isric.org/soilgrids/latest/data/bdod/bdod_0-5cm_mean.vrt", scale: 0.01, source: "SoilGrids (ISRIC)", license: "CC BY 4.0"}
-  - {field: soil_type_wrb, url: "https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt", scale: 1, categorical: true, source: "SoilGrids (ISRIC)", license: "CC BY 4.0"}
+  - {field: clay_pct, map: clay, coverage: clay_0-5cm_mean, scale: 0.1, url: "https://maps.isric.org (WCS)", source: "SoilGrids 2.0 (ISRIC)", license: "CC BY 4.0"}
+  - {field: sand_pct, map: sand, coverage: sand_0-5cm_mean, scale: 0.1, url: "https://maps.isric.org (WCS)", source: "SoilGrids 2.0 (ISRIC)", license: "CC BY 4.0"}
+  - {field: bulk_density, map: bdod, coverage: bdod_0-5cm_mean, scale: 0.01, url: "https://maps.isric.org (WCS)", source: "SoilGrids 2.0 (ISRIC)", license: "CC BY 4.0"}
+  - {field: soil_type_wrb, map: wrb, coverage: MostProbable, format: GEOTIFF_BYTE, scale: 1, categorical: true, url: "https://maps.isric.org (WCS)", source: "SoilGrids 2.0 (ISRIC)", license: "CC BY 4.0"}
 
 # Capas que hay que descargar a mano (registro o formulario) y dejar en data_lake/raw/manual/
 # Si el archivo no está, se omite con un aviso. Comprobad los nombres de atributos al descargarlas.
@@ -272,7 +277,12 @@ manual_layers:
     kind: raster
     ops: [{op: sample, field: flood_depth_rp500_m, nodata_as: 0}]
   - name: ghsl_pop
-    file: "ghsl/GHS_POP_E2025_GLOBE_R2023A_54009_100_V1_0.tif"
+    file: "ghsl/GHS_POP_E2025_1km_{iso3}.tif"
+    auto: raster_crop                 # mapa mundial de 1 km (323 MB) en temporal; se guarda el recorte
+    url: "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2023A/GHS_POP_E2025_GLOBE_R2023A_54009_1000/V1-0/GHS_POP_E2025_GLOBE_R2023A_54009_1000_V1_0.zip"
+    source: "GHSL GHS-POP R2023A, población 2025 (1 km)"
+    table: sites_yearly               # en el diccionario la población es anual: va a la fila de 2025
+    year: 2025
     download: "https://human-settlement.emergency.copernicus.eu/download.php?ds=pop"
     license: "CC BY 4.0"
     kind: raster

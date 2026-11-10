@@ -1,4 +1,5 @@
-"""Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year= partitions).
+"""Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year=
+partitions).
 
 Configuration in .env:
   AZURE_STORAGE_ACCOUNT     storage account name (with hierarchical namespace = ADLS Gen2)
@@ -6,12 +7,15 @@ Configuration in .env:
   AZURE_STORAGE_PREFIX      folder inside the container (default: dataset)
   and one way to authenticate:
   AZURE_STORAGE_SAS_TOKEN   SAS token with write permission, or
-  AZURE_STORAGE_KEY         account key, or nothing: `az login` / managed identity (DefaultAzureCredential)
+  AZURE_STORAGE_KEY         account key, or nothing: `az login` / managed identity
+  (DefaultAzureCredential)
 
-Uploads run in parallel, are retried with exponential backoff and are incremental: a file that already
+Uploads run in parallel, are retried with exponential backoff and are incremental: a file that
+already
 exists in Azure with the same size is skipped unless force=True. A SAS token without permission to
 check/create the container or to list paths is tolerated (everything is then uploaded).
 """
+
 from __future__ import annotations
 
 import time
@@ -20,14 +24,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-RETRIES = 4            # attempts per file
-BACKOFF_S = 1.0        # wait before retry n: BACKOFF_S * 2**(n-1) -> 1, 2, 4 s
+RETRIES = 4  # attempts per file
+BACKOFF_S = 1.0  # wait before retry n: BACKOFF_S * 2**(n-1) -> 1, 2, 4 s
 DEFAULT_WORKERS = 4
-_NO_RETRY = {400, 401, 403, 404, 409, 412}   # client errors: retrying will not help
+_NO_RETRY = {400, 401, 403, 404, 409, 412}  # client errors: retrying will not help
 
 
 def _client(cfg):
     from azure.storage.filedatalake import DataLakeServiceClient
+
     account = cfg.secret("AZURE_STORAGE_ACCOUNT")
     if not account:
         raise RuntimeError("Falta AZURE_STORAGE_ACCOUNT en .env")
@@ -39,6 +44,7 @@ def _client(cfg):
         cred = key
     else:
         from azure.identity import DefaultAzureCredential
+
         cred = DefaultAzureCredential()
     return DataLakeServiceClient(account_url=url, credential=cred)
 
@@ -53,7 +59,8 @@ class UploadSummary:
 
 
 def _status(e: BaseException) -> int | None:
-    """HTTP status of an azure.core HttpResponseError (duck-typed so azure is not needed at import)."""
+    """HTTP status of an azure.core HttpResponseError (duck-typed so azure is not needed at
+    import)."""
     return getattr(e, "status_code", None)
 
 
@@ -74,8 +81,10 @@ def _ensure_container(fs, container: str, log, dry_run: bool) -> None:
         fs.create_file_system()
         log.info("Creado el contenedor %s", container)
     except Exception as e:
-        if _status(e) in (401, 403, 409):   # no permission, or created meanwhile
-            log.warning("No se pudo crear el contenedor %s (%s); se intenta subir igualmente", container, e)
+        if _status(e) in (401, 403, 409):  # no permission, or created meanwhile
+            log.warning(
+                "No se pudo crear el contenedor %s (%s); se intenta subir igualmente", container, e
+            )
             return
         raise
 
@@ -83,10 +92,13 @@ def _ensure_container(fs, container: str, log, dry_run: bool) -> None:
 def _remote_sizes(fs, prefix: str, log) -> dict[str, int]:
     """Size of every file under prefix in Azure, in one listing. Empty if it cannot be listed."""
     try:
-        return {p.name: int(p.content_length or 0)
-                for p in fs.get_paths(path=prefix, recursive=True) if not p.is_directory}
+        return {
+            p.name: int(p.content_length or 0)
+            for p in fs.get_paths(path=prefix, recursive=True)
+            if not p.is_directory
+        }
     except Exception as e:
-        if _status(e) == 404:   # prefix not created yet
+        if _status(e) == 404:  # prefix not created yet
             return {}
         log.warning("No se pueden listar los archivos en Azure (%s); se suben todos", e)
         return {}
@@ -104,10 +116,12 @@ def _upload_one(fs, local: Path, remote: str) -> None:
             time.sleep(BACKOFF_S * 2 ** (attempt - 1))
 
 
-def upload_dataset(lake, cfg, *, force: bool = False, dry_run: bool = False,
-                   workers: int = DEFAULT_WORKERS) -> int:
+def upload_dataset(
+    lake, cfg, *, force: bool = False, dry_run: bool = False, workers: int = DEFAULT_WORKERS
+) -> int:
     """Upload lake.tables/**/*.parquet to Azure. Returns the number of files that are in Azure
-    (uploaded + skipped; in dry-run, the ones that would be). Raises RuntimeError at the end if any failed."""
+    (uploaded + skipped; in dry-run, the ones that would be). Raises RuntimeError at the end if any
+    failed."""
     log = lake.log
     container = cfg.secret("AZURE_STORAGE_CONTAINER")
     if not container:
@@ -138,13 +152,14 @@ def upload_dataset(lake, cfg, *, force: bool = False, dry_run: bool = False,
             s.bytes_uploaded += size
     elif todo:
         with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
-            futures: dict[Any, tuple[str, int]] = {ex.submit(_upload_one, fs, p, name): (name, size)
-                                                   for p, name, size in todo}
+            futures: dict[Any, tuple[str, int]] = {
+                ex.submit(_upload_one, fs, p, name): (name, size) for p, name, size in todo
+            }
             for fut in as_completed(futures):
                 name, size = futures[fut]
                 try:
                     fut.result()
-                except Exception as e:   # one failing file must not stop the rest
+                except Exception as e:  # one failing file must not stop the rest
                     s.failed[name] = f"{type(e).__name__}: {e}"
                     log.error("  FALLO %s: %s", name, s.failed[name])
                 else:
@@ -153,9 +168,23 @@ def upload_dataset(lake, cfg, *, force: bool = False, dry_run: bool = False,
                     log.info("  subido %s (%.1f MB)", name, size / 1e6)
 
     verb = "se subirían" if dry_run else "subidos"
-    log.info("Azure abfss://%s@%s.dfs.core.windows.net/%s: %s %d (%.1f MB), omitidos %d sin cambios (%.1f MB), "
-             "fallidos %d, %.0f s", container, account, prefix, verb, len(s.uploaded), s.bytes_uploaded / 1e6,
-             len(s.skipped), s.bytes_skipped / 1e6, len(s.failed), time.time() - t0)
+    log.info(
+        "Azure abfss://%s@%s.dfs.core.windows.net/%s: %s %d (%.1f MB), omitidos %d sin cambios "
+        "(%.1f MB), "
+        "fallidos %d, %.0f s",
+        container,
+        account,
+        prefix,
+        verb,
+        len(s.uploaded),
+        s.bytes_uploaded / 1e6,
+        len(s.skipped),
+        s.bytes_skipped / 1e6,
+        len(s.failed),
+        time.time() - t0,
+    )
     if s.failed:
-        raise RuntimeError(f"Fallaron {len(s.failed)} de {len(files)} archivos: {sorted(s.failed)}")
+        raise RuntimeError(
+            f"Fallaron {len(s.failed)} de {len(files)} archivos: {sorted(s.failed)}"
+        )
     return len(s.uploaded) + len(s.skipped)

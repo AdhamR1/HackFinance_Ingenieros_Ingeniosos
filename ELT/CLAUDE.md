@@ -14,6 +14,9 @@ Esta carpeta es la parte de **datos**: construye el data lake del que se entrena
 - **Educado con las APIs.** Pausas, reintentos con backoff, límites (Overpass, Open-Meteo), términos de uso.
 - **Todo dentro del repo y sin archivos basura.** La única salida es el dataset en `ELT/dataset/`. Descargas, staging, logs, informes y demo van en `ELT/.cache/` (ignorada en git). Nunca escribir fuera del repo ni generar Excel o informes que no se hayan pedido. Los archivos grandes intermedios (E-OBS de toda Europa) se descargan en temporal y solo se guarda el recorte de España.
 - Código y comentarios en inglés; documentación, logs y mensajes al usuario en español.
+- **PEP 8 con ruff** (configuración en `pyproject.toml` de la raíz, líneas de 99): antes de dar algo por
+  terminado, `python -m ruff format .`, `python -m ruff check .` y `python -m pytest` desde la raíz. La CI de
+  GitHub (`.github/workflows/ci.yml`) comprueba lo mismo. `build_dict.py` no se formatea (es una tabla).
 
 ## Comandos (desde ELT/, con `%USERPROFILE%\.venvs\dclake` activado)
 ```
@@ -24,6 +27,7 @@ python -m dclake collect --country JPN --only <nombre> --limit-sites 3   (o --si
 python -m dclake collect --country JPN [--skip a,b] [--part N] [--start AAAA-MM-DD --end AAAA-MM-DD]
 python -m dclake assemble --country JPN     # dataset en ELT/dataset/ (+ .cache/JPN/reports/coverage.csv)
 python -m dclake export --sites a,b,c --out x.xlsx   # solo si lo piden
+python -m dclake qc --country JPN           # control de calidad -> .cache/JPN/reports/qc.csv
 ```
 
 ## Arquitectura
@@ -38,6 +42,31 @@ python -m dclake export --sites a,b,c --out x.xlsx   # solo si lo piden
 - Colectores celda a celda solo con `run_by_default = False` (p. ej. `openmeteo`).
 - Una parte de 25.000 celdas son ~9 millones de filas diarias por año en `assemble`: evitar `astype(object)` y operaciones columna a columna sobre el índice completo. Más celdas por parte puede agotar los 32 GB del portátil.
 - Overpass no puede con EEUU entero ni va fino con Japón: OSM está en `skip_collectors` de esos países (se lanza aparte con `--only osm`).
+
+## Estado (9 nov 2026, noche)
+- España con datos semanales 2010–2025 (34,5 M filas, ~600 MB). Capas automáticas (`auto` en `manual_layers` de
+  config.yaml, código en `autolayers.py`): WDPA y Natura 2000, GEM (PGA 475 años y fallas), JRC (calado 10/100/500
+  años), GHSL (población 1/10/50 km, recorte de 1 km del mapa mundial). Suelos de SoilGrids por su WCS
+  (`soilgrids_tiles` en `rasters.py`): el `/vsicurl` de GDAL falla con la inspección TLS, `requests` no.
+- OMIE solo publica desde 2018 (zips anuales 2018–2022, diarios desde 2023); REE desde 2011.
+- `assemble` escribe en `.cache/<ISO>/assemble_tmp` y solo al final sustituye los archivos del país en el dataset:
+  si se corta (sesión cerrada, suspensión), el dataset conserva la versión anterior en vez de quedar a medias.
+- Una capa de `manual_layers` con `table: sites_yearly` (y `year`) va a la tabla anual: la población (GHSL 2025)
+  está en `sites_yearly` en el diccionario. `test_collectors_declare_fields_in_their_dictionary_table` impide que un
+  campo se declare en otra tabla (conform lo descartaría sin avisar).
+- `python -m dclake qc --country X`: control de calidad (claves, rangos, coherencia) en `.cache/X/reports/qc.csv`.
+- Cobertura (10 nov): España 114 campos MVP, EEUU 98, Japón 67. QC sin fallos salvo ~0,05 % de celdas donde el
+  calado JRC no crece con el periodo de retorno (viene así en los mapas del JRC).
+- H/V sísmico funcionando (España 94 % de las celdas con f0; EEUU 82 %, 2.328 estaciones). Tres causas arregladas:
+  (1) el cliente de enrutado de EIDA de obspy solo acepta argumentos con nombre y el fallo quedaba oculto en
+  debug (ahora es un aviso por estación); (2) se asignaban estaciones ya cerradas (ahora solo las que registran en
+  el periodo); (3) la red ES del IGN no llega por EIDA: `seismic.waveform_clients` la pide directa al IGN.
+  Cada celda toma la estación más cercana que sí dio H/V (hasta `max_station_km`). Estaciones en paralelo (6).
+- Población (GHSL): `_zonal_sum` hace una convolución de disco con FFT (segundos para 640.000 celdas).
+- Japón: temperaturas de NASA POWER corregidas por altitud (-6,5 °C/km frente a la altitud del modelo, deducida
+  de su presión en superficie); el sesgo en ciudades baja de ~2 °C a ~0,5 °C.
+- Zonas inundables oficiales (SNCZI) y parques nacionales están en `pipeline/src/feat_riesgos.py` (zips del SNCZI
+  bajados a mano: MITECO pide verificación en el navegador; no automatizarla).
 
 ## Estado (9 nov 2026, tarde)
 - Rejilla pasada a 3,5 km y tres países: España (41.296 celdas), Japón (30.779) y EEUU continental (~640.000). Clima: E-OBS / NASA POWER / gridMET, con los mismos campos calculados por `eobs.daily_fields`.

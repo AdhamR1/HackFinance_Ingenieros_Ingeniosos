@@ -8,19 +8,25 @@ Sources
       laminasPB-q100.zip, laminasCanarias-q100.zip     (T = 100 años)
       laminasPB-q500.zip, laminasCanarias-q500.zip     (T = 500 años)
     https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/zi-lamina.html
-    https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/laminas-zona-flujo-preferente.html
-  * National parks: WDPA (UNEP-WCMC feature service, no registration), designation "Parque Nacional".
+    https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/laminas-zona-flujo-preferente
+    .html
+  * National parks: WDPA (UNEP-WCMC feature service, no registration), designation "Parque
+  Nacional".
   * IGN PGA, 475 years: the IGN does not publish it as downloadable data (no seismic product in the
     CNIG download centre). If a file is put in data/raw/ign/ (GeoTIFF, or polygons with a PGA
     column), it is used; otherwise the column is not created. The ELT already has pga_475y_g (GEM).
 
-Output: data/processed/feat_riesgos.parquet  (site_id + the columns below; NaN = layer not available)
-  zfp_pct, zi_t100_pct, zi_t500_pct    % of the cell inside the zone (Peninsula+Baleares and Canarias
+Output: data/processed/feat_riesgos.parquet  (site_id + the columns below; NaN = layer not
+available)
+  zfp_pct, zi_t100_pct, zi_t500_pct    % of the cell inside the zone (Peninsula+Baleares and
+  Canarias
                                        come in separate files: a region without its file stays NaN)
   parque_nacional_pct                  % of the cell inside a national park
   dist_parque_nacional_km              distance from the cell centre to the nearest national park
-  pga475_ign_g                         IGN PGA (475 years, g) at the cell centre (only with the IGN file)
+  pga475_ign_g                         IGN PGA (475 years, g) at the cell centre (only with the IGN
+  file)
 """
+
 import json
 import zipfile
 
@@ -32,8 +38,9 @@ import shapely
 from cells import CELL_M, CRS, PIPELINE, PROCESSED, RAW, read_grid
 from feat_suelo import HEADERS, cover_pct
 
-try:                       # corporate networks that inspect TLS: use the Windows certificate store
+try:  # corporate networks that inspect TLS: use the Windows certificate store
     import truststore
+
     truststore.inject_into_ssl()
 except ImportError:
     pass
@@ -41,18 +48,25 @@ except ImportError:
 CACHE = PIPELINE / "data" / "cache"
 SNCZI = RAW / "snczi"
 IGN = RAW / "ign"
-# column -> words in the MITECO file names (data zips: laminasPB-q100.zip...; their style zips are lyr-...)
-SNCZI_LAYERS = {"zfp_pct": ("zfp", "flujopreferente"),
-                "zi_t100_pct": ("q100", "mediauocasional"),
-                "zi_t500_pct": ("q500", "bajaoexcepcional")}
-WDPA = ("https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/"
-        "The_World_Database_of_Protected_Areas/FeatureServer/1/query")
-SIMPLIFY_M = 10            # 1:25,000 outlines: 10 m changes nothing at the scale of a 12 km2 cell
+# column -> words in the MITECO file names (data zips: laminasPB-q100.zip...; their style zips are
+# lyr-...)
+SNCZI_LAYERS = {
+    "zfp_pct": ("zfp", "flujopreferente"),
+    "zi_t100_pct": ("q100", "mediauocasional"),
+    "zi_t500_pct": ("q500", "bajaoexcepcional"),
+}
+WDPA = (
+    "https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/"
+    "The_World_Database_of_Protected_Areas/FeatureServer/1/query"
+)
+SIMPLIFY_M = 10  # 1:25,000 outlines: 10 m changes nothing at the scale of a 12 km2 cell
 
 
 def read_zip_shapes(path) -> np.ndarray:
-    """Every shapefile inside a zip: geometry only, in EPSG:3035, simplified and split into single parts."""
+    """Every shapefile inside a zip: geometry only, in EPSG:3035, simplified and split into single
+    parts."""
     import pyogrio
+
     with zipfile.ZipFile(path) as z:
         members = [n for n in z.namelist() if n.lower().endswith(".shp")]
     out = []
@@ -63,15 +77,19 @@ def read_zip_shapes(path) -> np.ndarray:
             continue
         geoms = g[g.geometry.notna()].to_crs(CRS).geometry.values
         del g
-        geoms = shapely.simplify(np.asarray(geoms, dtype=object), SIMPLIFY_M, preserve_topology=True)
+        geoms = shapely.simplify(
+            np.asarray(geoms, dtype=object), SIMPLIFY_M, preserve_topology=True
+        )
         parts = shapely.get_parts(geoms)
         out.append(parts[~shapely.is_empty(parts)])
     return np.concatenate(out) if out else np.array([], dtype=object)
 
 
 def cover_pct_tiled(cells, parts, tile_cells: int = 10) -> np.ndarray:
-    """% of each cell covered by the union of `parts`, cutting the polygons by tiles of tile_cells x
-    tile_cells cells first: flood zones are river polygons with millions of vertices, far too slow to
+    """% of each cell covered by the union of `parts`, cutting the polygons by tiles of tile_cells
+    x
+    tile_cells cells first: flood zones are river polygons with millions of vertices, far too slow
+    to
     intersect with every cell they touch."""
     pct = np.zeros(len(cells))
     if len(parts) == 0:
@@ -79,7 +97,11 @@ def cover_pct_tiled(cells, parts, tile_cells: int = 10) -> np.ndarray:
     tree = shapely.STRtree(parts)
     i, j = cells["i"].to_numpy(), cells["j"].to_numpy()
     t = tile_cells * CELL_M
-    groups = pd.Series(np.arange(len(cells))).groupby([i // tile_cells, j // tile_cells]).apply(np.asarray)
+    groups = (
+        pd.Series(np.arange(len(cells)))
+        .groupby([i // tile_cells, j // tile_cells])
+        .apply(np.asarray)
+    )
     for (a, b), rows in groups.items():
         x0, y0 = a * t, b * t
         hit = tree.query(shapely.box(x0, y0, x0 + t, y0 + t), predicate="intersects")
@@ -89,7 +111,9 @@ def cover_pct_tiled(cells, parts, tile_cells: int = 10) -> np.ndarray:
         pieces = shapely.make_valid(pieces[~shapely.is_empty(pieces)])
         if len(pieces) == 0:
             continue
-        cb = shapely.box(i[rows] * CELL_M, j[rows] * CELL_M, (i[rows] + 1) * CELL_M, (j[rows] + 1) * CELL_M)
+        cb = shapely.box(
+            i[rows] * CELL_M, j[rows] * CELL_M, (i[rows] + 1) * CELL_M, (j[rows] + 1) * CELL_M
+        )
         ci, pi = shapely.STRtree(pieces).query(cb, predicate="intersects")
         if len(ci) == 0:
             continue
@@ -129,7 +153,10 @@ def snczi(grid, boxes, canarias) -> pd.DataFrame:
             is_can = "can" in f.name.lower()
             cells = canarias if is_can else ~canarias
             parts = read_zip_shapes(f)
-            print(f"  {col}: {f.name}: {len(parts):,} polígonos; calculando el % de cada celda…", flush=True)
+            print(
+                f"  {col}: {f.name}: {len(parts):,} polígonos; calculando el % de cada celda…",
+                flush=True,
+            )
             out.loc[cells, col] = cover_pct_tiled(grid[cells.to_numpy()], parts)
             del parts
     return out
@@ -138,11 +165,20 @@ def snczi(grid, boxes, canarias) -> pd.DataFrame:
 def national_parks():
     """Polygons of Spanish national parks (WDPA), EPSG:3035."""
     import geopandas as gpd
+
     dest = CACHE / "wdpa" / "parques_nacionales_esp.geojson"
     if not dest.exists():
-        r = requests.get(WDPA, params={"where": "iso3='ESP' AND desig LIKE 'Parque Nacional%'",
-                                       "outFields": "site_id,name,desig,status", "outSR": 4326, "f": "geojson"},
-                         headers=HEADERS, timeout=600)
+        r = requests.get(
+            WDPA,
+            params={
+                "where": "iso3='ESP' AND desig LIKE 'Parque Nacional%'",
+                "outFields": "site_id,name,desig,status",
+                "outSR": 4326,
+                "f": "geojson",
+            },
+            headers=HEADERS,
+            timeout=600,
+        )
         js = r.json()
         if "error" in js or not js.get("features"):
             raise RuntimeError(f"WDPA no devolvió parques nacionales: {js.get('error')}")
@@ -155,16 +191,24 @@ def national_parks():
 
 
 def ign_pga(grid) -> pd.Series | None:
-    """IGN PGA at the cell centre from a file in data/raw/ign/ (GeoTIFF, or polygons with a PGA column)."""
-    files = sorted(p for p in IGN.glob("*") if p.suffix.lower() in (".tif", ".tiff", ".shp", ".gpkg", ".geojson", ".zip"))
+    """IGN PGA at the cell centre from a file in data/raw/ign/ (GeoTIFF, or polygons with a PGA
+    column)."""
+    files = sorted(
+        p
+        for p in IGN.glob("*")
+        if p.suffix.lower() in (".tif", ".tiff", ".shp", ".gpkg", ".geojson", ".zip")
+    )
     if not files:
-        print(f"  pga475_ign_g: no hay archivo del IGN en {IGN} (se usa pga_475y_g de GEM del ELT)")
+        print(
+            f"  pga475_ign_g: no hay archivo del IGN en {IGN} (se usa pga_475y_g de GEM del ELT)"
+        )
         return None
     f = files[0]
     x, y = grid["x_m"].to_numpy(), grid["y_m"].to_numpy()
     if f.suffix.lower() in (".tif", ".tiff"):
         import rasterio
         from rasterio.warp import transform
+
         with rasterio.open(f) as ds:
             xs, ys = transform(CRS, ds.crs, list(x), list(y))
             v = np.array([s[0] for s in ds.sample(zip(xs, ys))], dtype=float)
@@ -172,9 +216,12 @@ def ign_pga(grid) -> pd.Series | None:
                 v[v == ds.nodata] = np.nan
         return pd.Series(v, index=grid.index)
     import geopandas as gpd
+
     src = f"/vsizip/{f.as_posix()}" if f.suffix.lower() == ".zip" else f
     g = gpd.read_file(src).to_crs(CRS)
-    col = next((c for c in g.columns if any(k in c.lower() for k in ("pga", "acel", "valor"))), None)
+    col = next(
+        (c for c in g.columns if any(k in c.lower() for k in ("pga", "acel", "valor"))), None
+    )
     if col is None:
         print(f"  pga475_ign_g: {f.name} no tiene una columna de PGA ({list(g.columns)})")
         return None
@@ -185,7 +232,9 @@ def ign_pga(grid) -> pd.Series | None:
 
 def main():
     grid = read_grid()
-    boxes = shapely.box(grid.i * CELL_M, grid.j * CELL_M, (grid.i + 1) * CELL_M, (grid.j + 1) * CELL_M)
+    boxes = shapely.box(
+        grid.i * CELL_M, grid.j * CELL_M, (grid.i + 1) * CELL_M, (grid.j + 1) * CELL_M
+    )
     canarias = grid["admin1"].astype(str).str.contains("Canarias", case=False)
     out = pd.DataFrame({"site_id": grid["site_id"]})
 
@@ -196,7 +245,9 @@ def main():
     parks = national_parks()
     out["parque_nacional_pct"] = cover_pct(boxes, parks)
     centres = shapely.points(grid["x_m"].to_numpy(), grid["y_m"].to_numpy())
-    _, dist = shapely.STRtree(parks).query_nearest(centres, return_distance=True, all_matches=False)
+    _, dist = shapely.STRtree(parks).query_nearest(
+        centres, return_distance=True, all_matches=False
+    )
     out["dist_parque_nacional_km"] = dist / 1000
 
     print("Peligrosidad sísmica IGN:", flush=True)
@@ -210,8 +261,14 @@ def main():
     print("\nCobertura (celdas con dato) y celdas afectadas:")
     for c in out.columns[1:]:
         hit = (out[c] > 0).sum() if c.endswith("_pct") else None
-        print(f"  {c:26s} {out[c].notna().mean():6.1%}" + (f"   con algo de superficie: {hit:,}" if hit is not None else ""))
-    print(f"-> {PROCESSED / 'feat_riesgos.parquet'}  (python src/features.py lo une a features_es_3500.parquet)")
+        print(
+            f"  {c:26s} {out[c].notna().mean():6.1%}"
+            + (f"   con algo de superficie: {hit:,}" if hit is not None else "")
+        )
+    print(
+        f"-> {PROCESSED / 'feat_riesgos.parquet'}  (python src/features.py lo une a "
+        f"features_es_3500.parquet)"
+    )
 
 
 if __name__ == "__main__":

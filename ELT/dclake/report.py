@@ -1,4 +1,5 @@
 """Coverage report: which dictionary fields have data, which are pending and why."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -11,9 +12,10 @@ def coverage_report(lake, cfg, registry) -> pd.DataFrame:
     lin = lake.read_table("field_lineage")
     if lin is None:
         lin = pd.DataFrame(columns=["table", "field", "coverage_pct", "collector"])
-    else:   # a big country has one lineage file per part (parts of equal size): mean coverage
-        lin = lin.groupby(["table", "field"], as_index=False).agg(coverage_pct=("coverage_pct", "mean"),
-                                                                    collector=("collector", "first"))
+    else:  # a big country has one lineage file per part (parts of equal size): mean coverage
+        lin = lin.groupby(["table", "field"], as_index=False).agg(
+            coverage_pct=("coverage_pct", "mean"), collector=("collector", "first")
+        )
     lin = lin.set_index(["table", "field"])
     dic, daily = _read(str(cfg.dictionary_path))
 
@@ -28,27 +30,37 @@ def coverage_report(lake, cfg, registry) -> pd.DataFrame:
 
     meta = {}
     for _, r in dic.iterrows():
-        tables = {"sites": ("sites_static" if r["Temporalidad"] == "Estático" else "sites_yearly"),
-                  "country_context": "country_context", "stations": "stations",
-                  "signal_features": "signal_features"}
+        tables = {
+            "sites": ("sites_static" if r["Temporalidad"] == "Estático" else "sites_yearly"),
+            "country_context": "country_context",
+            "stations": "stations",
+            "signal_features": "signal_features",
+        }
         t = tables.get(r["Tabla"])
         if t:
             meta[(t, r["Campo"])] = (r["Bloque"], r["Prioridad"])
     for _, r in daily.iterrows():
         meta[(r["Tabla"], r["Campo"])] = ("Variables diarias", "MVP")
-    wsrc = {f: str(m.get("Desde (campo diario)", "")) for f, m in specs["sites_weekly"].meta.items()}
+    wsrc = {
+        f: str(m.get("Desde (campo diario)", "")) for f, m in specs["sites_weekly"].meta.items()
+    }
     for f in wsrc:
         meta[("sites_weekly", f)] = ("Variables semanales", "MVP")
 
     rows = []
     for t, spec in specs.items():
-        if t in ("field_lineage", "sites_daily"):   # the daily layer is internal; the lake gets sites_weekly
+        if t in (
+            "field_lineage",
+            "sites_daily",
+        ):  # the daily layer is internal; the lake gets sites_weekly
             continue
         for f in spec.fields:
             if f in spec.keys:
                 continue
             cov = float(lin.loc[(t, f), "coverage_pct"]) if (t, f) in lin.index else 0.0
-            cs = declared.get(("sites_daily", wsrc.get(f, f)) if t == "sites_weekly" else (t, f), [])
+            cs = declared.get(
+                ("sites_daily", wsrc.get(f, f)) if t == "sites_weekly" else (t, f), []
+            )
             impl = [c for c in cs if c.status != "pendiente"]
             pend = [c for c in cs if c.status == "pendiente"]
             if cov > 0:
@@ -60,11 +72,20 @@ def coverage_report(lake, cfg, registry) -> pd.DataFrame:
             else:
                 status = "sin colector"
             bloque, prio = meta.get((t, f), ("", ""))
-            rows.append({"table": t, "field": f, "bloque": bloque, "prioridad": prio, "coverage_pct": round(cov, 1),
-                         "status": status, "collectors": ",".join(c.name for c in impl),
-                         "pending_reason": "; ".join(getattr(c, "reason", "") for c in pend)})
+            rows.append(
+                {
+                    "table": t,
+                    "field": f,
+                    "bloque": bloque,
+                    "prioridad": prio,
+                    "coverage_pct": round(cov, 1),
+                    "status": status,
+                    "collectors": ",".join(c.name for c in impl),
+                    "pending_reason": "; ".join(getattr(c, "reason", "") for c in pend),
+                }
+            )
     rep = pd.DataFrame(rows).sort_values(["table", "bloque", "field"])
-    lake.reports.mkdir(parents=True, exist_ok=True)       # inside the cache, not in the dataset
+    lake.reports.mkdir(parents=True, exist_ok=True)  # inside the cache, not in the dataset
     rep.to_csv(lake.reports / "coverage.csv", index=False, encoding="utf-8-sig")
 
     log = lake.log
@@ -73,6 +94,8 @@ def coverage_report(lake, cfg, registry) -> pd.DataFrame:
         log.info("  %-48s %4d", s, n)
     mvp = rep[rep["prioridad"] == "MVP"]
     if len(mvp):
-        log.info("  Campos MVP con datos: %d de %d", (mvp["status"] == "con datos").sum(), len(mvp))
+        log.info(
+            "  Campos MVP con datos: %d de %d", (mvp["status"] == "con datos").sum(), len(mvp)
+        )
     log.info("Informe completo: %s", lake.reports / "coverage.csv")
     return rep

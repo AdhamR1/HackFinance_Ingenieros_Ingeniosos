@@ -11,7 +11,7 @@ Descarga datos públicos en una rejilla de **3,5 × 3,5 km** (12,25 km² por cel
 - Cada país se procesa por separado (`--country`) con su perfil en `config.yaml` (`country_profiles`). Los países grandes van por **partes** (franjas de ≤25.000 celdas) para no agotar la memoria.
 - `sample_type` marca las celdas con data center conocido (`positivo_dc`), las de las regiones foco (`foco_region`: Madrid y Aragón; Tokio y Osaka; Virginia, Texas y Arizona) y el `resto`.
 - Periodo por país (`period` en su perfil): **España 2010–2025**; Japón y EEUU, 2025 de momento.
-- Capas de referencia que se descargan solas (`auto` en `manual_layers`): espacios protegidos y Red Natura 2000 (WDPA), peligrosidad sísmica (GEM, PGA de 475 años), fallas activas (GEM), calado de inundación de 10, 100 y 500 años (JRC). Red eléctrica y carreteras salen de OpenStreetMap.
+- Capas de referencia que se descargan solas (`auto` en `manual_layers`): espacios protegidos y Red Natura 2000 (WDPA), peligrosidad sísmica (GEM, PGA de 475 años), fallas activas (GEM), calado de inundación de 10, 100 y 500 años (JRC), población a 1, 10 y 50 km (GHSL, 1 km). Los suelos (arcilla, arena, densidad, tipo WRB) salen del servicio WCS de SoilGrids. Red eléctrica y carreteras salen de OpenStreetMap.
 - Las fuentes se descargan **por rejilla, por país o por tesela, nunca por celda**: el coste apenas crece con el número de celdas.
 
 Tamaño medido con 2025 (la tabla grande es `sites_weekly`) y estimado para 20 años:
@@ -22,7 +22,7 @@ Tamaño medido con 2025 (la tabla grande es `sites_weekly`) y estimado para 20 a
 | Japón | 1,6 M | 12 MB | ~0,2 GB |
 | EEUU | 33,8 M | 1,25 GB | ~22 GB |
 
-Los tres países con 20 años ocupan unos 23 GB: caben de sobra en un data lake de 2 TB. EEUU es demasiado grande para git: se comparte por el data lake (`python -m dclake upload`).
+España ya está con 2010–2025: 34,5 M filas semanales (~600 MB). Los tres países con 20 años ocupan unos 23 GB: caben de sobra en un data lake de 2 TB. EEUU es demasiado grande para git: se comparte por el data lake (`python -m dclake upload`).
 
 Las variables diarias (clima, terremotos, incendios) se calculan por día y se cargan **agregadas por semana ISO**. La regla de cada campo está en la hoja *Variables semanales* del diccionario: media, máximo, suma o número de días.
 
@@ -55,6 +55,7 @@ python -m dclake collect --country JPN       # todos los colectores, parte a par
 python -m dclake assemble --country JPN      # escribe el país en ELT/dataset/
 python -m dclake upload                      # sube ELT/dataset/ a Azure Data Lake (AZURE_* en .env)
 python -m dclake status --country JPN        # claves y capas manuales que faltan
+python -m dclake qc --country JPN            # control de calidad: claves, rangos y coherencia
 python -m dclake collect --country ESP --only eobs --limit-sites 3   # probar un colector con 3 celdas
 ```
 
@@ -92,6 +93,6 @@ Una carpeta por tabla y un archivo por país (y parte): los países se suman sin
 - Inundación y peligrosidad sísmica se miden en el centro de la celda: indican el riesgo del emplazamiento tipo de la celda, no de toda su superficie.
 - La pendiente y la rugosidad salen del DEM Copernicus leído a ~60 m, igual en todos los países.
 - El conteo semanal de terremotos (`eq_count_100km`) depende de lo que el catálogo EMSC recoge en cada país: España desde M1,5, EEUU desde ~M2 y Japón desde ~M3. No es comparable entre países sin un umbral común; los campos históricos M≥4 de USGS sí lo son.
-- El H/V de cada celda viene de la estación sísmica más cercana: es un indicador regional, no una medida de la parcela.
+- El H/V (frecuencia f0 y amplitud del terreno) se calcula con ruido sísmico real de las estaciones de IGN y EIDA: 2 días x 2 ventanas de 1 h del último año por estación (`seismic` en config.yaml). Cada celda hereda el de su estación más cercana: es un indicador regional, no una medida de la parcela.
 - PUE, WUE e intensidad de carbono salen de modelos simplificados; lo indica `field_lineage`.
 - GEM y UICN tienen licencia no comercial: valen para el hackathon, no para un producto. E-OBS también es de uso no comercial.

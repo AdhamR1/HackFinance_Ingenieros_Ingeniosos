@@ -4,19 +4,27 @@ Coge el dataset del ELT (`ELT/dataset/`) y produce un archivo con **una fila por
 
 ## Las 3 capas
 
-1. **Reglas (exclusiones):** fuera lo imposible por ley o por física (espacio protegido, suelo urbano, agua, zona inundable). Estas celdas no se puntúan. *Aún no está: depende de que el ELT tenga esas capas.*
+1. **Reglas (exclusiones):** fuera lo imposible por ley o por física: celdas casi enteras de agua (≥ 90 %) o al menos la mitad en un parque nacional o en zona de flujo preferente del SNCZI (≥ 50 %). Estas celdas no se puntúan. Lo que se puede hacer con permisos (Natura 2000, suelo urbano, parte de la celda en zona inundable de 100 años, en un parque nacional o en zona de flujo preferente) se puntúa y lleva un aviso. Umbrales en `EXCLUDE_PCT` y `WARN_PCT` de `src/feat_suelo.py`.
 2. **Modelo:** LightGBM entrenado con las celdas donde ya hay o se ha anunciado un data center (positivas) frente al resto (sin etiquetar). Ordena las celdas según cuánto se parecen a donde ya se ha invertido. Es una ordenación, no una probabilidad.
 3. **Explicación:** SHAP da las 3 variables que más pesan en la nota de cada celda.
 
 ## Cómo se ejecuta
 
-Desde `pipeline/`, con un entorno de Python que tenga `pandas pyarrow numpy scipy scikit-learn lightgbm shap pyproj`:
+Desde `pipeline/`, con el entorno del ELT más lo del modelo (`python -m pip install -r requirements.txt`):
 
 ```
 python src/labels.py      # target: celdas con data center (datacentermap)
-python src/features.py    # variables desde ELT/dataset, sin las que hacen trampa
-python src/train.py       # modelo + validación + razones -> scores_es_3500.parquet
+python src/feat_suelo.py  # % de suelo por celda (Natura 2000, CORINE) y exclusiones
+python src/feat_riesgos.py   # zonas inundables oficiales (SNCZI) y parques nacionales
+python src/feat_suelo.py --solo-exclusiones   # rehace las exclusiones con feat_riesgos (sin descargas)
+python src/features.py    # variables desde ELT/dataset + feat_*.parquet, sin las que hacen trampa
+python src/train.py --exclusions data/processed/exclusions_es_3500.parquet   # modelo -> scores
 ```
+
+`feat_riesgos.py` necesita los zips de datos del SNCZI (MITECO pide una verificación en el navegador, así que se
+descargan a mano) en cualquier carpeta de `data/raw/`: `laminas-zfp-PB.zip`, `laminas-zfp-can.zip`,
+`laminasPB-q100.zip`, `laminasCanarias-q100.zip`, `laminasPB-q500.zip` y `laminasCanarias-q500.zip`. Los de estilo
+(`lyr-...zip`) no sirven: solo traen la simbología.
 
 Opciones de `train.py`: `--exclusions <parquet>` (columnas `site_id, excluded`) y `--target y_operational` (entrenar solo con data centers operativos, sin los anunciados).
 
@@ -28,6 +36,9 @@ Cuando el ELT tenga columnas nuevas, basta con volver a ejecutar `features.py` y
 |---|---|
 | `data/raw/dc_sites_es.csv` | 103 emplazamientos de datacentermap.com (9-nov-2026) con coordenadas. `precision`: `district_approx` (~1–2 km), `municipio` (centro del pueblo), `metro` (centro de la ciudad, a mejorar) |
 | `data/processed/labels_es_3500.parquet` | `site_id, y, y_operational, n_sites, n_buildings, sites` |
+| `data/processed/feat_suelo.parquet` | `site_id` + % de la celda en Natura 2000, suelo urbano, industrial y agua |
+| `data/processed/feat_riesgos.parquet` | `site_id` + % en zona de flujo preferente, zona inundable de 100 y 500 años y parque nacional, y distancia al parque nacional más cercano |
+| `data/processed/exclusions_es_3500.parquet` | `site_id, excluded, motivo_descarte, avisos` + los % que deciden la regla |
 | `data/processed/features_es_3500.parquet` | `site_id` + variables numéricas |
 | `data/processed/scores_es_3500.parquet` | **Para la web:** `site_id, lon, lat, admin1, admin2, y, y_operational, sites, excluded, score_pct, oof_spatial_pct, band, reasons` |
 | `data/processed/scores_es_3500_cv_report.csv` | Validación aleatoria frente a espacial (la que se presenta es la espacial) |

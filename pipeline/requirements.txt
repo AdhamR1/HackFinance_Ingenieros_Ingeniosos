@@ -1,0 +1,17 @@
+# Pipeline (desde pipeline/):  python -m pip install -r requirements.txt
+# Sirve el mismo entorno del ELT (%USERPROFILE%\.venvs\dclake) añadiendo lo del modelo.
+pandas>=2.1
+pyarrow
+numpy
+scipy
+shapely>=2.0
+pyproj
+requests
+truststore          # redes corporativas que inspeccionan TLS
+geopandas           # feat_riesgos: shapefiles del SNCZI
+pyogrio
+rasterio            # feat_riesgos: PGA del IGN si llega en GeoTIFF
+scikit-learn        # train
+lightgbm            # train
+shap                # train: las 3 razones de cada celda
+pytest              # pruebas: python -m pytest desde la raíz

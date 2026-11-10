@@ -5,7 +5,11 @@ A manual layer in config.yaml with an `auto` key is fetched the first time it is
   download    plain file (e.g. GEM active faults GeoJSON)
   zip_member  one file out of a zip (e.g. GEM seismic hazard raster from Zenodo)
   jrc_flood   river flood depth tiles of the JRC global flood hazard maps (10 x 10 deg, ~90 m)
+  raster_crop global raster in a zip (e.g. GHSL population, 1 km): downloaded to a temporary
+  folder,
+              only the country's crop is kept
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -15,14 +19,23 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-WDPA_FS = ("https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/"
-           "The_World_Database_of_Protected_Areas/FeatureServer")
+WDPA_FS = (
+    "https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/"
+    "The_World_Database_of_Protected_Areas/FeatureServer"
+)
 JRC_FLOOD = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/CEMS-GLOFAS/flood_hazard/"
 NATURA2000 = ("Habitats Directive", "Birds Directive")
 PAGE = 1000
 # WDPA schema since 2025 (lowercase) -> names used in config.yaml
-WDPA_FIELDS = {"site_id": "WDPAID", "name_eng": "NAME", "desig_eng": "DESIG_ENG", "iucn_cat": "IUCN_CAT",
-               "status": "STATUS", "realm": "REALM", "rep_area": "REP_AREA"}
+WDPA_FIELDS = {
+    "site_id": "WDPAID",
+    "name_eng": "NAME",
+    "desig_eng": "DESIG_ENG",
+    "iucn_cat": "IUCN_CAT",
+    "status": "STATUS",
+    "realm": "REALM",
+    "rep_area": "REP_AREA",
+}
 
 
 def layer_path(lake, cfg, layer) -> Path:
@@ -41,42 +54,110 @@ def ensure_layer(lake, cfg, layer) -> Path | None:
     lake.log.info("  [%s] descarga automática (%s)…", layer["name"], kind)
     path.parent.mkdir(parents=True, exist_ok=True)
     if kind == "wdpa":
-        fetch_wdpa(lake, cfg)
+        # the Natura 2000 file only exists in EU countries: do not fetch WDPA again for it
+        iso3 = cfg["project"]["country_iso3"]
+        if not (lake.manual / "wdpa" / f"WDPA_{iso3}.gpkg").exists():
+            fetch_wdpa(lake, cfg)
     elif kind == "download":
         lake.download_file(layer["url"], path, timeout=1800)
     elif kind == "zip_member":
         with tempfile.TemporaryDirectory(prefix="dclake_zip_", ignore_cleanup_errors=True) as td:
             z = lake.download_file(layer["url"], Path(td) / "src.zip", timeout=1800)
             with zipfile.ZipFile(z) as zf:
-                member = next(n for n in zf.namelist() if n.lower().endswith(layer.get("member", ".tif")))
+                member = next(
+                    n for n in zf.namelist() if n.lower().endswith(layer.get("member", ".tif"))
+                )
                 tmp = path.with_suffix(path.suffix + ".part")
                 tmp.write_bytes(zf.read(member))
                 tmp.replace(path)
     elif kind == "jrc_flood":
         fetch_jrc_flood(lake, cfg, int(layer["rp"]), path)
+    elif kind == "raster_crop":
+        crop_global_raster(lake, cfg, layer["url"], path, layer.get("margin_deg", 1.0))
     return path if path.exists() else None
+
+
+def crop_global_raster(lake, cfg, url: str, path: Path, margin_deg: float = 1.0) -> None:
+    """Keep only the country's window (its boxes plus a margin) of a global GeoTIFF inside a zip.
+
+    The global file is transient (temporary folder): the cache only holds the crop.
+    """
+    import rasterio
+    from rasterio.warp import transform_bounds
+    from rasterio.windows import Window, from_bounds
+
+    from . import geo
+
+    w, s, e, n = geo.bbox_union(cfg, margin_deg)
+    with tempfile.TemporaryDirectory(prefix="dclake_crop_", ignore_cleanup_errors=True) as td:
+        z = lake.download_file(url, Path(td) / "src.zip", timeout=3600)
+        if z is None:
+            raise RuntimeError(f"no se pudo descargar {url}")
+        with zipfile.ZipFile(z) as zf:
+            member = next(m for m in zf.namelist() if m.lower().endswith(".tif"))
+        with rasterio.open(f"/vsizip/{Path(z).as_posix()}/{member}") as ds:
+            left, bottom, right, top = transform_bounds(
+                "EPSG:4326", ds.crs, w, s, e, n, densify_pts=21
+            )
+            win = from_bounds(left, bottom, right, top, transform=ds.transform)
+            c0, r0 = max(int(np.floor(win.col_off)), 0), max(int(np.floor(win.row_off)), 0)
+            c1 = min(int(np.ceil(win.col_off + win.width)), ds.width)
+            r1 = min(int(np.ceil(win.row_off + win.height)), ds.height)
+            win = Window(c0, r0, c1 - c0, r1 - r0)
+            data = ds.read(1, window=win)
+            profile = ds.profile.copy()
+            profile.update(
+                driver="GTiff",
+                width=data.shape[1],
+                height=data.shape[0],
+                transform=ds.window_transform(win),
+                compress="deflate",
+                tiled=True,
+                blockxsize=256,
+                blockysize=256,
+            )
+        tmp = path.with_name(path.stem + "_part.tif")
+        with rasterio.open(tmp, "w", **profile) as out:
+            out.write(data, 1)
+        tmp.replace(path)
+    lake.catalog(path.stem, "recorte de " + url.rsplit("/", 1)[-1], url, "")
+    lake.log.info("  recorte de %s: %d x %d píxeles", path.name, data.shape[1], data.shape[0])
 
 
 def fetch_wdpa(lake, cfg) -> None:
     """Protected areas of the country (~100 m generalised) and their Natura 2000 subset.
 
-    Areas reported only as points get a circle of their reported area. Marine-only areas are left out:
+    Areas reported only as points get a circle of their reported area. Marine-only areas are left
+    out:
     they do not constrain a site on land.
     """
     import geopandas as gpd
 
     from . import geo
+
     iso3 = cfg["project"]["country_iso3"]
     frames = []
-    for lyr in (1, 0):                       # 1 = polygons, 0 = points
+    for lyr in (1, 0):  # 1 = polygons, 0 = points
         offset = 0
         while True:
             dest = lake.raw / "wdpa" / f"{iso3}_v2025_layer{lyr}_{offset:05d}.geojson"
-            js = lake.get_json(f"{WDPA_FS}/{lyr}/query", dest, params={
-                "where": f"iso3='{iso3}'", "outFields": ",".join(WDPA_FIELDS),
-                "outSR": 4326, "f": "geojson", "resultOffset": offset, "resultRecordCount": PAGE,
-                "maxAllowableOffset": 0.001, "geometryPrecision": 5}, timeout=900, sleep=1,
-                validate=lambda b: b.lstrip()[:1] == b"{" and b'"error"' not in b[:300])   # errors are not cached
+            js = lake.get_json(
+                f"{WDPA_FS}/{lyr}/query",
+                dest,
+                params={
+                    "where": f"iso3='{iso3}'",
+                    "outFields": ",".join(WDPA_FIELDS),
+                    "outSR": 4326,
+                    "f": "geojson",
+                    "resultOffset": offset,
+                    "resultRecordCount": PAGE,
+                    "maxAllowableOffset": 0.001,
+                    "geometryPrecision": 5,
+                },
+                timeout=900,
+                sleep=1,
+                validate=lambda b: b.lstrip()[:1] == b"{" and b'"error"' not in b[:300],
+            )  # errors are not cached
             if js and "error" in js:
                 raise RuntimeError(f"WDPA: {js['error'].get('message')}")
             feats = (js or {}).get("features", [])
@@ -92,8 +173,10 @@ def fetch_wdpa(lake, cfg) -> None:
     g = g[g.geometry.notna() & ~g.geometry.is_empty]
     g = g[(g["REALM"].astype(str) != "Marine") & ~g["STATUS"].isin(["Proposed", "Not Reported"])]
     pts = g.geom_type == "Point"
-    if pts.any():                            # point-only sites: circle with the reported area
-        r_m = np.sqrt(pd.to_numeric(g.loc[pts, "REP_AREA"], errors="coerce").fillna(0.01) * 1e6 / np.pi)
+    if pts.any():  # point-only sites: circle with the reported area
+        r_m = np.sqrt(
+            pd.to_numeric(g.loc[pts, "REP_AREA"], errors="coerce").fillna(0.01) * 1e6 / np.pi
+        )
         circles = g.loc[pts].to_crs(geo.EQUAL_AREA).buffer(r_m.values).to_crs(4326)
         g.loc[pts, "geometry"] = circles.values
     out = lake.manual / "wdpa" / f"WDPA_{iso3}.gpkg"
@@ -104,14 +187,22 @@ def fetch_wdpa(lake, cfg) -> None:
         o2 = lake.manual / "natura2000" / f"Natura2000_{iso3}.gpkg"
         o2.parent.mkdir(parents=True, exist_ok=True)
         n2k.to_file(o2, driver="GPKG")
-    lake.catalog(f"wdpa_{iso3}", "WDPA (UNEP-WCMC)", WDPA_FS, "Términos de uso WDPA (no comercial)")
-    lake.log.info("  WDPA %s: %d espacios protegidos (%d de la Red Natura 2000)", iso3, len(g), len(n2k))
+    lake.catalog(
+        f"wdpa_{iso3}", "WDPA (UNEP-WCMC)", WDPA_FS, "Términos de uso WDPA (no comercial)"
+    )
+    lake.log.info(
+        "  WDPA %s: %d espacios protegidos (%d de la Red Natura 2000)", iso3, len(g), len(n2k)
+    )
 
 
 def fetch_jrc_flood(lake, cfg, rp: int, folder: Path) -> None:
-    """Depth tiles of the JRC global river flood hazard maps (v2.1) that cover the country's boxes."""
+    """Depth tiles of the JRC global river flood hazard maps (v2.1) that cover the country's
+    boxes."""
     from shapely.geometry import box, shape
-    ext = lake.get_json(JRC_FLOOD + "tile_extents.geojson", lake.raw / "jrc_flood" / "tile_extents.geojson")
+
+    ext = lake.get_json(
+        JRC_FLOOD + "tile_extents.geojson", lake.raw / "jrc_flood" / "tile_extents.geojson"
+    )
     boxes = [box(*b) for b in cfg["bboxes"].values()]
     tmp = folder.with_name(folder.name + "_part")
     tmp.mkdir(parents=True, exist_ok=True)
@@ -120,8 +211,13 @@ def fetch_jrc_flood(lake, cfg, rp: int, folder: Path) -> None:
         if any(shape(f["geometry"]).intersects(b) for b in boxes):
             p = f["properties"]
             name = f"ID{p['id']}_{p['name']}_RP{rp}_depth.tif"
-            if lake.download_file(f"{JRC_FLOOD}RP{rp}/{name}", tmp / name, timeout=1800) is not None:
+            if (
+                lake.download_file(f"{JRC_FLOOD}RP{rp}/{name}", tmp / name, timeout=1800)
+                is not None
+            ):
                 n += 1
-    tmp.replace(folder)                      # the folder only appears once its tiles are there
-    lake.catalog(f"jrc_flood_rp{rp}", "JRC Global river flood hazard maps v2.1", JRC_FLOOD, "CC BY 4.0")
+    tmp.replace(folder)  # the folder only appears once its tiles are there
+    lake.catalog(
+        f"jrc_flood_rp{rp}", "JRC Global river flood hazard maps v2.1", JRC_FLOOD, "CC BY 4.0"
+    )
     lake.log.info("  JRC inundación RP%d: %d teselas", rp, n)

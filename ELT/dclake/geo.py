@@ -1,11 +1,14 @@
 """Geospatial helpers. All distance work happens in the equal-area CRS (metres)."""
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
-EQUAL_AREA = "EPSG:3035"     # set per country at start-up (set_equal_area) from its profile in config.yaml
+EQUAL_AREA = (
+    "EPSG:3035"  # set per country at start-up (set_equal_area) from its profile in config.yaml
+)
 
 
 def set_equal_area(crs: str) -> None:
@@ -16,20 +19,29 @@ def set_equal_area(crs: str) -> None:
 def bbox_union(cfg, margin: float = 0.0) -> tuple[float, float, float, float]:
     """(west, south, east, north) covering every box of the country, plus a margin in degrees."""
     b = np.array(list(cfg["bboxes"].values()), dtype=float)
-    return (max(b[:, 0].min() - margin, -180.0), max(b[:, 1].min() - margin, -90.0),
-            min(b[:, 2].max() + margin, 180.0), min(b[:, 3].max() + margin, 90.0))
+    return (
+        max(b[:, 0].min() - margin, -180.0),
+        max(b[:, 1].min() - margin, -90.0),
+        min(b[:, 2].max() + margin, 180.0),
+        min(b[:, 3].max() + margin, 90.0),
+    )
 
 
 def site_points(sites, crs: str | None = None):
     """Centroids of the sample cells as a point GeoDataFrame (index = site_id order)."""
     import geopandas as gpd
-    pts = gpd.GeoDataFrame({"site_id": sites["site_id"].values},
-                           geometry=gpd.points_from_xy(sites["x"], sites["y"]), crs=crs or EQUAL_AREA)
+
+    pts = gpd.GeoDataFrame(
+        {"site_id": sites["site_id"].values},
+        geometry=gpd.points_from_xy(sites["x"], sites["y"]),
+        crs=crs or EQUAL_AREA,
+    )
     return pts
 
 
 def points_from_lonlat(df: pd.DataFrame, lon="lon", lat="lat", crs: str | None = None):
     import geopandas as gpd
+
     df = df.dropna(subset=[lon, lat])
     g = gpd.GeoDataFrame(df.copy(), geometry=gpd.points_from_xy(df[lon], df[lat]), crs="EPSG:4326")
     return g.to_crs(crs or EQUAL_AREA)
@@ -41,6 +53,7 @@ def nearest(left, right, attrs: list[str] | None = None) -> pd.DataFrame:
     Returns a DataFrame aligned with `left` (same order) with column dist_km and attrs.
     """
     import geopandas as gpd
+
     attrs = attrs or []
     if right is None or len(right) == 0:
         out = pd.DataFrame({"dist_km": np.nan}, index=range(len(left)))
@@ -58,8 +71,9 @@ def nearest(left, right, attrs: list[str] | None = None) -> pd.DataFrame:
     return out
 
 
-def count_within(left_xy: np.ndarray, right_xy: np.ndarray, radius_km: float,
-                 weights: np.ndarray | None = None) -> np.ndarray:
+def count_within(
+    left_xy: np.ndarray, right_xy: np.ndarray, radius_km: float, weights: np.ndarray | None = None
+) -> np.ndarray:
     """Count (or sum of weights) of right points within radius of each left point."""
     if right_xy is None or len(right_xy) == 0:
         return np.zeros(len(left_xy))
@@ -71,7 +85,9 @@ def count_within(left_xy: np.ndarray, right_xy: np.ndarray, radius_km: float,
     return np.array([w[i].sum() if i else 0.0 for i in idx])
 
 
-def neighbours_within(left_xy: np.ndarray, right_xy: np.ndarray, radius_km: float) -> list[list[int]]:
+def neighbours_within(
+    left_xy: np.ndarray, right_xy: np.ndarray, radius_km: float
+) -> list[list[int]]:
     if right_xy is None or len(right_xy) == 0:
         return [[] for _ in range(len(left_xy))]
     return cKDTree(right_xy).query_ball_point(left_xy, r=radius_km * 1000.0)
@@ -86,6 +102,7 @@ def xy(gdf) -> np.ndarray:
 
 def contains(left_pts, polys) -> np.ndarray:
     import geopandas as gpd
+
     if polys is None or len(polys) == 0:
         return np.zeros(len(left_pts), dtype=bool)
     lft = left_pts[["geometry"]].reset_index(drop=True).copy()
@@ -98,6 +115,7 @@ def contains(left_pts, polys) -> np.ndarray:
 
 def point_attr(left_pts, polys, attr: str) -> np.ndarray:
     import geopandas as gpd
+
     lft = left_pts[["geometry"]].reset_index(drop=True).copy()
     lft["_i"] = np.arange(len(lft))
     j = gpd.sjoin(lft, polys[[attr, "geometry"]], how="left", predicate="within")
@@ -110,10 +128,18 @@ def length_within(left_pts, lines, radius_km: float) -> np.ndarray:
     if lines is None or len(lines) == 0:
         return np.zeros(len(left_pts))
     import geopandas as gpd
-    buf = gpd.GeoDataFrame({"_i": np.arange(len(left_pts))},
-                           geometry=left_pts.geometry.buffer(radius_km * 1000.0).values, crs=left_pts.crs)
-    inter = gpd.overlay(gpd.GeoDataFrame(geometry=lines.geometry.values, crs=lines.crs), buf,
-                        how="intersection", keep_geom_type=True)
+
+    buf = gpd.GeoDataFrame(
+        {"_i": np.arange(len(left_pts))},
+        geometry=left_pts.geometry.buffer(radius_km * 1000.0).values,
+        crs=left_pts.crs,
+    )
+    inter = gpd.overlay(
+        gpd.GeoDataFrame(geometry=lines.geometry.values, crs=lines.crs),
+        buf,
+        how="intersection",
+        keep_geom_type=True,
+    )
     s = inter.assign(L=inter.length / 1000.0).groupby("_i")["L"].sum()
     out = np.zeros(len(left_pts))
     out[s.index.values] = s.values
@@ -126,5 +152,8 @@ def latency_ms(dist_km, route_factor=1.4, ms_per_km_rtt=0.01, fixed_ms=1.0):
 
 def haversine_km(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = map(np.radians, (lon1, lat1, lon2, lat2))
-    a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
+    a = (
+        np.sin((lat2 - lat1) / 2) ** 2
+        + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
+    )
     return 6371.0 * 2 * np.arcsin(np.sqrt(a))
