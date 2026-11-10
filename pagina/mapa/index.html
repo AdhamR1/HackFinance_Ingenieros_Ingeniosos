@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cribado de emplazamientos para data centers · España</title>
+  <meta name="description" content="Mapa interactivo de cribado inicial de celdas de 3,5 km en España para construir data centers.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='7' height='7' fill='%230072B2'/%3E%3Crect x='9' width='7' height='7' fill='%23E69F00'/%3E%3Crect y='9' width='7' height='7' fill='%239a9a9a'/%3E%3Crect x='9' y='9' width='7' height='7' fill='%230072B2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#panel">Saltar a los controles</a>
+  <header class="top">
+    <h1>Cribado de emplazamientos para data centers <span class="sub">España · celdas de 3,5 km</span></h1>
+    <a id="volver" class="volver" href="../" hidden>← Volver a Can I Build Here?</a>
+    <p class="aviso" role="note"><strong>Cribado inicial.</strong> No es un estudio geotécnico ni una clasificación urbanística. La puntuación es una ordenación, no una probabilidad.</p>
+  </header>
+
+  <main class="layout">
+    <aside id="panel" class="panel" aria-label="Controles del mapa">
+      <details open class="bloque" id="bloque-controles">
+        <summary>Filtros y vista</summary>
+
+        <fieldset>
+          <legend>Vista</legend>
+          <label><input type="radio" name="vista" value="estado" checked> Estado según la rúbrica</label>
+          <label><input type="radio" name="vista" value="orden"> Ordenación (percentil, datos incompletos)</label>
+          <p class="nota" id="nota-orden" hidden>Ordenación provisional: colorea por percentil de la nota de la rúbrica entre las celdas no excluidas. <strong>No es una probabilidad</strong> ni una decisión.</p>
+        </fieldset>
+
+        <fieldset id="f-estados">
+          <legend>Estados</legend>
+          <!-- se rellena desde app.js con contador y muestra -->
+        </fieldset>
+
+        <label class="campo" for="f-prov">Provincia</label>
+        <select id="f-prov"><option value="-1">Todas</option></select>
+
+        <label class="campo" for="f-conf">Confianza mínima (parte del peso con datos): <output id="o-conf" for="f-conf">0 %</output></label>
+        <input type="range" id="f-conf" min="0" max="100" step="5" value="0">
+
+        <label class="check"><input type="checkbox" id="f-dc" checked> Mostrar data centers reales</label>
+      </details>
+
+      <details open class="bloque">
+        <summary>Buscar</summary>
+        <form id="buscar" role="search">
+          <label class="campo" for="q">Municipio, provincia o coordenadas (lat, lon)</label>
+          <div class="fila">
+            <input id="q" type="search" placeholder="p. ej. Talavera de la Reina o 40.41, -3.70" autocomplete="off">
+            <button type="submit">Buscar</button>
+          </div>
+          <p class="nota">Las provincias y coordenadas se buscan sin conexión; los municipios, en OpenStreetMap Nominatim.</p>
+        </form>
+        <ul id="resultados" class="lista" aria-live="polite"></ul>
+      </details>
+
+      <details open class="bloque">
+        <summary>Mejores celdas en la vista</summary>
+        <ol id="top" class="lista"></ol>
+      </details>
+
+      <button type="button" id="btn-sobre" class="btn-sec">Sobre el modelo y los datos</button>
+    </aside>
+
+    <div class="mapa-wrap">
+      <div id="aviso-datos" class="aviso-datos" role="status" hidden></div>
+      <div id="map" aria-label="Mapa de celdas. Haz clic en una celda o usa la lista de mejores celdas y el buscador." tabindex="0"></div>
+      <div id="leyenda" class="leyenda" aria-label="Leyenda"></div>
+      <div id="cargando" class="cargando" role="status">Cargando celdas…</div>
+    </div>
+
+    <aside id="ficha" class="ficha" aria-live="polite" aria-label="Ficha de la celda seleccionada">
+      <p class="vacia">Selecciona una celda en el mapa para ver su ficha.</p>
+    </aside>
+  </main>
+
+  <footer class="pie">
+    <p>Datos: © colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) (también el mapa base) ·
+      CORINE Land Cover 2018 y Natura 2000 (Copernicus / EEA) · SNCZI (MITECO) · PGA 475 años (IGN) · E-OBS · Copernicus DEM ·
+      data centers: datacentermap.com, OSM y PeeringDB · <a href="https://leafletjs.com">Leaflet</a> (BSD-2).</p>
+    <p>Fecha y huella de los datos: <span id="fecha">—</span>. Proyecto HackFinance UC3M 2026 · equipo Ingenieros Ingeniosos.</p>
+  </footer>
+
+  <dialog id="sobre" aria-labelledby="sobre-t">
+    <form method="dialog"><button class="cerrar" aria-label="Cerrar">×</button></form>
+    <h2 id="sobre-t">Sobre el modelo y los datos</h2>
+    <div id="sobre-body">Cargando…</div>
+  </dialog>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
