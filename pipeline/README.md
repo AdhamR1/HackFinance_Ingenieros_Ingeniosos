@@ -24,6 +24,7 @@ python src/priors_voz.py  # criterios de expertos (citas de audio del ELT) -> se
 python src/train.py --exclusions data/processed/exclusions_es_3500.parquet   # modelo -> scores
 python src/train.py --exclusions data/processed/exclusions_es_3500.parquet --priors data/processed/priors_voz.csv
 python src/finanzas.py    # capa financiera (no entra al modelo)
+python src/agua.py        # riesgo hídrico WRI Aqueduct 4.0 (indicador y aviso, no entra al modelo)
 ```
 
 Cualquier `data/processed/feat_*.parquet` (`site_id` + columnas numéricas) entra solo al modelo al ejecutar `features.py`.
@@ -56,6 +57,7 @@ Cuando el ELT tenga columnas nuevas, basta con volver a ejecutar `features.py` y
 | `data/processed/exclusions_es_3500.parquet` | `site_id, excluded, motivo_descarte, avisos` + los % que deciden la regla |
 | `data/processed/features_es_3500.parquet` | `site_id` + variables numéricas |
 | `data/processed/finanzas_es_3500.parquet` | Para un data center de 10 MW en 10 ha: luz al año (OMIE 2025 × PUE), suelo (Mº Transportes, por provincia), coste laboral (INE, por comunidad), construcción (Turner & Townsend: Madrid 10 $/W), conexión (distancia a 220 kV × 0,4 M€/km, supuesto), `inversion_eur_m2` y `coste_10_anos_eur_m2` |
+| `data/processed/agua_es_3500.parquet` | Riesgo hídrico de WRI Aqueduct 4.0 (0–5) por celda: estrés hídrico actual, 2030 y 2050, agotamiento, riesgo de sequía y variabilidad. No entra al modelo (solo subía el AUC de 0,893 a 0,899 y por geografía encubierta): es indicador y aviso para la web |
 | `data/processed/scores_es_3500.parquet` | **Para la web:** `site_id, lon, lat, admin1, admin2, y, y_operational, sites, excluded, score_pct, oof_spatial_pct, band, reasons` |
 | `data/processed/scores_es_3500_cv_report.csv` | Validación aleatoria frente a espacial (la que se presenta es la espacial) |
 | `data/processed/scores_es_3500_importance.csv` | Importancia de cada variable (media de \|SHAP\|) |
