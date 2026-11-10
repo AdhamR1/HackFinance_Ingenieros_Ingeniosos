@@ -66,7 +66,7 @@ export const CONFIG = {
   // solo si el archivo de datos trae "descartado": true (y su "motivo_descarte").
 
   // ---------------------------------------------------------------
-  // MOTIVOS ("Por qué se acepta" / "Por qué se rechaza")
+  // MOTIVOS ("Puntos a favor" / "Puntos en contra")
   // ---------------------------------------------------------------
   // Si el cuadrado trae "motivos_a_favor" / "motivos_en_contra", se enseñan esos.
   // Si no, la web los saca de los datos (mejores y peores variables, permisos).

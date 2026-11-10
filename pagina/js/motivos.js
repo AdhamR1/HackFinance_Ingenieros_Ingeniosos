@@ -1,4 +1,4 @@
-// Motivos principales de un cuadrado: "Por qué se acepta" y "Por qué se rechaza".
+// Motivos principales de un cuadrado: "Puntos a favor" y "Puntos en contra".
 //
 // 1) Si el archivo de datos los trae ("motivos_a_favor" / "motivos_en_contra"), se usan esos.
 //    Cada motivo puede ser un texto o { "es": "...", "en": "..." } (para que salga traducido).

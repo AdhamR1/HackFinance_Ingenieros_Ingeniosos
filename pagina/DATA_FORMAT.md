@@ -144,8 +144,8 @@ También se acepta la forma de objeto: `"permisos": { "natura_2000": true, "zona
 `motivos_a_favor` y `motivos_en_contra`: listas de frases cortas que explican la nota. La web enseña
 **hasta 3** de cada:
 
-- **verde** → "Por qué se acepta" (a favor)
-- **rojo** (o descartado) → "Por qué se rechaza" (en contra)
+- **verde** → "Puntos a favor"
+- **rojo** (o descartado) → "Puntos en contra"
 - **amarillo** → los dos
 
 Cada frase puede ser un texto o un objeto con los dos idiomas, para que salga traducida:
