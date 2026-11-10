@@ -188,7 +188,7 @@ idiomas se puede mandar como objeto: `{ "es": "Pendiente excesiva", "en": "Slope
 3. Si no la trae → la web calcula una **nota provisional** con los valores de las variables. Sirve
    solo para probar con datos inventados: con los datos reales, lo previsto es que la nota venga ya
    calculada en `puntuacion`, para que **el modelo (cómo se combinan las variables) no esté en la web**.
-4. Color según la nota: **verde** ≥ 70 · **amarillo** 40-69 · **rojo** < 40 · **gris** sin ningún dato.
+4. Color según la nota: **verde** ≥ 70 · **amarillo** 50-69 · **rojo** < 50 · **gris** sin ningún dato.
    Estos límites se cambian en `config.js` (`umbrales`).
 
 ---

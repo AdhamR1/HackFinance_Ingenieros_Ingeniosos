@@ -78,7 +78,7 @@ export const CONFIG = {
   // ---------------------------------------------------------------
   umbrales: {
     verde:    70,  // >= 70 → viable
-    amarillo: 40,  // 40-69 → con condiciones;  < 40 → no viable (rojo)
+    amarillo: 50,  // 50-69 → con condiciones;  < 50 → no viable (rojo)
   },
   colores: {
     verde:     '#22c55e',

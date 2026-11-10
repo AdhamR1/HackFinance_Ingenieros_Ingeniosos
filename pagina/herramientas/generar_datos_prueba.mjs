@@ -196,7 +196,10 @@ function valoresInventados(c) {
   let suelo = 20 + 75 * r(131, 140) - 25 * cercania(c.centro, CIUDADES, 15);
   if (r(137, 45) > 0.705) suelo = 6 + 12 * r(139, 15);   // "montañas": terreno poco apto (valor de suelo muy bajo)
 
-  const v = { energia, agua, clima, riesgos, conectividad, suelo };
+  // Zonas desfavorables (para que haya cuadrados rojos en la simulación): bajan a la vez
+  // la energía, el agua y la conectividad.
+  const malo = Math.min(55, 400 * Math.max(0, r(151, 110) - 0.615));
+  const v = { energia: energia - malo, agua: agua - malo, clima, riesgos, conectividad: conectividad - malo, suelo };
   for (const k in v) v[k] = limitar(v[k]);
 
   // Huecos de datos: algunas variables faltan en algunas zonas (como pasará con los reales).
