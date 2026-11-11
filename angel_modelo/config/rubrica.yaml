@@ -15,6 +15,10 @@ salida:
   # esta fracción de celdas. Si no, se omite con aviso, sus pesos se reparten entre los demás criterios
   # y la confianza de todas las celdas baja. Cuando el equipo rellene la capa, se activa sola.
   cobertura_minima_capa: 0.60
+  # Candidata solo con confianza suficiente (parte del peso con datos). SUPUESTO: 0,85 = nivel «media».
+  cobertura_minima_candidata: 0.85
+  # Rango razonable de Candidatas (% de celdas evaluables). Fuera de él, aviso en informe_datos.md.
+  rango_candidatas_pct: [1, 15]
 
 # 1) EXCLUSIONES (veto): solo lo prohibido o físicamente imposible.
 #    Las tres primeras son las del equipo (pipeline/src/feat_suelo.py, EXCLUDE_PCT).
@@ -33,6 +37,7 @@ exclusiones:
     motivo: "Al menos la mitad en un parque nacional"
     fuente: "Equipo (feat_suelo.py). Ley 30/2014 de Parques Nacionales"
   - id: flujo_preferente
+    paises: [ESP]          # capa europea / española (SNCZI, Natura 2000)
     columna: zfp_pct
     op: ">="
     valor: 50
@@ -48,6 +53,7 @@ exclusiones:
 # 2) CONDICIONANTES: no vetan; restan puntos y generan un aviso.
 condicionantes:
   - id: natura2000_alta
+    paises: [ESP]          # capa europea / española (SNCZI, Natura 2000)
     columna: natura2000_pct
     op: ">="
     valor: 50
@@ -55,6 +61,7 @@ condicionantes:
     aviso: "Natura 2000 en más de la mitad de la celda: evaluación ambiental exigente"
     fuente: "SUPUESTO. Natura 2000 no prohíbe; exige evaluación (Ley 21/2013)"
   - id: natura2000_parcial
+    paises: [ESP]          # capa europea / española (SNCZI, Natura 2000)
     columna: natura2000_pct
     op: ">="
     valor: 25
@@ -69,6 +76,7 @@ condicionantes:
     aviso: "Centro de la celda en un espacio protegido (WDPA)"
     fuente: "SUPUESTO. Ley 42/2007; depende de la figura de protección"
   - id: inundable_t100
+    paises: [ESP]          # capa europea / española (SNCZI, Natura 2000)
     columna: zi_t100_pct
     op: ">="
     valor: 25
@@ -82,6 +90,22 @@ condicionantes:
     penalizacion: 5
     aviso: "Suelo urbano mayoritario: hace falta suelo industrial disponible o recalificación"
     fuente: "Umbral del equipo (feat_suelo.py). Penalización baja: muchos DC están en suelo urbano"
+  - id: agua_dominante
+    columna: agua_pct
+    op: ">="
+    valor: 50
+    penalizacion: 0
+    bloquea_candidata: true
+    aviso: "Agua o humedal en la mitad o más de la celda (embalse): poco suelo útil; no puede ser Candidata"
+    fuente: "Criterio de cribado (suite de sentido común, tarea 4f: 2 Candidatas eran embalses). SUPUESTO 50 %."
+  - id: urbano_centro
+    columna: urbano_pct
+    op: ">="
+    valor: 80
+    penalizacion: 0
+    bloquea_candidata: true
+    aviso: "Centro urbano denso: sin suelo libre para un campus; no puede ser Candidata"
+    fuente: "Criterio de cribado (sentido común, tarea 4b). SUPUESTO 80 %: ≥ 80 % de la celda es tejido urbano (CORINE / GHSL)."
   - id: servidumbre_aeronautica
     columna: in_flight_path_flag
     op: "=="
@@ -188,7 +212,7 @@ criterios:
     si_falta: 40
     fuente: "SUPUESTO. PROXY: water_stress (WRI Aqueduct) está vacío en el ELT"
   - id: sismicidad
-    etiqueta: "Peligrosidad sísmica (PGA 475 años, IGN)"
+    etiqueta: "Peligrosidad sísmica (PGA 475 años)"
     columna: pga475_ign_g
     unidad: g
     peso: 6

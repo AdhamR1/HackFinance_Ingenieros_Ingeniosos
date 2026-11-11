@@ -21,7 +21,8 @@ def good_cell(**kw):
             "in_flight_path_flag": 0, "in_low_elevation_coastal_zone": 0, "elevation_m": 500.0,
             "dist_substation_220kv_km": 1.0, "dist_hv_line_km": 0.5, "dist_infra_corridor_km": 0.5,
             "latency_to_hub_ms": 2.0, "industrial_pct": 20.0, "free_cooling_hours": 7500.0, "wetbulb_p99_c": 18.0,
-            "annual_precip_mm": 900.0, "water_stress": 0.0, "pga475_ign_g": 0.03, "zi_t500_pct": 0.0, "dist_motorway_junction_km": 1.0}
+            "annual_precip_mm": 900.0, "water_stress": 0.0, "pga475_ign_g": 0.03, "zi_t500_pct": 0.0, "dist_motorway_junction_km": 1.0,
+            "militar_pct": 0.0, "distancia_militar_km": 20.0, "en_franja": 0}
     base.update(kw)
     return base
 
@@ -50,7 +51,7 @@ def test_pesos_deben_sumar_100_e_ids_unicos():
 def test_exclusion_justo_en_el_umbral_y_justo_debajo():
     r = run(good_cell(agua_pct=90.0), good_cell(agua_pct=89.99), good_cell(slope_pct=40.0))
     assert list(r.excluida) == [True, False, True]
-    assert list(r.estado) == ["No viable", "Candidata", "No viable"]
+    assert list(r.estado) == ["No viable", "Dudosa", "No viable"]   # 89,99 % de agua: no excluida, pero agua dominante
     assert r.motivos.iloc[0].startswith("E:agua")
     assert np.isnan(r.score_pct.iloc[0])          # las excluidas no se ordenan
 
@@ -105,6 +106,7 @@ def test_columna_nueva_no_registrada_no_cambia_el_veredicto():
 def test_confianza_baja_exige_margen_extra():
     thr, m = CFG["salida"]["umbral_candidata"], CFG["salida"]["margen_duda"]
     cfg = copy.deepcopy(CFG)
+    cfg["salida"]["cobertura_minima_candidata"] = 0          # aquí se prueba solo el margen
     c = good_cell(dist_substation_220kv_km=np.nan)           # cobertura 0,80 -> confianza baja
     otras = [good_cell(), good_cell()]                        # para que la capa siga activa
     r = run(c, *otras, cfg=cfg).iloc[0]
@@ -138,3 +140,34 @@ def test_estados_y_rangos_en_lote_aleatorio():
     assert r.loc[~r.excluida, "score_pct"].between(0, 100).all()
     assert (r.motivos.str.count(r"\|") <= 2).all()
     assert not (r.excluida & (r.estado == "Candidata")).any()
+
+
+def test_confianza_minima_impide_candidata():
+    c = good_cell(dist_substation_220kv_km=np.nan)           # cobertura 0,80 < 0,85
+    r = run(c, good_cell(), good_cell())
+    assert r.estado.iloc[0] != "Candidata" and r.estado.iloc[1] == "Candidata"
+
+
+def test_centro_urbano_denso_no_puede_ser_candidata():
+    r = run(good_cell(urbano_pct=85), good_cell(urbano_pct=79))
+    assert list(r.estado) == ["Dudosa", "Candidata"]
+
+
+def test_militar_dentro_parcial_franja_lejos():
+    r = run(good_cell(militar_pct=60, en_franja=1, distancia_militar_km=0),      # dentro: excluida
+            good_cell(militar_pct=3, en_franja=1, distancia_militar_km=0),       # solape parcial: condicionada
+            good_cell(militar_pct=0, en_franja=1, distancia_militar_km=0.3),     # en franja: condicionada
+            good_cell(militar_pct=0, en_franja=0, distancia_militar_km=12))      # lejos: sin efecto
+    assert list(r.excluida) == [True, False, False, False]
+    assert r.motivos.iloc[0].startswith("E:militar")
+    assert list(r.estado[1:]) == ["Dudosa", "Dudosa", "Candidata"]
+    assert all("C:militar_franja" in m for m in r.motivos.iloc[1:3])
+
+
+def test_capa_militar_ausente_no_verificada_y_baja_confianza():
+    cells = [good_cell() for _ in range(3)]
+    for c in cells:
+        for k in ("militar_pct", "en_franja", "distancia_militar_km"):
+            del c[k]
+    r = run(*cells)
+    assert np.allclose(r.cobertura, 0.95) and r.capas_faltan.str.contains("militar\\(no verificada\\)").all()

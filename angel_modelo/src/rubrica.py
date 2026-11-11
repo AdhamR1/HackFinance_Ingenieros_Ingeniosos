@@ -42,7 +42,16 @@ ESTADOS = ["Candidata", "Dudosa", "No viable", "No evaluable"]
 
 # ----------------------------------------------------------------------------- configuración
 def cargar_config(path=CONFIG) -> dict:
+    """Rúbrica común (config/rubrica.yaml) + reglas del perfil del país (config/paises/<pais>.yaml).
+    Una regla con `paises: [ISO3, ...]` solo se aplica en esos países."""
+    from configuracion import perfil
+
     cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    p = perfil()
+    for tipo in ("exclusiones", "condicionantes"):
+        extra = (p.get("reglas") or {}).get(tipo) or []
+        cfg[tipo] = [r for r in cfg[tipo] + extra if p["pais"] in r.get("paises", [p["pais"]])]
+    cfg["_limitaciones"] = p.get("limitaciones_no_modeladas", [])
     validar(cfg)
     return cfg
 
@@ -109,6 +118,10 @@ def config_efectiva(df: pd.DataFrame, cfg: dict) -> tuple[dict, dict]:
     c2["criterios"] = [dict(c, peso=c["peso"] * 100 / total_act) for c in activos] if total_act else []
     c2["_fraccion_peso_activo"] = total_act / total_cfg if total_cfg else 0.0
     c2["_criterios_inactivos"] = [c["id"] for c in cfg["criterios"] if not act[c["id"]]["activa"]]
+    # reglas obligatorias sin capa (p. ej. militar): «no verificadas», bajan la confianza de todas las celdas
+    sin = [r for t in ("exclusiones", "condicionantes") for r in cfg[t] if r.get("obligatoria") and not act[r["id"]]["activa"]]
+    c2["_no_verificadas"] = sorted({r["id"] for r in sin})
+    c2["_penalizacion_no_verificadas"] = sum(r.get("penalizacion_confianza", 0) for r in sin)
     return c2, act
 
 
@@ -157,8 +170,13 @@ def aplicar(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     # 3) condicionantes (natura alta y parcial no se suman: cuenta la mayor)
     pen = np.zeros(n)
     hits = {}
+    bloquea = np.zeros(n, bool)
     for r in cfg["condicionantes"]:
-        hits[r["id"]] = cumple_regla(df, r)[0]
+        hits[r["id"]], has_c = cumple_regla(df, r)
+        if r.get("bloquea_candidata"):
+            bloquea |= hits[r["id"]]
+        if r.get("obligatoria"):
+            excl_missing |= ~has_c        # celda sin dato en una regla obligatoria: no puede ser Candidata
     if "natura2000_alta" in hits and "natura2000_parcial" in hits:
         hits["natura2000_parcial"] = hits["natura2000_parcial"] & ~hits["natura2000_alta"]
     for r in cfg["condicionantes"]:
@@ -170,6 +188,7 @@ def aplicar(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     final = np.clip(score - pen, 0, 100)
     out["score"] = final.round(2)
     cov = cov * frac_activo                     # sobre el peso total configurado (capas omitidas cuentan)
+    cov = np.clip(cov - cfg.get("_penalizacion_no_verificadas", 0.0), 0, 1)
     out["cobertura"] = cov.round(3)
 
     # 4) confianza y estado
@@ -178,7 +197,8 @@ def aplicar(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     conf = np.where(cov >= s["confianza"]["alta"], "alta", np.where(cov >= s["confianza"]["media"], "media", "baja"))
     evaluable = cov >= s["cobertura_minima"]
     need = np.where(conf == "baja", thr + margin, thr)
-    candidata = ~excl & evaluable & ~excl_missing & (final >= need)
+    conf_min = s.get("cobertura_minima_candidata", 0.0)
+    candidata = ~excl & evaluable & ~excl_missing & ~bloquea & (cov >= conf_min) & (final >= need)
     noviable = excl | (evaluable & (final < thr - margin))
     estado = np.select([~evaluable & ~excl, noviable, candidata], ["No evaluable", "No viable", "Candidata"], "Dudosa")
     out["excluida"] = excl
@@ -205,7 +225,7 @@ def aplicar(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     top_val = np.take_along_axis(M, order, axis=1)
     codes = np.array(codes, dtype=object)
     out["motivos"] = ["|".join(codes[o][v > 0.05]) for o, v in zip(order, top_val)]
-    inactivos = ",".join(cfg["_criterios_inactivos"])
+    inactivos = ",".join(cfg["_criterios_inactivos"] + [f"{x}(no verificada)" for x in cfg.get("_no_verificadas", [])])
     if inactivos:
         missing = np.where(missing == "", inactivos, missing + "," + inactivos)
     out["capas_faltan"] = missing
