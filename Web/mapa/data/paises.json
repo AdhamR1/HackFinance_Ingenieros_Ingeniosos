@@ -1,0 +1,44 @@
+{
+ "es": {
+  "nombre": "España",
+  "iso3": "ESP",
+  "celdas": 41296,
+  "fecha_datos": "2026-11-11",
+  "huella": {
+   "esquema": "11b42a6eeb58",
+   "filas": "98666f4669fc"
+  },
+  "division": "provincia",
+  "limites": [
+   [
+    -18.15,
+    27.65
+   ],
+   [
+    4.3,
+    43.76
+   ]
+  ]
+ },
+ "jp": {
+  "nombre": "Japón",
+  "iso3": "JPN",
+  "celdas": 30779,
+  "fecha_datos": "2026-11-11",
+  "huella": {
+   "esquema": "061cfd8e7bdd",
+   "filas": "e25d9b73b4fc"
+  },
+  "division": "prefectura",
+  "limites": [
+   [
+    122.97,
+    24.06
+   ],
+   [
+    148.85,
+    45.55
+   ]
+  ]
+ }
+}

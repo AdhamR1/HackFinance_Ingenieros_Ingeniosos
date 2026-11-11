@@ -1,0 +1,1796 @@
+{
+"celdas": 30779,
+"columnas": {
+"aadt_nearest_road": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"adiabatic_cooling_hours": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 8760.0,
+"min": 2885.0,
+"tipo": "float64"
+},
+"admin1": {
+"clase": "identificador",
+"cobertura": 1.0,
+"tipo": "str"
+},
+"aircraft_noise_lden_db": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"airport_annual_movements": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"ambient_vibration_db": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"annual_precip_mm": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 3347.3701,
+"min": 914.22,
+"tipo": "float64"
+},
+"area_ha": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1225.0,
+"min": 612.6965,
+"tipo": "float64"
+},
+"aspect_deg": {
+"clase": "numerica",
+"cobertura": 0.9989,
+"max": 359.9874,
+"min": 0.0,
+"tipo": "float64"
+},
+"avisos_equipo": {
+"clase": "categorica",
+"cobertura": 1.0,
+"tipo": "str"
+},
+"biodiversity_intactness": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"biodiversity_sensitivity": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"built_up_pct_5km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"bulk_density": {
+"clase": "numerica",
+"cobertura": 0.9676,
+"max": 1.32,
+"min": 0.76,
+"tipo": "float64"
+},
+"burned_area_10y_pct_10km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"capacity_mw": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"capex_per_mw_usd": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"carbon_price_usd_t": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"cdd_2050_ssp245": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"chokepoint_exposure": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"clay_pct": {
+"clase": "numerica",
+"cobertura": 0.9658,
+"max": 46.1,
+"min": 6.8,
+"tipo": "float64"
+},
+"climate_physical_risk_2050": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"coastal_erosion_m_yr": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"coastal_flood_depth_rp100_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"construction_cost_index": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"cooling_degree_days": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 2770.1001,
+"min": 5.73,
+"tipo": "float64"
+},
+"corporate_tax_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"country_risk_premium_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"cyclone_freq_100y": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"cyclone_max_wind_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"cyclone_wind_rp50_2050_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"cyclone_wind_rp50_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dark_fiber_available_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"data_sovereignty_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dc_cancelled_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dc_capacity_50km_mw": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dc_elt": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "bool"
+},
+"dc_fuente": {
+"clase": "categorica",
+"cobertura": 1.0,
+"tipo": "str"
+},
+"dc_pipeline": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "bool"
+},
+"dc_real": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "bool"
+},
+"dc_tax_incentive_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"depth_to_bedrock_cm": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dewpoint_mean_c": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 22.0329,
+"min": 2.1045,
+"tipo": "float64"
+},
+"disaster_events_admin1_20y": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_400kv_line_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_active_fault_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 322.9058,
+"min": 0.0,
+"tipo": "float64"
+},
+"dist_airport_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 934.6997,
+"min": 0.1353,
+"tipo": "float64"
+},
+"dist_airport_runway_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 934.537,
+"min": 0.0083,
+"tipo": "float64"
+},
+"dist_cable_landing_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 310.9314,
+"min": 0.0819,
+"tipo": "float64"
+},
+"dist_city_100k_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_city_1m_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_cloud_onramp_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_cloud_region_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_coast_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 114.5268,
+"min": 0.0008,
+"tipo": "float64"
+},
+"dist_critical_habitat_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_dam_upstream_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_existing_dc_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1202.8478,
+"min": 0.5938,
+"tipo": "float64"
+},
+"dist_fiber_backbone_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_fire_station_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_forest_edge_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_freight_rail_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_gas_pipeline_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_hazardous_industry_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_heliport_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_heritage_site_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_highway_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_hv_line_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1103.126,
+"min": 0.0061,
+"tipo": "float64"
+},
+"dist_infra_corridor_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_ixp_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1329.0891,
+"min": 0.4035,
+"tipo": "float64"
+},
+"dist_long_haul_route_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_m5_epicenter_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 135.0561,
+"min": 0.0274,
+"tipo": "float64"
+},
+"dist_major_hub_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 2030.6785,
+"min": 1.3242,
+"tipo": "float64"
+},
+"dist_metro_ring_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_military_airbase_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_military_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_mine_quarry_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_motorway_junction_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1103.6876,
+"min": 0.0067,
+"tipo": "float64"
+},
+"dist_motorway_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1101.9023,
+"min": 0.0049,
+"tipo": "float64"
+},
+"dist_natura2000_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_nearest_dwelling_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_nuclear_plant_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_parque_nacional_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 302.028,
+"min": 0.0,
+"tipo": "float64"
+},
+"dist_port_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_power_plant_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_primary_road_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_protected_area_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 302.0312,
+"min": 0.0,
+"tipo": "float64"
+},
+"dist_railway_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_ramsar_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_reservoir_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_residential_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_river_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_station_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_substation_220kv_km": {
+"clase": "numerica",
+"cobertura": 0.9943,
+"max": 1132.0605,
+"min": 0.0541,
+"tipo": "float64"
+},
+"dist_substation_400kv_km": {
+"clase": "numerica",
+"cobertura": 0.9943,
+"max": 1132.0605,
+"min": 0.0541,
+"tipo": "float64"
+},
+"dist_substation_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1106.4404,
+"min": 0.0027,
+"tipo": "float64"
+},
+"dist_unesco_site_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_volcano_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dist_wwtp_km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"distancia_militar_km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 329.674,
+"min": 0.0,
+"tipo": "float64"
+},
+"diurnal_range_c": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 10.3861,
+"min": 0.9518,
+"tipo": "float64"
+},
+"drought_risk": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dust_aod": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"dust_storm_days_year": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"eia_required_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"electricity_price_industrial_usd_mwh": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"electricity_price_volatility": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"elevation_m": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 2746.2299,
+"min": -4.605,
+"tipo": "float64"
+},
+"en_franja": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"equipo_oof_pct": {
+"clase": "numerica",
+"cobertura": 0.9373,
+"max": 100.0,
+"min": 0.0035,
+"tipo": "float64"
+},
+"equipo_score_pct": {
+"clase": "numerica",
+"cobertura": 0.9373,
+"max": 100.0,
+"min": 0.0035,
+"tipo": "float64"
+},
+"est_pue": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1.3953,
+"min": 1.0884,
+"tipo": "float64"
+},
+"est_wue_l_kwh": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 3.5241,
+"min": 0.2069,
+"tipo": "float64"
+},
+"excl_equipo": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "bool"
+},
+"expansive_soil_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"extreme_cold_days_year": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 36.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"extreme_gust_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"extreme_heat_hazard": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"fault_slip_rate_mm_yr": {
+"clase": "numerica",
+"cobertura": 0.7042,
+"max": 134.7,
+"min": 0.0,
+"tipo": "float64"
+},
+"fire_weather_days_2050": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"fire_weather_index_p95": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"fixed_broadband_mbps": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"flash_flood_susceptibility": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"flood_depth_rp1000_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"flood_depth_rp100_m": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 31.173,
+"min": 0.0,
+"tipo": "float64"
+},
+"flood_depth_rp10_m": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 29.171,
+"min": 0.0,
+"tipo": "float64"
+},
+"flood_depth_rp500_m": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 32.375,
+"min": 0.0,
+"tipo": "float64"
+},
+"flood_protection_standard_rp": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"fog_days_year": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"forest_cover_pct_1km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"foundation_overcost_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"free_cooling_hours": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 8531.0,
+"min": 129.0,
+"tipo": "float64"
+},
+"frost_days_year": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 190.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"fx_volatility": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"gdp_per_capita_ppp": {
+"clase": "constante",
+"cobertura": 1.0,
+"max": 55421.8798,
+"min": 55421.8798,
+"tipo": "float64"
+},
+"gen_capacity_50km_mw": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"geomagnetic_latitude_deg": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"grid_capacity_available_mw": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"grid_carbon_intensity_gco2_kwh": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"grid_congestion_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"grid_connection_wait_months": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"grid_saidi_min_year": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"grid_saifi_year": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"groundwater_decline": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"groundwater_depth_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"groundwater_flood_risk": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"hail_days_year": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"heat_reuse_mandate_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"heating_degree_days": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 5356.9702,
+"min": 1.65,
+"tipo": "float64"
+},
+"heatwave_days_2050_ssp245": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"heatwave_days_year": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 20.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"heavy_vehicle_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"height_above_drainage_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"hist_flood_events_30km_20y": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"hist_landslides_20km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"housing_density_km2": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"housing_pressure_index": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"hv_a0": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"hv_confidence": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"hv_f0_hz": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"in_aero_easement_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"in_drone_restricted_zone": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"in_flight_path_flag": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"in_iba": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"in_kba": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"in_low_elevation_coastal_zone": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"in_official_flood_zone": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"in_protected_area": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"indigenous_land_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"induced_seismicity_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"industrial_land_20km_ha": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"industrial_pct": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 16.85,
+"min": 0.0,
+"tipo": "float64"
+},
+"inflation_pct": {
+"clase": "constante",
+"cobertura": 1.0,
+"max": 3.1725,
+"min": 3.1725,
+"tipo": "float64"
+},
+"interannual_variability": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"interest_rate_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"intl_bandwidth_country_tbps": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"is_datacenter": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"ixp_peak_traffic_tbps": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"jitter_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"karst_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"labor_cost_hourly_usd": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"land_price_trend_5y_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"land_price_usd_m2": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"landing_design_capacity_tbps": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"landslide_susceptibility": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"lat": {
+"clase": "coordenada",
+"cobertura": 1.0,
+"max": 45.5538,
+"min": 24.0554,
+"tipo": "float64"
+},
+"latency_ashburn_ms": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 178.2163,
+"min": 134.5097,
+"tipo": "float64"
+},
+"latency_frankfurt_ms": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 147.6205,
+"min": 119.1896,
+"tipo": "float64"
+},
+"latency_measured_hub_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"latency_singapore_ms": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 93.1757,
+"min": 47.1072,
+"tipo": "float64"
+},
+"latency_to_hub_ms": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 29.4295,
+"min": 1.0185,
+"tipo": "float64"
+},
+"latency_tokyo_ms": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 29.4295,
+"min": 1.0185,
+"tipo": "float64"
+},
+"lightning_density": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"liquefaction_susceptibility": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"local_opposition_index": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"lon": {
+"clase": "coordenada",
+"cobertura": 1.0,
+"max": 148.853,
+"min": 122.9725,
+"tipo": "float64"
+},
+"max_building_height_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"max_daily_precip_p99_mm": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 123.73,
+"min": 22.1304,
+"tipo": "float64"
+},
+"max_mag_100km_hist": {
+"clase": "numerica",
+"cobertura": 0.9994,
+"max": 9.1,
+"min": 4.1,
+"tipo": "float64"
+},
+"max_temp_p99_c": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 36.5256,
+"min": 19.6472,
+"tipo": "float64"
+},
+"mean_temp_c": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 25.5694,
+"min": 3.6712,
+"tipo": "float64"
+},
+"migration_route_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"militar_pct": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 100.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"min_temp_p01_c": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 17.3948,
+"min": -17.6436,
+"tipo": "float64"
+},
+"mobile_5g_coverage_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"moratorium_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"motivo_equipo": {
+"clase": "categorica",
+"cobertura": 1.0,
+"tipo": "str"
+},
+"multi_hazard_index": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_buildings_1km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_cables_nearest_landing": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 12.0,
+"min": 1.0,
+"tipo": "float64"
+},
+"n_carriers_nearest_colo": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 9.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_cdn_pops_100km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_cloud_onramps_100km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_colo_facilities_100km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 42.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_cr_en_species_10km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_dwellings_1km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_endemic_species": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_eq_m4_100km_50y": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 3221.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_existing_dc_50km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 42.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_fiber_operators_10km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_fiber_routes_20km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_gbif_threatened_occ_5km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_ixp_100km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 8.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_mobile_operators": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_networks_100km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 837.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_networks_at_ixp": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 355.0,
+"min": 4.0,
+"tipo": "float64"
+},
+"n_sensitive_receptors_2km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_submarine_cables_country": {
+"clase": "constante",
+"cobertura": 1.0,
+"max": 50.0,
+"min": 50.0,
+"tipo": "float64"
+},
+"n_substations_20km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 289.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"n_threatened_amphibians_reptiles": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_threatened_birds": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_threatened_mammals": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_threatened_plants": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_threatened_species_10km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"n_towers_5km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 435.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"ndvi_mean": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"nearest_river_discharge_m3s": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"newest_cable_year": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 2029.0,
+"min": 1996.0,
+"tipo": "float64"
+},
+"nightlights_radiance": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"noise_limit_night_db": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"opex_per_mw_year_usd": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"overflights_per_day": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"packet_loss_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"parcel_compactness": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 0.8448,
+"min": 0.0415,
+"tipo": "float64"
+},
+"parque_nacional_pct": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 100.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"permitting_months": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"pga475_ign_g": {
+"clase": "numerica",
+"cobertura": 0.9999,
+"max": 1.7158,
+"min": 0.0778,
+"tipo": "float64"
+},
+"pga_2475y_g": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"planned_cables_flag": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"planned_residential_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"pluvial_flood_risk": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"pm25_ug_m3": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"pop_within_10ms_millions": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"population_10km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 5017619.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"population_1km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 109925.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"population_50km": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 32147227.0,
+"min": 98.0,
+"tipo": "float64"
+},
+"ppa_price_usd_mwh": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"ppp_factor": {
+"clase": "constante",
+"cobertura": 1.0,
+"max": 97.08,
+"min": 97.08,
+"tipo": "float64"
+},
+"precip_change_2050_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"property_tax_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"pue_cap_regulation": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"rail_trains_day": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"range_rarity": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"rel_humidity_mean_pct": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 90.2326,
+"min": 76.7594,
+"tipo": "float64"
+},
+"renewable_capacity_50km_mw": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"renewable_share_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"renewable_target_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"river_order": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"road_density_km_km2": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"road_noise_lden_db": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"sa_0_2s_g": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"sa_1_0s_g": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"sand_pct": {
+"clase": "numerica",
+"cobertura": 0.9658,
+"max": 66.5,
+"min": 13.9,
+"tipo": "float64"
+},
+"sea_level_rise_2050_cm": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"seasonal_variability": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"sediment_thickness_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"severe_storm_days_year": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"sinkhole_events_10km": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"site_id": {
+"clase": "identificador",
+"cobertura": 1.0,
+"tipo": "object"
+},
+"sites": {
+"clase": "identificador",
+"cobertura": 1.0,
+"tipo": "str"
+},
+"slope_pct": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 83.9924,
+"min": 0.0,
+"tipo": "float64"
+},
+"snow_load_kn_m2": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"so2_ug_m3": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"soil_erosion_t_ha_yr": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"solar_ghi_kwh_m2": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 1897.3981,
+"min": 1085.5508,
+"tipo": "float64"
+},
+"species_richness": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"star_threat_score": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"storm_surge_rp100_m": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"subsidence_mm_yr": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"substation_voltage_kv": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"tech_workforce_index": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"temp_change_2050_ssp245_c": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"temp_change_2050_ssp585_c": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"terrain_ruggedness": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 122.4511,
+"min": 0.0,
+"tipo": "float64"
+},
+"time_to_power_months": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"topographic_wetness_index": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"tornado_density": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"tree_cover_loss_10y_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"tropical_nights_year": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 314.0,
+"min": 0.0,
+"tipo": "float64"
+},
+"tsunami_risk_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"unemployment_rate_pct": {
+"clase": "constante",
+"cobertura": 1.0,
+"max": 2.451,
+"min": 2.451,
+"tipo": "float64"
+},
+"urbano_pct": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 44.12,
+"min": 0.0,
+"tipo": "float64"
+},
+"viability_score": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"volcanic_ashfall_hazard": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"vs30_ms": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"water_depletion": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"water_price_industrial_usd_m3": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"water_restriction_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"water_stress": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"water_stress_2030": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"water_stress_2050": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"wetbulb_p99_2050_c": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"wetbulb_p99_c": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 28.5227,
+"min": 18.326,
+"tipo": "float64"
+},
+"wholesale_price_mean_usd_mwh": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"wildfire_hazard": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"wildland_urban_interface_flag": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"wind_capacity_factor_pct": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"wind_speed_mean_ms": {
+"clase": "numerica",
+"cobertura": 1.0,
+"max": 7.6068,
+"min": 2.0707,
+"tipo": "float64"
+},
+"wwtp_capacity_pe": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+},
+"year_commissioned": {
+"clase": "constante",
+"cobertura": 0.0,
+"tipo": "float64"
+}
+},
+"huella": {
+"esquema": "061cfd8e7bdd",
+"filas": "e25d9b73b4fc"
+}
+}
