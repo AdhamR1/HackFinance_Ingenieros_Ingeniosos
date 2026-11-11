@@ -1,0 +1,49 @@
+# Perfil de ESPAÑA. Gana sobre config/columnas.yaml. Las reglas de `reglas:` se AÑADEN a las de
+# config/rubrica.yaml (que son comunes) y solo valen para este país.
+pais: ESP                    # código ISO3 de los archivos del ETL (ESP-p*.parquet) y prefijo de los ids
+iso2: ES
+nombre: España
+atribucion: "CORINE Land Cover 2018 y Natura 2000 (Copernicus / EEA) · SNCZI (MITECO) · PGA 475 años (IGN) · E-OBS · Copernicus DEM · data centers: datacentermap.com, OSM y PeeringDB"
+idioma_local: es
+etiqueta_division: provincia # unidad de validación espacial y de comparación en la ficha
+
+militar:
+  buffer_m: 500              # SUPUESTO: franja alrededor de la huella OSM hasta tener las zonas de seguridad del BOE
+  caida_alerta_pct: 20       # alerta si el nº de polígonos o el área cae más de esto respecto a lo publicado
+
+reglas:
+  exclusiones:
+    - id: militar
+      columna: militar_pct
+      op: ">="
+      valor: 50
+      motivo: "Dentro de instalación militar"
+      tipo: legal
+      fuente: >-
+        SUPUESTO 50 %: una celda de 12,25 km² ocupada en su mayoría por una instalación no tiene suelo útil.
+        Una celda con un 3 % militar NO se excluye entera: por eso hay dos umbrales (exclusión por ocupación
+        mayoritaria + condicionante por cualquier solape o cercanía). Capa: OpenStreetMap (huella física).
+      obligatoria: true           # sin capa -> «restricción militar no verificada», baja la confianza
+      penalizacion_confianza: 0.05
+  condicionantes:
+    - id: militar_franja
+      columna: en_franja
+      op: "=="
+      valor: 1
+      penalizacion: 10
+      bloquea_candidata: true
+      aviso: "Requiere autorización del Ministerio de Defensa (Ley 8/1975, zonas de seguridad)"
+      tipo: legal
+      fuente: >-
+        Ley 8/1975, de 12 de marzo, de zonas e instalaciones de interés para la Defensa Nacional, y su Reglamento
+        (RD 689/1978): las zonas de seguridad (próxima y lejana) las delimita Defensa instalación a instalación
+        por orden publicada en el BOE, y las obras en ellas requieren autorización (artículo exacto POR VERIFICAR
+        antes de citarlo). Aquí se aproxima con la huella OSM + 500 m (SUPUESTO) porque las delimitaciones
+        del BOE no están en un formato geográfico abierto. La HUELLA FÍSICA NO ES EL PERÍMETRO LEGAL.
+      obligatoria: true
+      penalizacion_confianza: 0.0
+
+# Limitación documentada, sin modelar: zonas de acceso restringido a la propiedad por parte de extranjeros
+# (Ley 8/1975, título III). Relevante para inversores extranjeros; vigencia y delimitación POR VERIFICAR.
+limitaciones_no_modeladas:
+  - "Zonas de acceso restringido a la propiedad por parte de extranjeros (Ley 8/1975): no modeladas; verificar con Defensa."

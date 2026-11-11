@@ -1,18 +1,18 @@
-# Contrato de datos del mapa: de dónde se lee, cómo se llaman las columnas y qué valores son plausibles.
+# Contrato de datos del mapa, COMÚN a todos los países: de dónde se lee, cómo se llaman las columnas y qué
+# valores son plausibles. Lo específico de cada país está en config/paises/<pais>.yaml (gana sobre esto).
 # Nada de esto está escrito en el código: si el equipo cambia nombres, rutas o la rejilla, se cambia aquí.
 
 # Rutas relativas a la raíz del repositorio. Se pueden sobrescribir con variables de entorno
 # (MAPA_ELT_DATASET, MAPA_PIPELINE_PROCESSED, MAPA_PIPELINE_RAW, MAPA_SALIDA) para probar con copias.
 rutas:
-  elt_dataset: ELT/dataset
-  pipeline_src: pipeline/src            # se importa cells.read_elt del equipo
-  pipeline_processed: pipeline/data/processed
-  pipeline_raw: pipeline/data/raw
-  salida: angel_modelo/salida           # intermedios regenerables (ignorado por git)
+  elt_dataset: ETL/dataset              # reorganización del equipo del 11-nov (antes ELT/dataset)
+  pipeline_src: Modelo/src              # se importa cells.read_elt del equipo (antes pipeline/src)
+  pipeline_processed: Modelo/data/processed
+  pipeline_raw: Modelo/data/raw
+  datos_propios: angel_modelo/datos     # capas que descarga este módulo (p. ej. militar/<iso>.geojson)
+  salida: angel_modelo/salida           # intermedios regenerables, uno por país (ignorado por git)
   web: angel_modelo/web_mapa            # mapa autocontenido
-  web_integrada: pagina/mapa            # copia publicada dentro de la web de Dani (vacío = no copiar)
-
-pais: ESP
+  web_integrada: Web/mapa               # copia publicada dentro de la web de Dani (vacío = no copiar)
 
 # Tablas del ELT (se leen con pipeline/src/cells.py:read_elt) y capas del pipeline.
 tablas:
@@ -34,7 +34,7 @@ agregacion_temporal:
 identificador:
   columna: site_id
   alias: [cell_id, id_celda, id]
-  patron: '^[A-Z]{3}_(-?\d+)_(-?\d+)$'  # ESP_<x/tam>_<y/tam>; si no cumple, se usa el centroide
+  patron: '^[A-Z]{3}_(-?\d+)_(-?\d+)$'  # <ISO>_<x/tam>_<y/tam>; si no cumple, se usa el centroide
 coordenadas:
   lon: {columna: lon, alias: [longitude, longitud, x_lon]}
   lat: {columna: lat, alias: [latitude, latitud, y_lat]}
@@ -42,7 +42,7 @@ admin:
   provincia: {columna: admin2, alias: [provincia, province]}
   comunidad: {columna: admin1, alias: [comunidad, region]}
 rejilla:
-  crs: "EPSG:3035"
+  crs: desde_etl                        # la proyección de igual área del país en ETL/config.yaml
   tamano_celda_m: 3500
   tolerancia_centroide: 0.25            # fracción de celda: si el centroide no cuadra con el id, se avisa y se usa el centroide
 
@@ -88,3 +88,22 @@ clasificacion:
 data_centers:
   pipeline: {tabla: etiquetas, columna: y}
   elt: {tabla: estatica, columna: is_datacenter}
+
+# Experimento de modelo (tarea 4e). Nunca alimenta el mapa salvo que gane la regla de decisión.
+modelo:
+  excluir: [terrain_ruggedness, aspect_deg]     # lista mantener/eliminar previa: slope_pct en lugar de rugosidad; sin orientación
+  monotonia:                                     # -1: más valor nunca puede subir la nota (lógica física / experta)
+    slope_pct: -1
+    dist_substation_km: -1
+    dist_substation_220kv_km: -1
+    dist_substation_400kv_km: -1
+    dist_hv_line_km: -1
+    dist_motorway_junction_km: -1
+    pga475_ign_g: -1
+  # Variantes PREDEFINIDAS de la rúbrica (máx. 8, regla 13). Se adopta una solo si mejora la PR-AUC en >= 4 de 5
+  # pliegues por provincia Y en media, y es defendible. Pesos: {criterio: nuevo_peso} (se renormaliza a 100).
+  variantes:
+    V1_industrial_5: {suelo_industrial: 5}
+    V2_sin_latencia: {latencia: 0}
+    V3_subestacion_30: {subestacion: 30}
+    V4_pendiente_15: {pendiente: 15}

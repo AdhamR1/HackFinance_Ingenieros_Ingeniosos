@@ -24,7 +24,7 @@ N = 300
 def datos(tmp_path, monkeypatch):
     """Copia recortada de las entradas + variables MAPA_* apuntando a ella."""
     elt, proc, raw = tmp_path / "elt", tmp_path / "proc", tmp_path / "raw"
-    src_elt, src_proc = K.REPO / "ELT" / "dataset", K.REPO / "pipeline" / "data" / "processed"
+    src_elt, src_proc = K.ruta("elt_dataset"), K.ruta("pipeline_processed")
     if not (src_elt / "sites_static").exists():
         pytest.skip("no hay datos del ELT en el repositorio")
     st = pd.read_parquet(sorted((src_elt / "sites_static").glob("ESP-p*.parquet"))[0]).head(N)
@@ -42,7 +42,8 @@ def datos(tmp_path, monkeypatch):
         if "site_id" in d.columns:
             d[d.site_id.isin(ids)].to_parquet(proc / f.name, index=False)
     raw.mkdir()
-    for k, v in {"ELT_DATASET": elt, "PIPELINE_PROCESSED": proc, "PIPELINE_RAW": raw, "SALIDA": tmp_path / "out"}.items():
+    for k, v in {"ELT_DATASET": elt, "PIPELINE_PROCESSED": proc, "PIPELINE_RAW": raw, "SALIDA": tmp_path / "out",
+                 "DATOS_PROPIOS": tmp_path / "propios"}.items():
         monkeypatch.setenv("MAPA_" + k, str(v))
     return {"elt": elt, "proc": proc}
 

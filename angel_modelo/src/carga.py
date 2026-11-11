@@ -25,7 +25,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from configuracion import ErrorFatal, columnas, ruta, salida
+from configuracion import ErrorFatal, columnas, ruta, salida, web_datos
 
 AVISOS: list[str] = []
 
@@ -44,7 +44,7 @@ def _lector_equipo():
         import cells  # noqa: PLC0415  (código del equipo)
 
         cells.ELT_DATASET = ruta("elt_dataset")
-        cells.ISO = columnas()["pais"]
+        cells.ISO = columnas()["pais"]          # el lector filtra <ISO>-p*.parquet
         return cells.read_elt, "pipeline/src/cells.py:read_elt"
     except Exception as e:  # noqa: BLE001
         aviso(f"No se pudo importar el lector del equipo ({e}); se usa un lector equivalente")
@@ -132,6 +132,15 @@ def _rango(col: str):
     return None
 
 
+def leer_csv(f) -> pd.DataFrame:
+    """CSV en UTF-8; si no lo es (p. ej. atributos de MLIT en Shift_JIS/CP932), se reintenta en CP932 y se avisa."""
+    try:
+        return pd.read_csv(f, encoding="utf-8")
+    except UnicodeDecodeError:
+        aviso(f"{f.name} no está en UTF-8: se ha leído como CP932 (Shift_JIS) y se convierte a UTF-8")
+        return pd.read_csv(f, encoding="cp932")
+
+
 def _clasificar(df: pd.DataFrame, idc: str) -> dict:
     cfg = columnas()["clasificacion"]
     out = {}
@@ -199,7 +208,7 @@ def cargar() -> tuple[pd.DataFrame, dict]:
             st[c] = defecto
         st[c] = st[c].fillna(defecto).astype(str)
 
-    base = st[[idc, lonc, latc, comc, provc]].copy()
+    base = st[list(dict.fromkeys([idc, lonc, latc, comc, provc]))].copy()
     feats = _numericas(st.set_index(idc))
 
     # anual -> una fila por celda
@@ -231,6 +240,12 @@ def cargar() -> tuple[pd.DataFrame, dict]:
         d = _dedup(_a_numero(d, cambios_tipo), idc, f.stem, stats).set_index(idc)
         extra = _numericas(d)
         capas[f.stem] = list(extra.columns)
+        feats = feats.drop(columns=[c for c in extra.columns if c in feats.columns]).join(extra, how="left")
+    # capas propias de este módulo (p. ej. capas/militar.parquet de src/militar.py)
+    for f in sorted((salida() / "capas").glob("*.parquet")):
+        d = _dedup(pd.read_parquet(f), idc, f"capa_{f.stem}", stats).set_index(idc)
+        extra = _numericas(d)
+        capas[f"propia_{f.stem}"] = list(extra.columns)
         feats = feats.drop(columns=[c for c in extra.columns if c in feats.columns]).join(extra, how="left")
     stats["capas_pipeline"] = capas
     feats = feats.drop(columns=[c for c in (lonc, latc) if c in feats.columns])
@@ -277,7 +292,19 @@ def cargar() -> tuple[pd.DataFrame, dict]:
         aviso(f"la tabla estática no tiene '{elt_col}': solo se usa la lista de datacentermap")
         dce = np.zeros(len(df), bool)
     df["dc_pipeline"], df["dc_elt"] = dcp.to_numpy(), dce
-    df["dc_real"] = df["dc_pipeline"] | df["dc_elt"]
+    # Lista maestra (tarea 4c): una celda OSM/PeeringDB es el MISMO data center que uno de datacentermap si su
+    # centroide está a menos de un lado de celda de la celda de datacentermap más cercana -> no se cuenta dos veces.
+    tol_km = float(cfg["rejilla"]["tamano_celda_m"]) / 1000
+    pts = df.loc[df.dc_pipeline, [latc, lonc]].to_numpy()
+    solo_elt = df.dc_elt.to_numpy() & ~df.dc_pipeline.to_numpy()
+    duplicada = np.zeros(len(df), bool)
+    if len(pts) and solo_elt.any():
+        la, lo = np.radians(df.loc[solo_elt, latc].to_numpy())[:, None], np.radians(df.loc[solo_elt, lonc].to_numpy())[:, None]
+        pla, plo = np.radians(pts[:, 0])[None, :], np.radians(pts[:, 1])[None, :]
+        d = 2 * 6371 * np.arcsin(np.sqrt(np.sin((pla - la) / 2) ** 2 + np.cos(la) * np.cos(pla) * np.sin((plo - lo) / 2) ** 2))
+        duplicada[np.flatnonzero(solo_elt)] = d.min(axis=1) <= tol_km
+    df["dc_real"] = df["dc_pipeline"] | (df["dc_elt"] & ~duplicada)
+    stats["dc_elt_duplicadas_de_datacentermap"] = int(duplicada.sum())
     df["dc_fuente"] = np.select([df.dc_pipeline & df.dc_elt, df.dc_pipeline, df.dc_elt],
                                 ["ambas", "datacentermap", "OSM/PeeringDB"], "")
     df = df.drop(columns=[c for c in ["y"] if c in df.columns])
@@ -297,9 +324,10 @@ def cargar() -> tuple[pd.DataFrame, dict]:
 
     df = df.sort_values(idc, kind="stable").reset_index(drop=True)
     stats.update({"celdas": len(df), "fuera_de_rango": fuera, "tipo_cambiado": sorted(set(cambios_tipo)),
+                  "pais": cfg["pais"],
                   "provincias": int(df[provc].nunique()),
                   "dc": {"datacentermap": int(df.dc_pipeline.sum()), "osm_peeringdb": int(df.dc_elt.sum()),
-                         "ambas": int((df.dc_pipeline & df.dc_elt).sum()), "union": int(df.dc_real.sum())}})
+                         "ambas": int((df.dc_pipeline & df.dc_elt).sum()), "lista_maestra": int(df.dc_real.sum())}})
 
     # esquema, clases, cobertura y huella
     clases = _clasificar(df, idc)
@@ -337,7 +365,7 @@ def comparar(esquema: dict, anterior: dict | None, ids_ant: int | None, n: int) 
 def main():
     df, info = cargar()
     out = salida()
-    web_data = ruta("web") / "data"
+    web_data = web_datos()
     anterior = None
     f_ant = web_data / "esquema.json"
     if f_ant.exists():
@@ -347,7 +375,7 @@ def main():
     (out / "informe_carga.json").write_text(json.dumps(info, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     pts = ruta("pipeline_raw") / columnas()["tablas"]["dc_puntos"]
     if pts.exists():
-        p = pd.read_csv(pts).dropna(subset=["lat", "lon"])
+        p = leer_csv(pts).dropna(subset=["lat", "lon"])
         p[[c for c in ["site", "operators", "municipio", "status", "precision", "lat", "lon"] if c in p.columns]].to_csv(
             out / "dc_puntos.csv", index=False)
     else:

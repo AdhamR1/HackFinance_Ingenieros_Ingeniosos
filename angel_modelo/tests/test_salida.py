@@ -11,10 +11,10 @@ import pytest
 HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE / "src"))
 import rubrica as R  # noqa: E402
-from configuracion import ruta  # noqa: E402
+from configuracion import ruta, web_datos  # noqa: E402
 
-OUT = ruta("salida")
-WEB = ruta("web") / "data"
+OUT = ruta("salida") / "es"          # el país por defecto; los datos de cada país en web_mapa/data/<pais>/
+WEB = web_datos()
 COLS = ["site_id", "lon", "lat", "comunidad", "provincia", "estado", "score_pct", "nota_rubrica", "cobertura",
         "confianza", "motivos", "exclusiones", "capas_faltan", "dc_real", "dc_fuente", "dc_nombres"]
 
@@ -70,7 +70,7 @@ def test_metricas_json():
 @need_web
 def test_datos_web_coherentes_y_ligeros():
     d = json.loads((WEB / "celdas.json").read_text(encoding="utf-8"))
-    n = len(d["cells"]["i"])
+    n = len(d["cells"]["e"])
     for k, v in d["cells"].items():
         assert len(v) == (3 * n if k == "m" else n), k
     assert max(d["cells"]["m"]) < len(d["motivos"]) and min(d["cells"]["p"]) >= 0

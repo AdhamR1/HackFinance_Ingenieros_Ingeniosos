@@ -6,4 +6,7 @@ scipy
 scikit-learn>=1.4
 pyyaml
 pyproj
+geopandas>=0.14        # capa militar (polígonos por celda)
+shapely>=2.0
+requests               # descarga de la capa militar (solo `militar.py descargar`)
 pytest

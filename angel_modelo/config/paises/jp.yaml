@@ -1,0 +1,77 @@
+# Perfil de JAPÓN. Gana sobre config/columnas.yaml; `reglas:` se añaden a las comunes de config/rubrica.yaml.
+# Datos base: los del equipo (ETL/dataset/*/JPN-p*.parquet y Modelo/data/processed/JPN/). Fuentes en docs/FUENTES.md.
+pais: JPN
+iso2: JP
+nombre: Japón
+atribucion: "PGA 475 años (GEM, no comercial) · NASA POWER · Copernicus DEM · GHSL · data centers: datacentermap.com, OSM y PeeringDB · instalaciones militares: OSM"
+idioma_local: ja
+etiqueta_division: prefectura
+
+subcarpeta_procesados: JPN   # convención del equipo: países distintos de ESP en Modelo/data/processed/<ISO>/
+
+tablas:
+  exclusiones_equipo: exclusions_jp_3500.parquet
+  finanzas: finanzas_jp_3500.parquet                 # no existe aún: queda «no disponible» con aviso
+  etiquetas: labels_jp_3500.parquet
+  notas_equipo: scores_jp_3500.parquet
+  dc_puntos: dc_sites_jp.csv
+
+# Columnas canónicas de la rúbrica que en Japón tienen otro origen (misma unidad).
+alias:
+  pga475_ign_g: [pga_475y_g]          # PGA a 475 años en g: GEM (ETL) en Japón; IGN en España. Unidad: g (gal/980,665)
+
+militar:
+  buffer_m: 1000             # PROXY de 注視区域 (área vigilada, ~1.000 m) marcado SUPUESTO: designación no verificada
+  caida_alerta_pct: 20
+
+reglas:
+  exclusiones:
+    - id: militar
+      columna: militar_pct
+      op: ">="
+      valor: 50
+      motivo: "Dentro de instalación militar (Fuerzas de Autodefensa o fuerzas de EE. UU. en Japón)"
+      tipo: legal
+      fuente: "SUPUESTO 50 % (mismo criterio que España). Capa: OpenStreetMap (huella física, no perímetro legal)."
+      obligatoria: true
+      penalizacion_confianza: 0.05
+    - id: control_urbanizacion
+      columna: control_urbanizacion_pct
+      op: ">="
+      valor: 50
+      motivo: "Área de control de urbanización (市街化調整区域): desarrollo no permitido en principio"
+      tipo: legal
+      fuente: "Ley de Planificación Urbana (都市計画法), art. 7. Capa MLIT 国土数値情報 A29 PENDIENTE (ver docs/FUENTES.md)."
+  condicionantes:
+    - id: militar_franja
+      columna: en_franja
+      op: "=="
+      valor: 1
+      penalizacion: 10
+      bloquea_candidata: true
+      aviso: "Posible área vigilada (Ley 84/2021): comprobar la designación oficial; en áreas especialmente vigiladas se notifican los contratos"
+      tipo: legal
+      fuente: >-
+        Ley n.º 84 de 2021 (重要施設周辺及び国境離島等における土地等の利用状況の調査及び利用の規制等に関する法律):
+        áreas vigiladas (注視区域, ~1.000 m) y especialmente vigiladas (特別注視区域), designadas una a una por
+        anuncio oficial. Aquí: PROXY de 1.000 m alrededor de la huella OSM (SUPUESTO; designación no verificada).
+        El proyecto de ley de autorización previa (octubre 2026) NO se modela: vigencia no verificada.
+      obligatoria: true
+      penalizacion_confianza: 0.0
+    - id: sedimentos
+      columna: sedimentos_especial_pct
+      op: ">="
+      valor: 1
+      penalizacion: 10
+      aviso: "Zona de alerta especial por sedimentos (土砂災害特別警戒区域): permiso de desarrollo y normas estructurales"
+      tipo: legal
+      fuente: "Ley de prevención de desastres de sedimentos (土砂災害防止法). Capa MLIT A33 PENDIENTE (docs/FUENTES.md)."
+
+limitaciones_no_modeladas:
+  - "Proyecto de ley de autorización previa de compras en áreas vigiladas (aprobado por el Gobierno en octubre de 2026): estado legislativo no verificado; no se modela."
+  - "Áreas oficialmente designadas (kokuji) de la Ley 84/2021: no disponibles en formato abierto; se usa un proxy de 1.000 m."
+
+# División para validar y comparar: prefectura (admin1, 47). admin2 son municipios (1.549).
+admin:
+  provincia: {columna: admin1, alias: []}
+  comunidad: {columna: admin1, alias: []}
