@@ -62,6 +62,9 @@ def variables_experimento(df: pd.DataFrame, clases: dict) -> tuple[list, dict]:
         k = clases.get(c, "")
         if k in ("identificador", "coordenada", "categorica", "fecha"):
             continue
+        if c in columnas().get("modelo", {}).get("excluir", []):
+            fuera[c] = "excluida por la lista mantener/eliminar (config: modelo.excluir)"
+            continue
         if c in propias:
             continue
         if k == "constante":
@@ -147,6 +150,7 @@ def main():
     red = quitar_redundantes(X) if len(feat_cols) > 1 else []
     X = X.drop(columns=red)
     sign = dict(zip(pri["feature"], pri["monotone"]))
+    sign.update(columnas().get("modelo", {}).get("monotonia", {}))     # lógica física (gana a los priors)
     mono = [int(sign.get(c, 0)) for c in X.columns]
     groups = df[provc].to_numpy()
     for c in ("urbano_pct", "industrial_pct"):
@@ -195,6 +199,36 @@ def main():
         if target == "dc_real":
             afin = scores["modelo_equipo_replica"]
 
+    # ---- 4b: cuánto de la rúbrica explican solo urbano/industrial ---------------------------------------------
+    from scipy.stats import spearmanr
+
+    sesgo = {c: round(float(spearmanr(df["rubrica"], df[c], nan_policy="omit").statistic), 3)
+             for c in ("urbano_pct", "industrial_pct") if df[c].notna().any()}
+    # ---- 4d: variantes predefinidas de la rúbrica, validación por provincias ---------------------------------
+    import rubrica as R
+
+    variantes = {}
+    yv = df["dc_real"].astype(int).to_numpy()
+    if yv.sum() >= 10 and len(set(groups)) >= 5:
+        base_cfg = R.cargar_config()
+        spl = list(StratifiedGroupKFold(5, shuffle=True, random_state=SEED).split(df, yv, groups))
+        def pr_pliegues(score):
+            return [average_precision_score(yv[te], score[te]) for _, te in spl if yv[te].sum()]
+        base_f = pr_pliegues(df["rubrica"].to_numpy())
+        celdas_ok = cells[keep].reset_index(drop=True)
+        for nombre, cambios in columnas().get("modelo", {}).get("variantes", {}).items():
+            c2 = json.loads(json.dumps(base_cfg))
+            for cr in c2["criterios"]:
+                if cr["id"] in cambios:
+                    cr["peso"] = cambios[cr["id"]]
+            tot = sum(cr["peso"] for cr in c2["criterios"])
+            for cr in c2["criterios"]:
+                cr["peso"] = cr["peso"] * 100 / tot
+            sc = R.aplicar(celdas_ok, c2)["score"].to_numpy()
+            f = pr_pliegues(sc)
+            gana = int(sum(a > b for a, b in zip(f, base_f)))
+            variantes[nombre] = {"pr_auc_media": round(float(np.mean(f)), 4), "pr_auc_base": round(float(np.mean(base_f)), 4),
+                                 "pliegues_que_mejora": gana, "adoptar": bool(gana >= 4 and np.mean(f) > np.mean(base_f))}
     main_r = results["dc_real"]
     entra = bool(main_r.get("prob_modelo_supera_a_ambos", 0) >= 0.9)
     met = {
@@ -205,6 +239,7 @@ def main():
                   "una celda sin data center no es 'no viable'",
         "variables_modelo": int(X.shape[1]), "quitadas_por_redundantes": red,
         "variables_usadas": list(X.columns), "variables_descartadas": descartadas,
+        "correlacion_rubrica_con": sesgo, "variantes_rubrica": variantes,
         "restricciones_monotonicas": int(sum(1 for v in mono if v)),
         "regla_de_decision": "El modelo entra al mapa como 'afinidad' solo si su PR-AUC supera a la rúbrica y a la "
                              "logística de 2 variables en >= 90 % de las réplicas bootstrap",
