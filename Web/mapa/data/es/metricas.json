@@ -1,11 +1,11 @@
 {
  "huella_datos": {
-  "esquema": "11b42a6eeb58",
-  "filas": "98666f4669fc"
+  "esquema": "4f4456e13fe3",
+  "filas": "05f484a158d0"
  },
  "validacion": "Espacial por provincias: StratifiedGroupKFold(5, semilla 42), grupos = provincia; intervalos al 95 % por bootstrap de provincias (300 réplicas)",
  "target": "Celda con data center real (lista unificada datacentermap + OSM/PeeringDB). Aprendizaje PU: una celda sin data center no es 'no viable'",
- "variables_modelo": 81,
+ "variables_modelo": 82,
  "quitadas_por_redundantes": [
   "hv_confidence",
   "flood_depth_rp500_m",
@@ -102,6 +102,7 @@
   "militar_pct",
   "distancia_militar_km",
   "en_franja",
+  "militar_menor",
   "rubrica"
  ],
  "variables_descartadas": {
@@ -325,31 +326,31 @@
   "ndvi_mean": "constante"
  },
  "correlacion_rubrica_con": {
-  "urbano_pct": 0.249,
-  "industrial_pct": 0.314
+  "urbano_pct": 0.258,
+  "industrial_pct": 0.322
  },
  "variantes_rubrica": {
   "V1_industrial_5": {
-   "pr_auc_media": 0.0201,
-   "pr_auc_base": 0.03,
+   "pr_auc_media": 0.0218,
+   "pr_auc_base": 0.0322,
    "pliegues_que_mejora": 0,
    "adoptar": false
   },
   "V2_sin_latencia": {
-   "pr_auc_media": 0.034,
-   "pr_auc_base": 0.03,
+   "pr_auc_media": 0.0356,
+   "pr_auc_base": 0.0322,
    "pliegues_que_mejora": 4,
    "adoptar": true
   },
   "V3_subestacion_30": {
-   "pr_auc_media": 0.0311,
-   "pr_auc_base": 0.03,
+   "pr_auc_media": 0.0335,
+   "pr_auc_base": 0.0322,
    "pliegues_que_mejora": 3,
    "adoptar": false
   },
   "V4_pendiente_15": {
-   "pr_auc_media": 0.0297,
-   "pr_auc_base": 0.03,
+   "pr_auc_media": 0.0318,
+   "pr_auc_base": 0.0322,
    "pliegues_que_mejora": 2,
    "adoptar": false
   }
@@ -360,90 +361,90 @@
  "resultados": {
   "dc_real": {
    "positivos": 131,
-   "celdas": 38705,
+   "celdas": 38737,
    "pliegues_positivos": [
+    24,
     34,
     24,
-    24,
-    24,
-    25
+    25,
+    24
    ],
    "rubrica": {
-    "pr_auc": 0.0254,
+    "pr_auc": 0.0268,
     "pr_auc_ic95": [
-     0.0128,
-     0.0437
+     0.0141,
+     0.0447
     ],
-    "auc": 0.8316,
+    "auc": 0.8468,
     "auc_ic95": [
-     0.7738,
-     0.8689
+     0.7888,
+     0.8845
     ],
-    "recall_top5": 0.4275,
+    "recall_top5": 0.4656,
     "recall_top5_ic95": [
-     0.3302,
-     0.5307
+     0.3557,
+     0.5549
     ]
    },
    "logistica_2_variables": {
-    "pr_auc": 0.2565,
+    "pr_auc": 0.2564,
     "pr_auc_ic95": [
-     0.156,
-     0.3648
+     0.1572,
+     0.3688
     ],
-    "auc": 0.9733,
+    "auc": 0.9728,
     "auc_ic95": [
-     0.9516,
-     0.9895
+     0.9507,
+     0.989
     ],
     "recall_top5": 0.8168,
     "recall_top5_ic95": [
-     0.6851,
-     0.946
+     0.673,
+     0.9337
     ],
     "calibracion": {
-     "brier": 0.0488,
-     "decil_superior_prob_media": 0.5803,
+     "brier": 0.0491,
+     "decil_superior_prob_media": 0.5821,
      "decil_superior_tasa_real": 0.0323
     }
    },
    "modelo_equipo_replica": {
-    "pr_auc": 0.1574,
+    "pr_auc": 0.1623,
     "pr_auc_ic95": [
-     0.1014,
-     0.2124
+     0.1048,
+     0.2361
     ],
-    "auc": 0.9481,
+    "auc": 0.9464,
     "auc_ic95": [
-     0.8963,
-     0.9821
+     0.9019,
+     0.9793
     ],
     "recall_top5": 0.8397,
     "recall_top5_ic95": [
-     0.7254,
-     0.9427
+     0.6935,
+     0.9305
     ],
     "calibracion": {
-     "brier": 0.0232,
-     "decil_superior_prob_media": 0.3642,
-     "decil_superior_tasa_real": 0.0305
+     "brier": 0.0237,
+     "decil_superior_prob_media": 0.3716,
+     "decil_superior_tasa_real": 0.031
     }
    },
    "aleatorio": {
-    "pr_auc": 0.0042,
+    "pr_auc": 0.0043,
     "pr_auc_ic95": [
-     0.0023,
-     0.0081
+     0.0024,
+     0.0082
     ],
-    "auc": 0.5139,
+    "auc": 0.5447,
     "auc_ic95": [
-     0.4491,
-     0.5676
+     0.4721,
+     0.6137
     ],
-    "recall_top5": 0.084,
+    "recall_top5": 0.0687,
     "recall_top5_ic95": [
-     0.0434,
-     0.1407
+     0.0274,
+     0.1167
     ]
    },
    "prob_modelo_supera_a_ambos": 0.0,

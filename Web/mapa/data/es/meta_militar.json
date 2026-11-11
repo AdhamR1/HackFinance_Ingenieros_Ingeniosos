@@ -1,11 +1,13 @@
 {
  "area_km2": 913.3,
  "celdas_con_instalacion": 722,
- "celdas_en_franja": 1098,
+ "celdas_en_franja": 621,
+ "celdas_recinto_menor": 477,
  "consulta": "[out:json][timeout:600];area[\"ISO3166-1\"=\"ES\"][admin_level=2]->.a;(way[\"landuse\"=\"military\"](area.a);relation[\"landuse\"=\"military\"](area.a);way[\"military\"~\"^(base|airfield|naval_base|barracks|range|training_area|ammunition)$\"](area.a);relation[\"military\"~\"^(base|airfield|naval_base|barracks|range|training_area|ammunition)$\"](area.a););out geom;",
  "estado": "ok",
  "fecha_descarga": "2026-11-11",
  "fuente": "OpenStreetMap (Overpass API)",
  "licencia": "ODbL 1.0 · © colaboradores de OpenStreetMap",
- "poligonos": 1236
+ "poligonos": 1236,
+ "poligonos_con_entidad": 433
 }

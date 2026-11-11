@@ -598,7 +598,7 @@
 "distancia_militar_km": {
 "clase": "numerica",
 "cobertura": 1.0,
-"max": 99.747,
+"max": 116.023,
 "min": 0.0,
 "tipo": "float64"
 },
@@ -1203,6 +1203,13 @@
 "migration_route_flag": {
 "clase": "constante",
 "cobertura": 0.0,
+"tipo": "float64"
+},
+"militar_menor": {
+"clase": "booleana",
+"cobertura": 1.0,
+"max": 1.0,
+"min": 0.0,
 "tipo": "float64"
 },
 "militar_pct": {
@@ -1910,7 +1917,7 @@
 }
 },
 "huella": {
-"esquema": "11b42a6eeb58",
-"filas": "98666f4669fc"
+"esquema": "4f4456e13fe3",
+"filas": "05f484a158d0"
 }
 }

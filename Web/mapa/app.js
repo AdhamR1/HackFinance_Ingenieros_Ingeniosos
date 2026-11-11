@@ -473,11 +473,12 @@
     const mm = D.meta.militar || {};
     let milTxt = 'No verificado: la capa militar no está disponible para este país.';
     if (mm.estado === 'ok' && det.mil) {
-      const [pct, dist, franja] = det.mil;
+      const [pct, dist, franja, menor] = det.mil;
       milTxt = pct == null ? 'No verificado (sin dato en esta celda).'
         : (det.excl || '').split(',').includes('militar') ? `Excluida: ${fmt(pct, 0)} % de la celda es instalación militar.`
           : franja === 1 ? `Condicionada: a ${fmt(dist, 2)} km de una instalación (${fmt(pct, 1)} % de la celda). Requiere autorización/comprobación (ver avisos).`
-            : `Sin efecto: instalación más cercana a ${fmt(dist, 1)} km.`;
+            : menor === 1 ? `Aviso: recinto militar menor cerca (OSM). No bloquea; conviene comprobarlo con Defensa.`
+              : `Sin efecto: instalación más cercana a ${fmt(dist, 1)} km.`;
     }
     f.append(el('h3', { text: 'Restricción militar' }), el('p', { text: milTxt }),
       el('p', { class: 'nota', text: 'Fuente: OpenStreetMap (huella física; puede estar incompleta y no es el perímetro legal).' }));
