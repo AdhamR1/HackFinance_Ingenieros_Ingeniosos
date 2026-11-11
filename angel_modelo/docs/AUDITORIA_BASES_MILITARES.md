@@ -46,3 +46,21 @@ Comprobación con un caso real: ver `docs/CAMBIOS_DATOS.md` (423 celdas de Espa�
 3. Sin capa, la restricción queda «no verificada» y baja la confianza; nunca se trata como «sin restricción».
 4. Los umbrales (50 %, 500 m y 1.000 m) son SUPUESTOS que deben sustituirse por las delimitaciones oficiales (BOE y kokuji) cuando estén disponibles.
 5. Ningún data center real queda excluido en España. En Japón queda 1 excluido (`JPN_-257_-289`), probablemente un caso legítimo o un error de la capa, que hay que revisar a mano.
+
+## Ajuste decidido el 11-nov-2026 (opción 2: criterio legal y físico, no ajustado a los data centers)
+Primera versión: cualquier recinto OSM (o su franja) condicionaba, y la exclusión se aplicaba desde el 50 %. Así quedaban condicionados 41 de los 131 data centers reales de España, casi todos junto a cuarteles urbanos pequeños.
+
+**Cambio.** La franja y el bloqueo de la etiqueta Candidata solo cuentan para **instalaciones con entidad**: `military=base|airfield|naval_base|range|training_area|ammunition`, o recintos sin tipo de **5 ha o más** (SUPUESTO). Los recintos menores solo generan un **aviso** (`militar_menor`). La exclusión pasa a **≥ 90 %** de la celda, como la regla de agua del equipo.
+
+| | España antes → después | Japón antes → después |
+|---|---|---|
+| Polígonos con entidad / total | — / 1.236 → 433 / 1.236 | — / 670 → 398 / 670 |
+| Celdas excluidas | 45 → 13 | 47 → 10 |
+| Celdas condicionadas (no pueden ser Candidata) | 1.053 → 608 | 997 → 954 |
+| Celdas con solo aviso | — → 477 | — → 80 |
+| Data centers reales excluidos | 0 → 0 | 1 → 0 (Ginoza/Nago, Okinawa: ahora condicionado) |
+| Data centers reales condicionados | 41 → 29 (+12 con aviso) | 14 → 14 (+1 con aviso) |
+
+- **España:** los 29 condicionados están junto a instalaciones con entidad (bases aéreas de Getafe y Torrejón, Cádiz, Ceuta, Mahón…): es plausible que requieran una consulta a Defensa.
+- **Japón:** muchos data centers de Tokio quedan a menos de 1.000 m de instalaciones de las Fuerzas de Autodefensa o de EE. UU. La franja es un proxy de 注視区域 y la ficha dice «designación no verificada».
+- Los umbrales (5 ha, 90 %, 500 m y 1.000 m) siguen siendo SUPUESTOS hasta disponer de las delimitaciones oficiales.

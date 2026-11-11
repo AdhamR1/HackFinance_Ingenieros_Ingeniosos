@@ -39,3 +39,8 @@ Huella de España **antes**: `salida_celdas.csv` = `d0d8fa52d92c8305`. Después 
 - Resultado: 0 Candidatas, 621 Dudosas, 30.041 No viables, 117 No evaluables. Ver `docs/MEJORAS_MODELO.md` y `docs/SENTIDO_RESULTADOS.md`.
 - Capas omitidas por falta de datos (cobertura 0): `agua`, `corredor_fibra`, `estres_hidrico`, `inundacion`, `control_urbanizacion` y `sedimentos` (las dos últimas, PENDIENTES de MLIT).
 - La cobertura de todas las celdas queda en 0,82 < 0,85: **ninguna celda puede ser Candidata** y el mapa arranca en «Ordenación provisional (datos incompletos)».
+
+### Ajuste de la regla militar (opción 2, decidida con el usuario el 11-nov-2026)
+- Solo las instalaciones con entidad generan franja y bloqueo; la exclusión pasa a ≥ 90 %. Detalle en `AUDITORIA_BASES_MILITARES.md`.
+- **Estado final de España:** **3.219 Candidatas**, 4.125 Dudosas, 33.951 No viables, 1 No evaluable. Frente a la tabla anterior: +83 Candidatas que la versión primera bloqueaba solo por recintos menores.
+- **Japón:** 0 Candidatas, 624 Dudosas, 30.032 No viables, 123 No evaluables.

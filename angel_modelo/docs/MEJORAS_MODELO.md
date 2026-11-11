@@ -14,7 +14,7 @@ Regla 13: los data centers reales solo **validan**; no fijan pesos ni exclusione
 | PR-AUC logística 2 variables | 0,286 | 0,257 [0,16–0,36] | Sigue siendo la referencia más fuerte |
 | PR-AUC réplica del modelo del equipo | 0,188 | 0,157 [0,10–0,21] | P(gana a ambos) = 0 → **no entra al mapa** |
 | Estabilidad de Candidatas | 42 % estables con pesos ±50 % (100 sorteos) | **78 %** estables con pesos ±30 % (40 sorteos) | Métricas distintas: la de ahora es la que pide la tarea |
-| Candidatas | 3.393 (8,2 %) | **3.136 (7,6 %)** | Dentro del rango razonable configurado [1, 15] % |
+| Candidatas | 3.393 (8,2 %) | **3.219 (7,8 %)** | Dentro del rango razonable configurado [1, 15] % |
 
 ## b) Sesgo «ciudad o polígono industrial»
 - `industrial_pct` es un criterio positivo con peso acotado (10 de 100). `urbano_pct` alto **penaliza** (≥ 50 %: −5) y **bloquea** la etiqueta Candidata (≥ 80 %, regla nueva `urbano_centro`); nunca suma.
@@ -75,3 +75,11 @@ Ver `docs/SENTIDO_RESULTADOS.md`. La suite encontró 2 Candidatas en embalses (5
   - la capacidad de la rúbrica para «encontrar» los DC actuales, que no es su objetivo;
   - el modelo, que sigue sin superar a la regla de 2 variables.
 - **Limitación principal:** faltan capas decisivas (capacidad de red por nudo, fibra, suelo disponible y, en Japón, las capas legales de MLIT). Ninguna mejora de pesos compensa datos que no hay.
+
+## Tras el ajuste de la regla militar (opción 2)
+Métricas de la rúbrica en España (validación por provincias, solo informativas; no se usaron para decidir):
+- PR-AUC 0,025 → **0,027**;
+- AUC 0,83 → **0,85**;
+- DC en el 5 % mejor 43 % → **47 %**.
+
+La estabilidad de las Candidatas con pesos ±30 % se mantiene en el **78 %**.

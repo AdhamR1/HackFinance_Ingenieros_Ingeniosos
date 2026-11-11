@@ -2,19 +2,19 @@
 
 Comprobaciones automáticas por país (fallos = 0 en 1, 2 y 4). Ejecuta `actualizar.py sentido` para regenerarlo.
 
-## ES · 41,296 celdas · Candidatas 3136 (7.59 %)
-- Estados: {'No viable': 34069, 'Dudosa': 4090, 'Candidata': 3136, 'No evaluable': 1}
+## ES · 41,296 celdas · Candidatas 3219 (7.79 %)
+- Estados: {'No viable': 33951, 'Dudosa': 4125, 'Candidata': 3219, 'No evaluable': 1}
 - (1) Candidatas con exclusión activa: **0**
 - (2) Candidatas en agua dominante o centro urbano denso: **0**
 - (3) Monotonía: probada en tests/test_sentido.py (empeorar un criterio nunca sube la nota)
 - (4) NaN inesperados: **0**
 - (5) % Candidatas en el rango [1, 15]: sí
-- (6) Estabilidad con pesos ±30 % (Candidatas que lo siguen siendo en ≥ 90 % de 40 sorteos): 77.7 %
+- (6) Estabilidad con pesos ±30 % (Candidatas que lo siguen siendo en ≥ 90 % de 40 sorteos): 77.9 %
 - Revisión: 100 celdas (20 mejores de 5 divisiones); sospechosas: 0 · {}
   (lista completa en salida/es/top20_divisiones.csv)
 
 ## JP · 30,779 celdas · Candidatas 0 (0.0 %)
-- Estados: {'No viable': 30041, 'Dudosa': 621, 'No evaluable': 117}
+- Estados: {'No viable': 30032, 'Dudosa': 624, 'No evaluable': 123}
 - (1) Candidatas con exclusión activa: **0**
 - (2) Candidatas en agua dominante o centro urbano denso: **0**
 - (3) Monotonía: probada en tests/test_sentido.py (empeorar un criterio nunca sube la nota)
