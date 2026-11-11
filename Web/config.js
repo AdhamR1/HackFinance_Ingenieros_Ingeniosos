@@ -44,8 +44,9 @@ export const CONFIG = {
   // ("var_<clave>") y, si se quiere, su dibujo en js/iconos.js.
   variables: [
     { clave: 'energia',      color: '#f5b301' }, // ámbar
-    { clave: 'agua',         color: '#38bdf8' }, // azul
-    { clave: 'clima',        color: '#fb7185' }, // rosa
+    // 'agua' quitada: no entra en la nota del modelo y "100/100 con agua 0" parecía un error.
+    // El estrés hídrico sale como punto en contra cuando es alto (lo trae el archivo de datos).
+    { clave: 'clima',       color: '#fb7185' }, // rosa
     { clave: 'riesgos',      color: '#fb923c', ayuda: true }, // naranja; "ayuda" = muestra "(100 = poco riesgo)"
     { clave: 'conectividad', color: '#a78bfa' }, // violeta
     { clave: 'suelo',        color: '#d6a46b' }, // marrón tierra

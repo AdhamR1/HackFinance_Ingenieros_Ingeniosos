@@ -9,11 +9,17 @@ outline of the country the web uses, so no value is resampled between grids.
 
   puntuacion   model rank mapped to the web colours (config.js umbrales: verde >= 70,
                amarillo >= 50): best 5 % -> 70-100, next 15 % -> 50-69, rest -> 0-49.
+               The rank is smoothed with the 8 neighbours (SMOOTH_W): cell borders are arbitrary
+               and one industrial estate should not make two adjacent squares 95 vs 20 apart
+               (tested: spatial AUC 0.945 -> 0.938, neighbour jumps > 50 points 4.9 % -> 2.0 %).
                0 when excluded. Cells of dense urban land (>= urban_cap_pct) stay at most yellow.
-  descartado   exclusions_<tag>_3500 (only what is forbidden: water, national park, floodway)
+  descartado   exclusions_<tag>_3500 (only what is forbidden: water, national park, floodway), and
+               here also ANY part of a national park (the model files keep the 50 % rule)
   permisos     the warnings of feat_suelo.WARN_PCT (information only, the colour does not change)
   motivos_*    the 3 variables that weigh most in THIS cell (SHAP, from scores_<tag>_3500.reasons),
-               in words; a reason that contradicts the plain reading of its value is dropped
+               in words; a reason that contradicts the plain reading of its value is dropped, and
+               so are correlations that are not a reason (NOT_A_REASON) and the wrong side of
+               ONE_SIDE (people within 1 km only count against, within 10 km only in favour)
   6 variables  0-100, 100 = best, compared with the rest of the country. Informative: the score
                does NOT come from them (it comes from the model), so the web needs no weights.
 
@@ -99,6 +105,14 @@ DESCARTE = {
 # Built-up city land is not forbidden but needs rezoning, which the model cannot see (it rates city
 # centres high: substations, roads and fibre all around). Such cells stay at most yellow.
 URBAN_CAP_SCORE = 69
+SMOOTH_W = 0.3  # weight of the mean of the 3 x 3 neighbourhood in the web score
+# The model uses them (they correlate with where data centers are) but they are not a reason a
+# person would accept: "military area 3 km away" or "national park 5 km away" as a point in favour.
+NOT_A_REASON = {"dist_military_km", "dist_parque_nacional_km", "dist_protected_area_km",
+                "dist_residential_km"}
+# Only one side reads well: people right next to it (noise, permits, opposition) vs a city near
+# enough for staff and customers.
+ONE_SIDE = {"population_1km": "contra", "population_10km": "favor"}
 
 
 def num(v, d=1):
@@ -152,8 +166,16 @@ TEXT = {
         "Industrial land: {pct} % of the area",
     ),
     "urbano_pct": (0, "Suelo urbano: {pct} % de la zona", "Urban land: {pct} % of the area"),
-    "population_1km": (0, "{n} habitantes a menos de 1 km", "{n} people within 1 km"),
-    "population_10km": (0, "{n} habitantes a menos de 10 km", "{n} people within 10 km"),
+    "population_1km": (
+        -1,
+        "Zona habitada alrededor: {n} habitantes a menos de 1 km",
+        "Populated surroundings: {n} people within 1 km",
+    ),
+    "population_10km": (
+        1,
+        "Ciudad cerca: {n} habitantes a menos de 10 km",
+        "City nearby: {n} people within 10 km",
+    ),
     "dist_residential_km": (0, "Viviendas a {km} km", "Housing {km} km away"),
     "dist_military_km": (0, "Zona militar a {km} km", "Military area {km} km away"),
     "dist_mine_quarry_km": (0, "Mina o cantera a {km} km", "Mine or quarry {km} km away"),
@@ -228,9 +250,11 @@ def motivos(reasons: str, med: dict) -> tuple[list, list]:
             continue
         feat, rest = r.split("=", 1)
         val, sign = rest.rsplit(" (", 1)
-        if feat not in TEXT or val == "nan":
+        if feat not in TEXT or feat in NOT_A_REASON or val == "nan":
             continue
         v, plus = float(val), sign.startswith("+")
+        if ONE_SIDE.get(feat, "favor" if plus else "contra") != ("favor" if plus else "contra"):
+            continue
         good = TEXT[feat][0]
         # e.g. "substation 0.8 km away" as a point against, or "0 % industrial land" as a point
         # in favour: a value no better than the typical cell only reads well as a point against
@@ -265,8 +289,8 @@ def indicators(f: pd.DataFrame, agua: pd.DataFrame | None) -> pd.DataFrame:
             "gen_capacity_50km_mw": True,
         },
     )
-    stress = agua.water_stress.reindex(f.index) if agua is not None else np.nan
-    i["agua"] = 100 - stress * 20  # Aqueduct 0 (low) - 5 (extreme)
+    # No "agua" bar: water does not enter the score, and "100/100 with water 0" read as a bug. Water
+    # stress stays as a point against (main(), Aqueduct >= 4).
     i["clima"] = pr(f.est_pue, False)
     # flood: official 500-year zone where it exists (Spain), the JRC 500-year depth elsewhere
     flood = (
@@ -280,6 +304,21 @@ def indicators(f: pd.DataFrame, agua: pd.DataFrame | None) -> pd.DataFrame:
     )
     i["suelo"] = 0.7 * pr(f.slope_pct, False) + 0.3 * (f.industrial_pct * 5).clip(0, 100)
     return i.round()
+
+
+def smooth(pct: pd.Series, grid: pd.DataFrame) -> pd.Series:
+    """(1 - SMOOTH_W) * own percentile + SMOOTH_W * mean of the 3 x 3 neighbourhood, ranked again
+    as a percentile. grid: site_id index with columns i, j."""
+    by_ij = pd.Series(pct.values, index=pd.MultiIndex.from_arrays([grid.i, grid.j]))
+    acc, n = np.zeros(len(grid)), np.zeros(len(grid))
+    for di in (-1, 0, 1):
+        for dj in (-1, 0, 1):
+            v = by_ij.reindex(pd.MultiIndex.from_arrays([grid.i + di, grid.j + dj])).to_numpy()
+            ok = ~np.isnan(v)
+            acc[ok] += v[ok]
+            n[ok] += 1
+    mixed = (1 - SMOOTH_W) * pct.to_numpy() + SMOOTH_W * acc / np.maximum(n, 1)
+    return pd.Series(mixed, index=pct.index).rank(pct=True) * 100
 
 
 def web_score(pct: pd.Series) -> pd.Series:
@@ -397,7 +436,7 @@ def main():
     if agua is None:
         print(f"  falta {out_file('agua').name} (src/agua.py): sin indicador ni aviso de agua")
     ind = indicators(f, agua)
-    score = web_score(s.score_pct)
+    score = web_score(smooth(s.score_pct, grid))
     med = {c: f[c].median() for c in TEXT if c in f}
     pct = e
     warn = {c: lim for c, lim in WARN_PCT.items() if f"{c}_pct" in pct}
@@ -414,6 +453,14 @@ def main():
         if g.is_empty or area[k] < 0.01:
             continue
         excl = bool(e.excluded.get(sid, False))
+        motivo = DESCARTE.get(e.motivo_descarte.get(sid)) if excl else None
+        park = pct.at[sid, "parque_nacional_pct"] if "parque_nacional_pct" in pct else 0
+        if not excl and (park or 0) > 0:  # any part of a national park: out
+            excl, share = True, f"{park:.0f} %" if park >= 1 else "menos del 1 %"
+            motivo = {
+                "es": f"Parte de la zona está dentro de un Parque Nacional ({share})",
+                "en": f"Part of the area is inside a National Park ({share.replace('menos del', 'under')})",
+            }
         permisos = [PERMISO[c] for c, lim in warn.items() if (pct.at[sid, f"{c}_pct"] or 0) >= lim]
         favor, contra = ([], []) if excl else motivos(s.reasons.get(sid), med)
         if not excl and stress.get(sid, 0) >= 4:
@@ -443,7 +490,7 @@ def main():
             # 0 when excluded: with null the web would make up a provisional score
             "puntuacion": 0 if excl else nota,
             "descartado": excl,
-            "motivo_descarte": DESCARTE.get(e.motivo_descarte.get(sid)) if excl else None,
+            "motivo_descarte": motivo,
             **{c: (None if pd.isna(ind.at[sid, c]) else int(ind.at[sid, c])) for c in ind.columns},
             "permisos": permisos,
             "area_km2": round(float(area[k]), 2),
