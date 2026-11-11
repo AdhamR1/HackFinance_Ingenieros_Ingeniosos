@@ -57,7 +57,7 @@ try {
     }
     const png = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(shot, Buffer.from(png.result.data, 'base64'));
-    const ok = problems.length === 0 && (!process.env.EXIGE_ENLACE || (enlace && celdas > 30000));
+    const ok = problems.length === 0 && (!process.env.EXIGE_ENLACE || (enlace && celdas > 0));
     console.log(JSON.stringify({ ok, titulo, enlace_mapa: enlace, celdas_mapa_integrado: celdas, url_final: await evalJS('location.href'), problemas: problems, captura: shot }, null, 1));
     process.exitCode = ok ? 0 : 1;
     throw 'fin';
@@ -89,8 +89,8 @@ try {
   await evalJS("document.querySelector('#sobre').close()");
   const png = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(shot, Buffer.from(png.result.data, 'base64'));
-  const ok = problems.length === 0 && n > 30000 && tCarga > 0 && tCarga < 3000 && (process.env.SIN_CLIC || (ficha.startsWith('Celda ESP_') && filas >= 10 && explicacion.length > 80 && sobre.includes('PR-AUC')));
-  console.log(JSON.stringify({ ok, celdas_dibujadas: n, ms_desde_navegacion_hasta_dibujar: tCarga, ficha, filas_datos: filas, explicacion: explicacion.slice(0, 120), hash, sobre_el_modelo: sobre.slice(0, 90), problemas: problems, captura: shot }, null, 1));
+  const ok = problems.length === 0 && n > 0 && tCarga > 0 && tCarga < 3000 && (process.env.SIN_CLIC || (/^Celda [A-Z]{3}_/.test(ficha) && filas >= 10 && explicacion.length > 80 && sobre.includes('PR-AUC')));
+  console.log(JSON.stringify({ ok, celdas_dibujadas: n, ms_desde_navegacion_hasta_dibujar: tCarga, ficha, filas_datos: filas, explicacion: explicacion.slice(0, 120), hash, sobre_el_modelo: sobre.includes('PR-AUC') ? sobre.slice(0, 90) : sobre.slice(0, 600), problemas: problems, captura: shot }, null, 1));
   process.exitCode = ok ? 0 : 1;
 } catch (e) {
   if (e !== 'fin') { console.error(e); process.exitCode = 1; }

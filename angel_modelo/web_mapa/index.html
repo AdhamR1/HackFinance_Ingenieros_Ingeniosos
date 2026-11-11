@@ -12,7 +12,7 @@
 <body>
   <a class="skip" href="#panel">Saltar a los controles</a>
   <header class="top">
-    <h1>Cribado de emplazamientos para data centers <span class="sub">España · celdas de 3,5 km</span></h1>
+    <h1>Cribado de emplazamientos para data centers <span class="sub" id="subtitulo">celdas de 3,5 km</span></h1>
     <a id="volver" class="volver" href="../" hidden>← Volver a Can I Build Here?</a>
     <p class="aviso" role="note"><strong>Cribado inicial.</strong> No es un estudio geotécnico ni una clasificación urbanística. La puntuación es una ordenación, no una probabilidad.</p>
   </header>
@@ -21,6 +21,9 @@
     <aside id="panel" class="panel" aria-label="Controles del mapa">
       <details open class="bloque" id="bloque-controles">
         <summary>Filtros y vista</summary>
+
+        <label class="campo" for="f-pais">País</label>
+        <select id="f-pais"></select>
 
         <fieldset>
           <legend>Vista</legend>
@@ -34,13 +37,15 @@
           <!-- se rellena desde app.js con contador y muestra -->
         </fieldset>
 
-        <label class="campo" for="f-prov">Provincia</label>
+        <label class="campo" for="f-prov" id="lbl-prov">Provincia</label>
         <select id="f-prov"><option value="-1">Todas</option></select>
 
         <label class="campo" for="f-conf">Confianza mínima (parte del peso con datos): <output id="o-conf" for="f-conf">0 %</output></label>
         <input type="range" id="f-conf" min="0" max="100" step="5" value="0">
 
         <label class="check"><input type="checkbox" id="f-dc" checked> Mostrar data centers reales</label>
+        <label class="check"><input type="checkbox" id="f-mil"> Instalaciones militares</label>
+        <p class="nota" id="nota-mil"></p>
       </details>
 
       <details open class="bloque">
@@ -77,9 +82,9 @@
   </main>
 
   <footer class="pie">
-    <p>Datos: © colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) (también el mapa base) ·
+    <p>Datos: © colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) (también el mapa base) · <span id="atribucion">
       CORINE Land Cover 2018 y Natura 2000 (Copernicus / EEA) · SNCZI (MITECO) · PGA 475 años (IGN) · E-OBS · Copernicus DEM ·
-      data centers: datacentermap.com, OSM y PeeringDB · <a href="https://leafletjs.com">Leaflet</a> (BSD-2).</p>
+      data centers: datacentermap.com, OSM y PeeringDB</span> · <a href="https://leafletjs.com">Leaflet</a> (BSD-2).</p>
     <p>Fecha y huella de los datos: <span id="fecha">—</span>. Proyecto HackFinance UC3M 2026 · equipo Ingenieros Ingeniosos.</p>
   </footer>
 

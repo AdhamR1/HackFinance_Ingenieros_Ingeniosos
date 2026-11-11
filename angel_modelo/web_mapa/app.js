@@ -1,5 +1,6 @@
 /* Mapa de cribado de data centers (España, celdas de 3,5 km).
- * Sin claves ni dependencias de servidor: lee data/*.json generados por angel_modelo/src/exportacion.py.
+ * Sin claves ni dependencias de servidor: lee data/paises.json y data/<pais>/*.json (generados por angel_modelo/src/exportacion.py).
+ * Solo se descarga el país elegido (#pais=es | #pais=jp).
  * Las ~41.000 celdas se pintan en un único <canvas> (mucho más rápido que 41.000 polígonos SVG).
  */
 (() => {
@@ -28,13 +29,18 @@
   const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
   // ---------------------------------------------------------------- estado de la app
-  const st = { vista: 'estado', estados: [true, true, true, true], prov: -1, conf: 0, dc: true, sel: -1 };
+  const st = { vista: 'estado', estados: [true, true, true, true], prov: -1, conf: 0, dc: true, mil: false, sel: -1 };
+  let PAIS = 'es', BASE = 'data/es/', PAISES = {}, MIL = null;
   let D, C, N, nLat, nLon, nodesOf, cLat, cLon, buckets, byIJ, DC = null;
   const provCache = new Map();
   let map, canvas, ctx, dpr = 1, px = null, pxZoom = null, patterns = {}, raf = 0;
 
   // ---------------------------------------------------------------- carga
   async function init() {
+    PAISES = await fetch('data/paises.json').then((r) => r.json()).catch(() => ({ es: { nombre: 'España' } }));
+    const pedido = new URLSearchParams(location.hash.slice(1)).get('pais');
+    PAIS = PAISES[pedido] ? pedido : (PAISES.es ? 'es' : Object.keys(PAISES)[0]);
+    BASE = `data/${PAIS}/`;
     map = L.map('map', { preferCanvas: true, zoomControl: true, minZoom: 5, maxZoom: 14, keyboard: true })
       .setView([40.2, -3.7], 6);
     // Teselas estándar de OpenStreetMap (política de uso: tráfico bajo y atribución visible).
@@ -46,17 +52,21 @@
 
     const t0 = performance.now();
     const [d, dc] = await Promise.all([
-      fetch('data/celdas.json').then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch('data/dc.json').then((r) => r.json()).catch(() => null),
+      fetch(BASE + 'celdas.json').then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(BASE + 'dc.json').then((r) => r.json()).catch(() => null),
     ]);
     performance.mark('datos');
-    D = d; C = d.cells; DC = dc; N = C.i.length;
+    D = d; C = d.cells; DC = dc; N = C.e.length;
+    const lim = (PAISES[PAIS] || {}).limites;
+    if (lim) map.fitBounds([[lim[0][1], lim[0][0]], [lim[1][1], lim[1][0]]], { animate: false });
     buildGeometry();
     performance.mark('geometria');
     setupCanvas();
     performance.mark('canvas');
     setupUI();
     performance.mark('ui');
+    $('#subtitulo').textContent = `${D.meta.nombre_pais} · celdas de 3,5 km`;
+    if (D.meta.atribucion) $('#atribucion').textContent = D.meta.atribucion;
     $('#fecha').textContent = `${D.meta.fecha_datos} · huella ${D.meta.huella.esquema}/${D.meta.huella.filas}`;
     avisosDatos();
     $('#cargando').hidden = true;
@@ -116,17 +126,17 @@
     if (m.datos_cambiados) partes.push('Los datos han cambiado respecto a la versión publicada anterior (ver informe de datos).');
     if (m.capas_omitidas && m.capas_omitidas.length) partes.push(`Capas omitidas por falta de datos: ${m.capas_omitidas.join(', ')}.`);
     if (!partes.length) return;
-    box.replaceChildren(el('strong', { text: 'Aviso de datos. ' }), partes.join(' '), ' ',
-      el('a', { href: 'data/informe_datos.md', text: 'Informe de datos' }));
+    box.append(el('strong', { text: 'Aviso de datos. ' }), partes.join(' '), ' ',
+      el('a', { href: BASE + 'informe_datos.md', text: 'Informe de datos' }));
     box.hidden = false;
   }
 
   const idToCell = (id) => {
     if (C.ids) { const k = C.ids.indexOf(id); return k; }
-    const m = /^ESP_(-?\d+)_(-?\d+)$/.exec(id || '');
+    const m = /^[A-Z]{3}_(-?\d+)_(-?\d+)$/.exec(id || '');
     return m ? (byIJ.get(+m[1] * 10000 + +m[2]) ?? -1) : -1;
   };
-  const cellId = (k) => (C.ids ? C.ids[k] : `ESP_${C.i[k]}_${C.j[k]}`);
+  const cellId = (k) => (C.ids ? C.ids[k] : `${D.meta.pais}_${C.i[k]}_${C.j[k]}`);
 
   // ---------------------------------------------------------------- canvas
   function setupCanvas() {
@@ -230,6 +240,7 @@
     if (!canvas.dataset.ms) performance.mark('primer_dibujo');
     if (!canvas.dataset.ms) canvas.dataset.ms = Math.round(performance.now());  // ms desde la navegación
     canvas.dataset.tam = `${canvas.width}x${canvas.height}`;
+    if (st.mil && MIL) drawMil(z, ox, oy);
     if (st.dc && DC) drawDC(z, ox, oy);
     if (st.sel >= 0) {
       ctx.beginPath(); path(st.sel, ox, oy);
@@ -253,6 +264,21 @@
       if (q === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.closePath();
+  }
+  // Instalaciones militares (huella OSM): relleno oscuro semitransparente + contorno
+  function drawMil(z, ox, oy) {
+    ctx.beginPath();
+    for (const poly of MIL) for (const ring of poly) {
+      ring.forEach(([lon, lat], q) => { const p = project(lat, lon, z); if (q) ctx.lineTo(p[0] - ox, p[1] - oy); else ctx.moveTo(p[0] - ox, p[1] - oy); });
+      ctx.closePath();
+    }
+    ctx.globalAlpha = 0.45; ctx.fillStyle = '#4b0000'; ctx.fill();
+    ctx.globalAlpha = 1; ctx.lineWidth = 1.2; ctx.strokeStyle = '#000'; ctx.stroke();
+  }
+  async function cargarMil() {
+    if (MIL) return;
+    const g = await fetch(BASE + 'militar.geojson').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    MIL = g ? g.features.map((f) => f.geometry.coordinates.map((pol) => pol[0])) : [];
   }
   function drawDC(z, ox, oy) {
     const r = z >= 9 ? 6 : z >= 7 ? 4.5 : 3.2;
@@ -304,14 +330,33 @@
     const fc = $('#f-conf');
     fc.addEventListener('input', () => { st.conf = +fc.value; $('#o-conf').textContent = fc.value + ' %'; refresh(); });
     $('#f-dc').addEventListener('change', (e) => { st.dc = e.target.checked; schedule(); legend(); });
+    $('#f-mil').addEventListener('change', async (e) => { st.mil = e.target.checked; if (st.mil) await cargarMil(); schedule(); legend(); });
+    const sel = $('#f-pais');
+    for (const [k, v] of Object.entries(PAISES)) sel.append(el('option', { value: k, text: v.nombre }));
+    sel.value = PAIS;
+    sel.addEventListener('change', () => { location.hash = `pais=${sel.value}`; location.reload(); });
+    $('#lbl-prov').textContent = D.meta.division ? D.meta.division[0].toUpperCase() + D.meta.division.slice(1) : 'Provincia';
+    const m = D.meta.militar || {};
+    $('#nota-mil').textContent = m.estado === 'ok'
+      ? `Huella de OpenStreetMap (${m.poligonos} polígonos, ${m.fecha_descarga}). Puede estar incompleta y NO es el perímetro legal.`
+      : 'Capa militar no disponible: la restricción militar NO está verificada.';
     document.querySelectorAll('input[name=vista]').forEach((r) => r.addEventListener('change', () => {
       st.vista = r.value; $('#nota-orden').hidden = st.vista !== 'orden'; refresh();
     }));
     $('#buscar').addEventListener('submit', (e) => { e.preventDefault(); search($('#q').value); });
     $('#btn-sobre').addEventListener('click', openAbout);
     // Si casi todo es "No evaluable", empieza en la ordenación provisional
-    const noev = C.e.filter((e) => e === 3).length;
-    if (noev > 0.5 * N) { document.querySelector('input[value=orden]').click(); }
+    // Datos incompletos: si la mayoría de celdas no es evaluable o tiene confianza baja (< 85 % del peso con datos),
+    // se arranca en la ordenación provisional y se avisa.
+    const noev = C.e.filter((e) => e === 3).length, baja = C.c.filter((c) => c < 85).length;
+    if (noev > 0.5 * N || baja > 0.5 * N) {
+      document.querySelector('input[value=orden]').click();
+      const box = $('#aviso-datos');
+      box.append(el('p', {}, el('strong', { text: 'Ordenación provisional (datos incompletos). ' }),
+        `En ${D.meta.nombre_pais} faltan capas para evaluar con confianza (${(D.meta.capas_omitidas || []).join(', ')}): ` +
+        'ninguna celda puede ser Candidata; se muestra solo la ordenación.'));
+      box.hidden = false;
+    }
     if (window.matchMedia('(max-width: 720px)').matches) $('#leyenda').classList.add('plegada');
     legend(); counts(); updateTop();
   }
@@ -342,6 +387,7 @@
       el('div', {}, el('span', { class: 'sw excl' }), 'Excluida'),
       el('p', { class: 'nota', text: 'Ordenación provisional, no probabilidad.' }));
     }
+    if (st.mil) lg.append(el('div', {}, el('span', { class: 'sw mil' }), 'Instalación militar (OSM)'));
     if (st.dc) {
       lg.append(el('div', {}, el('span', { class: 'sw dc' }), 'Data center (datacentermap)'),
         el('div', {}, el('span', { class: 'sw dc', style: 'border-radius:0' }), 'Celda con DC (OSM/PeeringDB)'));
@@ -375,13 +421,13 @@
 
   // ---------------------------------------------------------------- ficha
   async function loadProv(p) {
-    if (!provCache.has(p)) provCache.set(p, fetch(`data/prov/${p}.json`).then((r) => r.json()));
+    if (!provCache.has(p)) provCache.set(p, fetch(`${BASE}prov/${p}.json`).then((r) => r.json()));
     return provCache.get(p);
   }
 
   async function select(k, fly = false) {
     st.sel = k; schedule();
-    history.replaceState(null, '', '#celda=' + cellId(k));
+    history.replaceState(null, '', `#pais=${PAIS}&celda=${cellId(k)}`);
     if (fly) map.flyTo([cLat[k], cLon[k]], Math.max(map.getZoom(), 10), { duration: 0.6 });
     const f = $('#ficha'); f.replaceChildren(el('p', { text: 'Cargando ficha…' }));
     const P = await loadProv(C.p[k]);
@@ -409,11 +455,11 @@
         D.estados[e] + (C.x[k] ? ' (excluida)' : ''))),
       el('div', { class: 'kpis' },
         el('div', { class: 'kpi' }, el('b', { text: C.s[k] >= 0 ? `P${C.s[k]}` : '—' }),
-          el('span', { text: 'Percentil de ordenación (no es probabilidad)' })),
+          el('span', { text: `Percentil dentro de ${D.meta.nombre_pais || 'el país'} (no es probabilidad)` })),
         el('div', { class: 'kpi' }, el('b', { text: `${C.n[k]}/100` }), el('span', { text: 'Nota de la rúbrica' })),
         el('div', { class: 'kpi' }, el('b', { text: `${conf} %` }), el('span', { text: `Confianza ${nivel}: parte del peso con datos` })),
         el('div', { class: 'kpi' }, el('b', { text: `${fmt(P.media_nota, 1)}` }),
-          el('span', { text: `Nota media en ${P.provincia} (España ${fmt(P.media_nota_espana, 1)})` }))),
+          el('span', { text: `Nota media en ${P.provincia} (${D.meta.nombre_pais} ${fmt(P.media_nota_espana, 1)})` }))),
     );
 
     const mot = [0, 1, 2].map((q) => C.m[k * 3 + q]).filter((c) => c >= 0);
@@ -424,6 +470,17 @@
     f.append(el('h3', { text: 'Exclusiones aplicadas' }),
       el('p', { text: det.excl ? det.excl.split(',').map((x) => x.replace(/_/g, ' ')).join(', ') : 'Ninguna' }));
 
+    const mm = D.meta.militar || {};
+    let milTxt = 'No verificado: la capa militar no está disponible para este país.';
+    if (mm.estado === 'ok' && det.mil) {
+      const [pct, dist, franja] = det.mil;
+      milTxt = pct == null ? 'No verificado (sin dato en esta celda).'
+        : (det.excl || '').split(',').includes('militar') ? `Excluida: ${fmt(pct, 0)} % de la celda es instalación militar.`
+          : franja === 1 ? `Condicionada: a ${fmt(dist, 2)} km de una instalación (${fmt(pct, 1)} % de la celda). Requiere autorización/comprobación (ver avisos).`
+            : `Sin efecto: instalación más cercana a ${fmt(dist, 1)} km.`;
+    }
+    f.append(el('h3', { text: 'Restricción militar' }), el('p', { text: milTxt }),
+      el('p', { class: 'nota', text: 'Fuente: OpenStreetMap (huella física; puede estar incompleta y no es el perímetro legal).' }));
     f.append(el('h3', { text: 'Data center real en la celda' }),
       el('p', { text: det.dc_fuente ? `Sí (${det.dc_fuente})${det.dc ? ': ' + det.dc : ''}` : 'No consta' }));
 
@@ -536,7 +593,7 @@
     const dlg = $('#sobre'), body = $('#sobre-body');
     dlg.showModal();
     try {
-      const M = await fetch('data/metricas.json').then((r) => r.json());
+      const M = await fetch(BASE + 'metricas.json').then((r) => r.json());
       const R = M.resultados.dc_real;
       const nombre = { rubrica: 'Rúbrica (no entrenada)', logistica_2_variables: 'Regresión logística: % urbano + % industrial',
         modelo_equipo_replica: 'Modelo del equipo (réplica, gradient boosting)', aleatorio: 'Azar (referencia)' };
@@ -562,13 +619,14 @@
         el('p', { class: 'nota', text: `Calibración del modelo: en su 10 % superior predice ${fmt(100 * cal.decil_superior_prob_media, 1)} % y la tasa real es ${fmt(100 * cal.decil_superior_tasa_real, 1)} %. Por eso ninguna nota se presenta como probabilidad.` }),
         el('p', { class: 'nota', text: 'La rúbrica no se diseñó para encontrar los data centers existentes, sino para puntuar condiciones de construcción; aun así ninguna exclusión deja fuera un data center real.' }),
         el('h3', { text: 'Lo que no se ha medido' }), el('ul', {}, ...M.lo_que_no_se_ha_medido.map((t) => el('li', { text: t }))),
-        el('h3', { text: 'Capas que faltan' }), el('ul', {}, ...D.meta.capas_no_disponibles.map((t) => el('li', { text: t }))),
+        el('h3', { text: 'Capas que faltan y limitaciones' }), el('ul', {}, ...D.meta.capas_no_disponibles.concat(D.meta.limitaciones || []).map((t) => el('li', { text: t }))),
+        el('p', { class: 'nota', text: `El percentil se calcula dentro de ${D.meta.nombre_pais}; no se compara entre países (para comparar, usa la nota absoluta 0-100).` }),
         el('h3', { text: 'Pesos de la rúbrica' }),
         el('ul', {}, ...D.criterios.map((c) => el('li', { text: `${c.etiqueta}: ${c.peso}` }))),
         el('p', { class: 'nota', text: `Métricas calculadas con los datos de huella ${M.huella_datos ? M.huella_datos.esquema + '/' + M.huella_datos.filas : '—'}` +
           (M.huella_datos && M.huella_datos.filas !== D.meta.huella.filas ? ' (OJO: no son los datos actuales).' : ' (los datos actuales).') }));
     } catch (err) {
-      body.textContent = 'No se pudieron cargar las métricas (data/metricas.json).';
+      body.textContent = 'No se pudieron cargar las métricas (metricas.json).';
     }
   }
 

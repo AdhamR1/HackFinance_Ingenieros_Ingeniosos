@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 import rubrica as R
-from configuracion import columnas, ruta, salida
+from configuracion import columnas, crs_rejilla, perfil, ruta, salida, web_datos
 
 MAX_MB = 10
 
@@ -56,7 +56,7 @@ def _geometria(df, idc, lonc, latc, avisos):
         from pyproj import Transformer
 
         ij = m.astype(int).to_numpy()
-        t = Transformer.from_crs(cfg["rejilla"]["crs"], "EPSG:4326", always_xy=True)
+        t = Transformer.from_crs(crs_rejilla(), "EPSG:4326", always_xy=True)
         clon, clat = t.transform((ij[:, 0] + 0.5) * tam, (ij[:, 1] + 0.5) * tam)
         dm = np.hypot((np.asarray(clon) - df[lonc].to_numpy()) * 111320 * np.cos(np.radians(df[latc].to_numpy())),
                       (np.asarray(clat) - df[latc].to_numpy()) * 111320)
@@ -108,6 +108,12 @@ def _informe(info, capas, avisos_exp, met) -> str:
                      ("desaparecidas", "Columnas desaparecidas"), ("tipo_cambiado", "Tipo cambiado"),
                      ("rango_cambiado", "Rango cambiado"), ("cobertura_cambiada", "Cobertura cambiada")]:
             L.append(f"- {t}: {', '.join(c[k][:40]) if c[k] else 'ninguna'}" + (" …" if len(c[k]) > 40 else ""))
+    mil = info.get("militar", {})
+    L += ["", "## Capa militar (control)",
+          f"- Estado: {mil.get('estado', 'ausente')} · polígonos: {mil.get('poligonos', 0)} · área: {mil.get('area_km2', '—')} km² · "
+          f"fuente: {mil.get('fuente', '—')} ({mil.get('fecha_descarga', '—')})",
+          f"- Celdas con instalación: {mil.get('celdas_con_instalacion', 0)} · en franja: {mil.get('celdas_en_franja', 0)}",
+          "- Limitación: huella física de OpenStreetMap, NO el perímetro legal; puede estar incompleta."]
     L += ["", "## Capas de la rúbrica (activa = cobertura ≥ umbral configurado)", "",
           "| Capa | Tipo | Columna | Cobertura | Activa |", "|---|---|---|---|---|"]
     for k, v in capas["capas"].items():
@@ -137,7 +143,7 @@ def main():
     capas = json.loads((out_dir / "rubrica_capas.json").read_text(encoding="utf-8"))
     f_met = out_dir / "metricas.json"
     if not f_met.exists():
-        f_met = ruta("web") / "data" / "metricas.json"
+        f_met = web_datos() / "metricas.json"
     met = json.loads(f_met.read_text(encoding="utf-8")) if f_met.exists() else {"modelo_entra_al_mapa": False}
     assert (cells[idc].to_numpy() == rub[idc].to_numpy()).all(), "celdas y rúbrica desalineadas"
     df = pd.concat([cells, rub.drop(columns=idc)], axis=1)
@@ -178,6 +184,28 @@ def main():
         any(cambios.get(k) for k in ("nuevas", "desaparecidas", "tipo_cambiado", "rango_cambiado", "cobertura_cambiada"))
         or cambios.get("filas_antes") != cambios.get("filas_ahora"))
     inactivas = [k for k, v in capas["capas"].items() if not v["activa"]]
+    # ---------------------------------------------------------------- capa militar: control y capa del mapa
+    pf = perfil()
+    mil = json.loads((out_dir / "capa_militar.json").read_text(encoding="utf-8")) if (out_dir / "capa_militar.json").exists() \
+        else {"estado": "ausente"}
+    ant_f = web_datos() / "meta_militar.json"
+    mil_ant = json.loads(ant_f.read_text(encoding="utf-8")) if ant_f.exists() else {}
+    umbral_caida = pf.get("militar", {}).get("caida_alerta_pct", 20)
+    if mil.get("estado") == "ausente":
+        avisos.append("Capa militar AUSENTE: restricción militar no verificada (baja la confianza de todas las celdas).")
+    elif mil.get("estado") == "vacia" or not mil.get("poligonos"):
+        avisos.append("ALERTA: la capa militar ha llegado VACÍA (0 polígonos).")
+    elif mil_ant.get("poligonos") and mil["poligonos"] < mil_ant["poligonos"] * (1 - umbral_caida / 100):
+        avisos.append(f"ALERTA: la capa militar ha caído de {mil_ant['poligonos']} a {mil['poligonos']} polígonos "
+                      f"(más del {umbral_caida} %).")
+    from militar import archivo_capa
+
+    pct_cand = 100 * float((df.estado == "Candidata").mean()) if len(df) else 0
+    lo, hi = cfg["salida"].get("rango_candidatas_pct", [0, 100])
+    if not lo <= pct_cand <= hi:
+        avisos.append(f"Candidatas = {pct_cand:.1f} % de las celdas, fuera del rango razonable [{lo}, {hi}] %: "
+                      "revisar la rúbrica (¿demasiado laxa o estricta?).")
+
     meta = {
         "fecha_datos": _fecha_datos(), "huella": info["huella"], "celdas": len(df),
         "umbral_candidata": cfg["salida"]["umbral_candidata"], "margen_duda": cfg["salida"]["margen_duda"],
@@ -185,6 +213,12 @@ def main():
         "capas_omitidas": inactivas, "datos_cambiados": bool(hay_cambios),
         "resumen_cambios": {k: cambios.get(k) for k in ("nuevas", "desaparecidas", "tipo_cambiado")} if hay_cambios else {},
         "avisos": (info["avisos"] + avisos)[:20],
+        "pais": pf["pais"], "nombre_pais": pf.get("nombre", pf["pais"]), "division": pf.get("etiqueta_division", "provincia"),
+        "militar": {k: mil.get(k) for k in ("estado", "fuente", "licencia", "fecha_descarga", "poligonos", "area_km2",
+                                            "celdas_con_instalacion", "celdas_en_franja")},
+        "limitaciones": cfg.get("_limitaciones", []),
+        "atribucion": pf.get("atribucion", ""),
+        "pct_candidatas": round(pct_cand, 2),
     }
     cells_json = {
         "e": df.estado.map({e: k for k, e in enumerate(R.ESTADOS)}).astype(int).tolist(),
@@ -210,7 +244,8 @@ def main():
         main_json["medio_lado_lat"] = geo["medio_lado"][0]
 
     # ---------------------------------------------------------------- detalle por provincia
-    web = ruta("web") / "data"
+    web = web_datos()
+    web.mkdir(parents=True, exist_ok=True)
     (web / "prov").mkdir(parents=True, exist_ok=True)
     for old in (web / "prov").glob("*.json"):
         old.unlink()
@@ -239,7 +274,9 @@ def main():
                 "nota_modelo_equipo": None if pd.isna(r.get("equipo_score_pct", np.nan)) else round(float(r["equipo_score_pct"])),
                 "estado": r.estado, "score_pct": None if pd.isna(r.score_pct) else round(float(r.score_pct)),
                 "nota": round(float(r.score), 1), "cobertura": round(float(r.cobertura), 2),
-                "motivos": [cidx[c] for c in r.motivos.split("|") if c]}
+                "motivos": [cidx[c] for c in r.motivos.split("|") if c],
+                "mil": [None if pd.isna(r.get(c, np.nan)) else round(float(r[c]), 3)
+                        for c in ("militar_pct", "distancia_militar_km", "en_franja")]}
         (web / "prov" / f"{k}.json").write_text(json.dumps(det, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # ---------------------------------------------------------------- DC, métricas, esquema, informe
@@ -250,9 +287,10 @@ def main():
                            "lat": float(r["lat"]), "lon": float(r["lon"])} for _, r in dc.iterrows()],
                "celdas_osm": [[round(float(a), 4), round(float(b), 4)] for a, b in zip(osm[lonc], osm[latc])],
                "fuente": "datacentermap.com (geocodificado a mano) + OSM/PeeringDB (ELT)"}
+    info["militar"] = mil
     informe = _informe(info, capas, avisos, met)
     (out_dir / "informe_datos.md").write_text(informe, encoding="utf-8")
-    escritos = {
+    escritos = {  # (más meta_militar.json, abajo)
         "dc.json": json.dumps(dc_json, ensure_ascii=False, separators=(",", ":")),
         "metricas.json": json.dumps(met, ensure_ascii=False, indent=1),
         "esquema.json": json.dumps({"celdas": len(df), "huella": info["huella"], "columnas": info["esquema"]},
@@ -260,8 +298,22 @@ def main():
         "informe_datos.md": informe,
         "celdas.json": json.dumps(main_json, ensure_ascii=False, separators=(",", ":")),
     }
+    escritos["meta_militar.json"] = json.dumps(mil, ensure_ascii=False, indent=1, sort_keys=True)
     for nombre, texto in escritos.items():
         (web / nombre).write_text(texto, encoding="utf-8")
+    if archivo_capa().exists():
+        shutil.copyfile(archivo_capa(), web / "militar.geojson")
+    else:
+        (web / "militar.geojson").unlink(missing_ok=True)
+    # índice de países con datos (el mapa carga solo el elegido)
+    idx_f = ruta("web") / "data" / "paises.json"
+    idx = json.loads(idx_f.read_text(encoding="utf-8")) if idx_f.exists() else {}
+    idx[web.name] = {"nombre": pf.get("nombre", pf["pais"]), "iso3": pf["pais"], "celdas": len(df),
+                     "fecha_datos": meta["fecha_datos"], "huella": info["huella"], "division": meta["division"],
+                     "limites": [[round(float(df[lonc].min()), 2), round(float(df[latc].min()), 2)],
+                                 [round(float(df[lonc].max()), 2), round(float(df[latc].max()), 2)]]}
+    idx = {k: idx[k] for k in sorted(idx) if (ruta("web") / "data" / k / "celdas.json").exists()}
+    idx_f.write_text(json.dumps(idx, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # ---------------------------------------------------------------- copia dentro de la web de Dani
     destino = ruta("web_integrada")
