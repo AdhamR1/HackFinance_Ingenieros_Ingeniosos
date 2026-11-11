@@ -152,6 +152,56 @@ export function pintarPanel(feature, meta) {
   return c;
 }
 
+// ---------- Data centers que ya existen ----------
+const nombreDc = p => p.nombre || t('dc_sin_nombre');
+
+// Texto corto del tooltip de un data center.
+export function textoTooltipDc(p) {
+  const estado = t(`dc_estado_${p.estado}`);
+  const edificios = p.edificios > 1 ? ` · ${t('dc_edificios_n', { n: p.edificios })}` : '';
+  return `<strong>${escaparHtml(nombreDc(p))}</strong><div class="tooltip-nota">${escaparHtml(estado + edificios)}</div>`;
+}
+
+// Ficha de un data center (en el mismo panel que los cuadrados).
+export function pintarPanelDatacenter(feature) {
+  const p = feature.properties;
+  const [lon, lat] = feature.geometry.coordinates;
+  const operadores = p.operadores?.length ? `
+    <h3 class="panel-subtitulo">${escaparHtml(t('dc_operadores'))}</h3>
+    <ul class="dc-operadores">${p.operadores.map(o => `<li>${escaparHtml(o)}</li>`).join('')}</ul>` : '';
+  const exacta = p.precision === 'exacta';
+  const fuente = { datacentermap: 'datacentermap.com', peeringdb: 'PeeringDB', osm: 'OpenStreetMap' }[p.fuente] ?? p.fuente;
+  // El municipio debajo del nombre, salvo que sea lo mismo ("Paterna" / "Paterna").
+  const sinAcentos = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const municipio = p.municipio && sinAcentos(p.municipio) !== sinAcentos(nombreDc(p)) ? p.municipio : '';
+
+  $('panel-contenido').innerHTML = `
+    <header class="panel-cabecera">
+      <p class="panel-etiqueta">${escaparHtml(t('dc_etiqueta'))}</p>
+      <h2 id="panel-id">${escaparHtml(nombreDc(p))}</h2>
+      <p id="panel-lugar" class="panel-lugar"${municipio ? '' : ' hidden'}>${escaparHtml(municipio)}</p>
+    </header>
+    <ul class="permisos dc-chips">
+      <li class="dc-chip dc-chip-${p.estado}">${escaparHtml(t(`dc_estado_${p.estado}`))}</li>
+      <li class="dc-chip">${escaparHtml(t('dc_edificios_n', { n: p.edificios }))}</li>
+    </ul>
+    ${operadores}
+    <dl class="panel-datos">
+      <div><dt>${escaparHtml(t('dc_coordenadas'))}</dt><dd class="mono">${coordenadas([lon, lat])}</dd></div>
+      <div><dt>${escaparHtml(t('dc_ubicacion'))}</dt><dd>${escaparHtml(t(`dc_precision_${p.precision}`))}</dd></div>
+      <div><dt>${escaparHtml(t('dc_fuente'))}</dt><dd>${escaparHtml(fuente)}</dd></div>
+    </dl>
+    ${exacta ? '' : `<p class="panel-nota-area">${escaparHtml(t('dc_nota_aproximada'))}</p>`}
+  `;
+  return { lonLat: [lon, lat], conLugar: !p.municipio };
+}
+
+// Leyenda de los puntos (debajo de la de colores).
+export function pintarLeyendaDc() {
+  $('leyenda-dc').innerHTML = ['operativo', 'planeado'].map(estado => `
+    <li><span class="muestra-dc muestra-dc-${estado}"></span><span>${escaparHtml(t(`dc_estado_${estado}`))}</span></li>`).join('');
+}
+
 // Añade "Cerca de: Calatayud · Zaragoza" cuando llega la respuesta (puede tardar o fallar).
 export function ponerLugar(texto) {
   const el = document.getElementById('panel-lugar');

@@ -4,9 +4,12 @@ import { t, idioma, iniciarIdioma, alCambiarIdioma, ponerIdioma } from './i18n.j
 import {
   crearMapa, anadirPaises, marcarPaisSeleccionado, ponerCuadricula, mostrarCuadricula,
   ponerRegiones, mostrarRegiones, ponerMarcador, ponerIdiomaNombres,
-  ponerCapaBase, ponerOpacidadCuadricula, ponerCreditos,
+  ponerCapaBase, ponerOpacidadCuadricula, ponerCreditos, ponerDatacenters, mostrarDatacenters,
 } from './mapa.js';
-import { pintarPanel, ponerLugar, pintarLeyenda, textoTooltip } from './panel.js';
+import {
+  pintarPanel, ponerLugar, pintarLeyenda, textoTooltip,
+  pintarPanelDatacenter, textoTooltipDc, pintarLeyendaDc,
+} from './panel.js';
 import { evaluar } from './puntuacion.js';
 import { crearBuscador } from './buscador.js';
 
@@ -22,6 +25,10 @@ const estado = {
   capa: leerPreferencia('cibh_capa', CONFIG.capa_inicial, String),
   porId: {},         // por país: id del cuadrado → cuadrado (para abrir el panel)
   seleccionado: null,// id del cuadrado abierto en el panel
+  datacenters: {},   // por país: promesa con los puntos de los data centers que ya existen
+  dcPorId: {},       // por país: id del data center → punto (con sus datos originales)
+  dcSeleccionado: null, // id del data center abierto en el panel
+  verDc: leerPreferencia('cibh_datacenters', 'si', String) !== 'no',
 };
 
 // Preferencias de cada visitante (opacidad, capa). Si el navegador no deja guardar, no pasa nada.
@@ -105,8 +112,26 @@ function abrirPais(map, iso, { encuadrar = true } = {}) {
   $('boton-mundo').hidden = false;
   history.replaceState(null, '', `#${iso}`);
   // Primero la cuadrícula (lo importante); los bordes de comunidades, después.
-  cargarCuadricula(map, iso).finally(() =>
-    cargarRegiones(iso).then(datos => { if (datos && estado.paisAbierto === iso) ponerRegiones(map, datos); }));
+  cargarCuadricula(map, iso).finally(() => {
+    cargarDatacenters(map, iso);
+    cargarRegiones(iso).then(datos => { if (datos && estado.paisAbierto === iso) ponerRegiones(map, datos); });
+  });
+}
+
+// Data centers que ya existen en el país (puntos encima de la cuadrícula).
+async function cargarDatacenters(map, iso) {
+  const archivo = estado.paises[iso]?.datacenters;
+  if (!archivo) { mostrarDatacenters(map, false); return; }
+  estado.datacenters[iso] ??= fetch(archivo).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }).catch(err => { console.error(err); delete estado.datacenters[iso]; return null; });
+  const datos = await estado.datacenters[iso];
+  if (!datos || estado.paisAbierto !== iso) return;
+  estado.dcPorId[iso] = new Map(datos.features.map(f => [f.properties.id, f]));
+  ponerDatacenters(map, datos);
+  mostrarDatacenters(map, estado.verDc);
+  activarInteraccionDatacenters(map);
 }
 
 // Comunidades y provincias del país (si el país las tiene en data/paises.json).
@@ -165,6 +190,7 @@ function volverAlMundo(map) {
   marcarPaisSeleccionado(map, null);
   mostrarCuadricula(map, false);
   mostrarRegiones(map, false);
+  mostrarDatacenters(map, false);
   ponerMarcador(map, null);
   cerrarPanel(map);
   $('bloque-cuadricula').hidden = true;
@@ -238,6 +264,7 @@ function activarInteraccionCuadricula(map) {
 
   map.on('mousemove', 'cuadricula-relleno', e => {
     const f = e.features[0];
+    if (dcEn(map, e.point)) { quitarHover(); return; } // de esto se encargan los data centers
     if (f.id !== hoverId) {
       quitarHover();
       hoverId = f.id;
@@ -256,6 +283,8 @@ function activarInteraccionCuadricula(map) {
 
   const alPulsar = punto => {
     if (!estado.paisAbierto) return;
+    const dc = dcEn(map, punto, 8); // un poco de margen: los puntos son pequeños para el dedo
+    if (dc) { abrirPanelDatacenter(map, dc.id); return; }
     const f = map.queryRenderedFeatures(punto, { layers: ['cuadricula-relleno'] })[0];
     if (f) abrirPanel(map, f.id);
     else cerrarPanel(map); // pulsar fuera de la cuadrícula: se cierra el panel
@@ -279,6 +308,46 @@ function activarInteraccionCuadricula(map) {
   });
 }
 
+// ---------- Data centers: pasar el ratón ----------
+// Data center bajo un punto de la pantalla (con margen opcional en píxeles), o null.
+function dcEn(map, punto, margen = 0) {
+  if (!estado.verDc || !map.getLayer('datacenters') ||
+      map.getLayoutProperty('datacenters', 'visibility') === 'none') return null;
+  const zona = margen ? [[punto.x - margen, punto.y - margen], [punto.x + margen, punto.y + margen]] : punto;
+  const encontrados = map.queryRenderedFeatures(zona, { layers: ['datacenters'] });
+  if (!encontrados.length) return null;
+  // Si hay varios, el más cercano al dedo.
+  const distancia = f => { const q = map.project(f.geometry.coordinates); return Math.hypot(q.x - punto.x, q.y - punto.y); };
+  return encontrados.reduce((a, b) => distancia(b) < distancia(a) ? b : a);
+}
+
+let interaccionDcActiva = false;
+function activarInteraccionDatacenters(map) {
+  if (interaccionDcActiva) return;
+  interaccionDcActiva = true;
+  let hoverId = null;
+  const quitarHover = () => {
+    if (hoverId !== null && map.getSource('datacenters')) map.setFeatureState({ source: 'datacenters', id: hoverId }, { hover: false });
+    hoverId = null;
+  };
+  map.on('mousemove', 'datacenters', e => {
+    const f = dcEn(map, e.point) ?? e.features[0];
+    if (f.id !== hoverId) {
+      quitarHover();
+      hoverId = f.id;
+      map.setFeatureState({ source: 'datacenters', id: hoverId }, { hover: true });
+    }
+    map.getCanvas().style.cursor = 'pointer';
+    const original = estado.dcPorId[estado.paisAbierto]?.get(f.id);
+    if (conRaton && original) mostrarTooltip(e.originalEvent.clientX, e.originalEvent.clientY, textoTooltipDc(original.properties));
+  });
+  map.on('mouseleave', 'datacenters', () => {
+    quitarHover();
+    ocultarTooltip();
+    map.getCanvas().style.cursor = '';
+  });
+}
+
 // ---------- Panel lateral ----------
 let peticionLugar = null;
 const lugaresCache = new Map();
@@ -286,6 +355,8 @@ const lugaresCache = new Map();
 function abrirPanel(map, id) {
   const f = estado.porId[estado.paisAbierto]?.get(id);
   if (!f) return;
+  quitarSeleccionDc(map);
+  $('panel-contenido').classList.remove('panel-dc');
   if (estado.seleccionado !== null) map.setFeatureState({ source: 'cuadricula', id: estado.seleccionado }, { seleccionado: false });
   estado.seleccionado = id;
   map.setFeatureState({ source: 'cuadricula', id }, { seleccionado: true });
@@ -294,7 +365,11 @@ function abrirPanel(map, id) {
   $('panel').hidden = false;
   $('panel').scrollTop = 0;
   if (centro) buscarLugarCercano(id, centro);
-  // En móvil el panel tapa la mitad de abajo: se sube el mapa para que el cuadrado quede a la vista.
+  subirMapaEnMovil(map, centro);
+}
+
+// En móvil el panel tapa la mitad de abajo: se sube el mapa para que lo elegido quede a la vista.
+function subirMapaEnMovil(map, centro) {
   if (centro && window.innerWidth <= 640) {
     const arribaPanel = $('panel').getBoundingClientRect().top;
     const hueco = $('buscador-input').getBoundingClientRect().bottom;
@@ -309,7 +384,33 @@ function cerrarPanel(map) {
   if (estado.seleccionado !== null && map.getSource('cuadricula'))
     map.setFeatureState({ source: 'cuadricula', id: estado.seleccionado }, { seleccionado: false });
   estado.seleccionado = null;
+  quitarSeleccionDc(map);
   $('panel').hidden = true;
+}
+
+function quitarSeleccionDc(map) {
+  if (estado.dcSeleccionado !== null && map.getSource('datacenters'))
+    map.setFeatureState({ source: 'datacenters', id: estado.dcSeleccionado }, { seleccionado: false });
+  estado.dcSeleccionado = null;
+}
+
+// Ficha de un data center en el panel.
+function abrirPanelDatacenter(map, id) {
+  const f = estado.dcPorId[estado.paisAbierto]?.get(id);
+  if (!f) return;
+  if (estado.seleccionado !== null && map.getSource('cuadricula'))
+    map.setFeatureState({ source: 'cuadricula', id: estado.seleccionado }, { seleccionado: false });
+  estado.seleccionado = null;
+  quitarSeleccionDc(map);
+  estado.dcSeleccionado = id;
+  map.setFeatureState({ source: 'datacenters', id }, { seleccionado: true });
+  ocultarTooltip();
+  const { lonLat, conLugar } = pintarPanelDatacenter(f);
+  $('panel-contenido').classList.add('panel-dc');
+  $('panel').hidden = false;
+  $('panel').scrollTop = 0;
+  if (conLugar) buscarLugarCercano(id, lonLat);
+  subirMapaEnMovil(map, lonLat);
 }
 
 // "Cerca de Calatayud · Zaragoza" con Photon (al revés: de coordenadas a nombre).
@@ -325,7 +426,7 @@ async function buscarLugarCercano(id, [lon, lat]) {
     const p = datos.features?.[0]?.properties;
     const texto = p ? [p.name, p.county && p.county !== p.name ? p.county : null].filter(Boolean).join(' · ') : '';
     lugaresCache.set(clave, texto);
-    if (estado.seleccionado === id) ponerLugar(texto);
+    if (estado.seleccionado === id || estado.dcSeleccionado === id) ponerLugar(texto);
   } catch (err) {
     if (err.name !== 'AbortError') console.warn('No se pudo obtener el lugar cercano:', err);
   }
@@ -362,6 +463,17 @@ function activarControles(map) {
   boton.addEventListener('click', () => plegar(!tarjeta.classList.contains('plegada')));
 
   pintarLeyenda();
+  pintarLeyendaDc();
+
+  // Interruptor de los data centers que ya existen.
+  const interruptor = $('ver-datacenters');
+  interruptor.checked = estado.verDc;
+  interruptor.addEventListener('change', () => {
+    estado.verDc = interruptor.checked;
+    guardarPreferencia('cibh_datacenters', estado.verDc ? 'si' : 'no');
+    mostrarDatacenters(map, estado.verDc && Boolean(estado.paisAbierto));
+    if (!estado.verDc && estado.dcSeleccionado !== null) cerrarPanel(map);
+  });
 
   // Botón "ES | EN": marca el idioma activo y cambia al pulsar el otro.
   const botonesIdioma = document.querySelectorAll('.idiomas button');
@@ -409,7 +521,8 @@ async function iniciar() {
   }
 
   const creditos = () => ({ busqueda: t('credito_busqueda'), limites: t('credito_limites'), paises: t('credito_paises'),
-    boton: t('credito_boton'), satelite: t('credito_satelite'), mapa: t('credito_mapa'), nombres: t('credito_nombres') });
+    boton: t('credito_boton'), satelite: t('credito_satelite'), mapa: t('credito_mapa'), nombres: t('credito_nombres'),
+    datacenters: t('credito_datacenters') });
   const map = crearMapa('mapa', estado.capa, { nombres: CONFIG.mostrar_nombres_lugares, idioma: idioma(), creditos: creditos() });
   window.__mapa = map; // útil para depurar desde la consola del navegador
 
@@ -455,7 +568,9 @@ async function iniciar() {
     ponerIdiomaNombres(map, nuevo); // (sin esperar a isStyleLoaded: da "no" mientras se cargan imágenes y se saltaba el cambio)
     ponerCreditos(map, creditos());
     pintarLeyenda();
+    pintarLeyendaDc();
     if (estado.seleccionado !== null) abrirPanel(map, estado.seleccionado); // repinta el panel en el nuevo idioma
+    else if (estado.dcSeleccionado !== null) abrirPanelDatacenter(map, estado.dcSeleccionado);
   });
 }
 

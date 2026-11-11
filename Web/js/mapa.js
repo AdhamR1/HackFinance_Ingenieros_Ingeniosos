@@ -134,7 +134,8 @@ class ControlCreditos {
 }
 
 export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites administrativos', paises = 'Países',
-  boton = 'Créditos del mapa', satelite = 'Satélite', mapa = 'Mapa', nombres = 'Nombres' } = {}) {
+  boton = 'Créditos del mapa', satelite = 'Satélite', mapa = 'Mapa', nombres = 'Nombres',
+  datacenters = 'Data centers' } = {}) {
   if (!creditos) {
     // Orden de MapLibre: lo último que se añade abajo queda ENCIMA; así los créditos van debajo de + / −.
     map.addControl(new ControlCreditos(), 'bottom-right');
@@ -154,7 +155,8 @@ export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites
     + ` · ${nombres}: ${enlace('https://openfreemap.org', 'OpenFreeMap')}, © ${enlace('https://www.openmaptiles.org/', 'OpenMapTiles')}`
     + ` · ${busqueda}: ${enlace('https://photon.komoot.io', 'Photon')}`
     + ` · ${limites}: ${enlace('https://www.geoboundaries.org', 'geoBoundaries')} (CC BY 4.0)`
-    + ` · ${paises}: Natural Earth`;
+    + ` · ${paises}: Natural Earth`
+    + ` · ${datacenters}: ${enlace('https://www.datacentermap.com', 'datacentermap.com')}, ${enlace('https://www.peeringdb.com', 'PeeringDB')}, © ${enlace('https://www.openstreetmap.org/copyright', 'OpenStreetMap')}`;
   creditos.boton.setAttribute('aria-label', boton);
   creditos.boton.title = boton;
 }
@@ -322,6 +324,55 @@ export function ponerRegiones(map, datos) {
 
 export function mostrarRegiones(map, visible) {
   for (const capa of ['provincias-borde', 'comunidades-borde'])
+    if (map.getLayer(capa)) map.setLayoutProperty(capa, 'visibility', visible ? 'visible' : 'none');
+}
+
+// ---------------------------------------------------------------------
+// DATA CENTERS QUE YA EXISTEN (puntos encima de todo)
+// ---------------------------------------------------------------------
+// En marcha: punto blanco relleno. Planeado: anillo blanco hueco. Más grande si tiene varios edificios.
+// Van encima de la cuadrícula y debajo de los nombres del mapa (así no tapan "Madrid", "Barcelona"...).
+// Se añaden después de la cuadrícula, así que quedan encima de ella.
+const CAPAS_DC = ['datacenters-halo', 'datacenters'];
+
+export function ponerDatacenters(map, datos) {
+  if (map.getSource('datacenters')) { map.getSource('datacenters').setData(datos); return; }
+  map.addSource('datacenters', { type: 'geojson', data: datos, promoteId: 'id' });
+  const planeado = ['==', ['get', 'estado'], 'planeado'];
+  const seleccionado = ['boolean', ['feature-state', 'seleccionado'], false];
+  const encima = ['boolean', ['feature-state', 'hover'], false];
+  // Radio: crece con el zoom y (poco) con el número de edificios (1 → +0, 4 → +2, 16 → +4).
+  const extra = ['*', 1, ['sqrt', ['-', ['get', 'edificios'], 1]]];
+  // (MapLibre solo deja usar el zoom en el "interpolate" de fuera: el halo lleva su propio radio, +5 px).
+  const radioMas = mas => ['interpolate', ['linear'], ['zoom'],
+    4, ['+', 3 + mas, ['*', 0.5, extra]],
+    8, ['+', 5 + mas, ['*', 0.8, extra]],
+    12, ['+', 7 + mas, extra]];
+  const radio = radioMas(0);
+  // Anillo ámbar alrededor del punto elegido (o bajo el ratón).
+  map.addLayer({
+    id: 'datacenters-halo', type: 'circle', source: 'datacenters',
+    paint: {
+      'circle-radius': radioMas(3),
+      'circle-opacity': 0,
+      'circle-stroke-color': '#f5b301',
+      'circle-stroke-width': 3,
+      'circle-stroke-opacity': ['case', seleccionado, 1, encima, 0.75, 0],
+    },
+  }, ENCIMA);
+  map.addLayer({
+    id: 'datacenters', type: 'circle', source: 'datacenters',
+    paint: {
+      'circle-radius': radio,
+      'circle-color': ['case', planeado, 'rgba(10, 11, 13, 0.55)', '#ffffff'],
+      'circle-stroke-color': ['case', planeado, '#ffffff', '#0a0b0d'],
+      'circle-stroke-width': ['case', planeado, 2.2, 1.6],
+    },
+  }, ENCIMA);
+}
+
+export function mostrarDatacenters(map, visible) {
+  for (const capa of CAPAS_DC)
     if (map.getLayer(capa)) map.setLayoutProperty(capa, 'visibility', visible ? 'visible' : 'none');
 }
 

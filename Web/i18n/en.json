@@ -81,5 +81,21 @@
   "permiso_zona_inundable": "Flood zone",
   "motivo_natura_2000": "Inside the Natura 2000 network",
   "motivo_parque_nacional": "Inside a National Park",
-  "motivo_permiso_requiere": "{permiso}: permit required"
+  "motivo_permiso_requiere": "{permiso}: permit required",
+  "credito_datacenters": "Data centers",
+  "dc_interruptor": "Existing data centers",
+  "dc_etiqueta": "Existing data center",
+  "dc_sin_nombre": "Unnamed data center",
+  "dc_estado_operativo": "Operational",
+  "dc_estado_planeado": "Planned",
+  "dc_edificios_n": "Buildings: {n}",
+  "dc_operadores": "Operators",
+  "dc_coordenadas": "Coordinates",
+  "dc_ubicacion": "Location",
+  "dc_precision_exacta": "Exact",
+  "dc_precision_barrio": "Approximate (district)",
+  "dc_precision_municipio": "Approximate (town)",
+  "dc_precision_ciudad": "Approximate (city)",
+  "dc_fuente": "Source",
+  "dc_nota_aproximada": "The dot marks the town or district, not the exact building."
 }

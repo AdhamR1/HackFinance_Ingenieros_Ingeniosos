@@ -81,5 +81,21 @@
   "permiso_zona_inundable": "Zona inundable",
   "motivo_natura_2000": "Dentro de la Red Natura 2000",
   "motivo_parque_nacional": "Dentro de un Parque Nacional",
-  "motivo_permiso_requiere": "{permiso}: requiere permiso"
+  "motivo_permiso_requiere": "{permiso}: requiere permiso",
+  "credito_datacenters": "Data centers",
+  "dc_interruptor": "Data centers existentes",
+  "dc_etiqueta": "Data center existente",
+  "dc_sin_nombre": "Data center sin nombre",
+  "dc_estado_operativo": "En marcha",
+  "dc_estado_planeado": "Planeado",
+  "dc_edificios_n": "Edificios: {n}",
+  "dc_operadores": "Operadores",
+  "dc_coordenadas": "Coordenadas",
+  "dc_ubicacion": "Ubicación",
+  "dc_precision_exacta": "Exacta",
+  "dc_precision_barrio": "Aproximada (barrio)",
+  "dc_precision_municipio": "Aproximada (municipio)",
+  "dc_precision_ciudad": "Aproximada (ciudad)",
+  "dc_fuente": "Fuente",
+  "dc_nota_aproximada": "El punto marca el municipio o el barrio, no el edificio exacto."
 }

@@ -73,6 +73,16 @@
           <input id="opacidad" type="range" min="0" max="100" step="5">
         </label>
         <ul id="leyenda" class="leyenda"></ul>
+
+        <!-- Data centers que ya existen (puntos encima de la cuadrícula) -->
+        <div class="bloque-dc">
+          <label class="interruptor">
+            <input id="ver-datacenters" type="checkbox" role="switch">
+            <span class="interruptor-pista" aria-hidden="true"></span>
+            <span data-i18n="dc_interruptor"></span>
+          </label>
+          <ul id="leyenda-dc" class="leyenda leyenda-dc"></ul>
+        </div>
       </div>
     </div>
   </section>
