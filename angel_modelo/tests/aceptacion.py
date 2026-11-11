@@ -81,7 +81,7 @@ def web_ok(web: Path, pais="es") -> tuple[bool, str]:
             j = json.loads(p.stdout)
         except ValueError:
             return False, (p.stdout + p.stderr)[-300:]
-        return j.get("ok", False), f"{pais}: celdas={j.get('celdas_dibujadas')} ms={j.get('ms_desde_navegacion_hasta_dibujar')} problemas={j.get('problemas')}"
+        return j.get("ok", False), f"{pais}: celdas={j.get('celdas_dibujadas')} ms={j.get('ms_desde_navegacion_hasta_dibujar')} problemas={j.get('problemas')} ficha={j.get('ficha')} filas={j.get('filas_datos')} expl={len(j.get('explicacion') or '')} sobre={str(j.get('sobre_el_modelo'))[:120]}"
     finally:
         srv.terminate()
 

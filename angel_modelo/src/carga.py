@@ -371,8 +371,6 @@ def main():
     if f_ant.exists():
         anterior = json.loads(f_ant.read_text(encoding="utf-8"))
     info["cambios"] = comparar(info["esquema"], (anterior or {}).get("columnas"), (anterior or {}).get("celdas"), len(df))
-    df.to_parquet(out / "celdas.parquet", index=False)
-    (out / "informe_carga.json").write_text(json.dumps(info, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     pts = ruta("pipeline_raw") / columnas()["tablas"]["dc_puntos"]
     if pts.exists():
         p = leer_csv(pts).dropna(subset=["lat", "lon"])
@@ -381,6 +379,9 @@ def main():
     else:
         aviso(f"falta {pts}: el mapa no mostrará puntos de datacentermap")
         pd.DataFrame(columns=["site", "lat", "lon"]).to_csv(out / "dc_puntos.csv", index=False)
+    info["avisos"] = list(AVISOS)              # incluye los avisos de la lectura de los puntos (p. ej. CP932)
+    df.to_parquet(out / "celdas.parquet", index=False)
+    (out / "informe_carga.json").write_text(json.dumps(info, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     s = info["stats"]
     print(f"celdas={s['celdas']:,}  columnas={df.shape[1]}  provincias={s['provincias']}  DC={s['dc']}  "
           f"huella={info['huella']}  avisos={len(info['avisos'])}")

@@ -399,7 +399,7 @@
     const b = map.getBounds(), ol = $('#top'); ol.replaceChildren();
     const ks = [];
     for (let k = 0; k < N; k++) {
-      if (!visible(k) || C.x[k] || C.e[k] === 3) continue;
+      if (!visible(k) || C.x[k] || (C.e[k] === 3 && st.vista !== 'orden')) continue;   // en la ordenación provisional, todas
       if (!b.contains([cLat[k], cLon[k]])) continue;
       ks.push(k);
     }

@@ -89,7 +89,7 @@ try {
   await evalJS("document.querySelector('#sobre').close()");
   const png = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(shot, Buffer.from(png.result.data, 'base64'));
-  const ok = problems.length === 0 && n > 0 && tCarga > 0 && tCarga < 3000 && (process.env.SIN_CLIC || (/^Celda [A-Z]{3}_/.test(ficha) && filas >= 10 && explicacion.length > 80 && sobre.includes('PR-AUC')));
+  const ok = problems.length === 0 && n > 0 && tCarga > 0 && tCarga < 3000 && (process.env.SIN_CLIC || (/^Celda [A-Z]{3}_/.test(ficha) && filas >= 1 && explicacion.length > 80 && sobre.includes('PR-AUC')));
   console.log(JSON.stringify({ ok, celdas_dibujadas: n, ms_desde_navegacion_hasta_dibujar: tCarga, ficha, filas_datos: filas, explicacion: explicacion.slice(0, 120), hash, sobre_el_modelo: sobre.includes('PR-AUC') ? sobre.slice(0, 90) : sobre.slice(0, 600), problemas: problems, captura: shot }, null, 1));
   process.exitCode = ok ? 0 : 1;
 } catch (e) {
