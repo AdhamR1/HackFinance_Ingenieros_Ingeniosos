@@ -1,13 +1,13 @@
-# Code quality tools for the whole repository (ELT and pipeline).
+# Code quality tools for the whole repository (ETL and pipeline).
 #   python -m ruff format .        format (PEP 8 style)
 #   python -m ruff check . --fix   lint: PEP 8, imports, common bugs
-#   python -m pytest               tests of ELT and pipeline
+#   python -m pytest               tests of ETL and pipeline
 
 [tool.ruff]
 line-length = 99          # PEP 8 allows up to 99 characters when the team agrees on it
 target-version = "py311"
 # build_dict.py is the data dictionary written as a table of one-line rows: kept as it is
-extend-exclude = ["ELT/.cache", "ELT/dataset", "pipeline/data", "ELT/data_dictionary/build_dict.py"]
+extend-exclude = ["ETL/.cache", "ETL/dataset", "Modelo/data", "ETL/data_dictionary/build_dict.py"]
 
 [tool.ruff.lint]
 select = [
@@ -29,11 +29,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"ELT/dclake/hv.py" = ["N806"]                  # H, V, K: notation of the H/V method papers
-"pipeline/src/train.py" = ["N803", "N806"]     # X: usual name of the feature matrix
+"ETL/dclake/hv.py" = ["N806"]                  # H, V, K: notation of the H/V method papers
+"Modelo/src/train.py" = ["N803", "N806"]     # X: usual name of the feature matrix
 
 [tool.ruff.lint.isort]
 known-first-party = ["dclake", "cells", "feat_suelo", "feat_riesgos", "features", "labels", "train"]
 
 [tool.pytest.ini_options]
-testpaths = ["ELT/tests", "pipeline/tests"]
+testpaths = ["ETL/tests", "Modelo/tests"]

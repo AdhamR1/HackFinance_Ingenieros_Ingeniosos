@@ -1,0 +1,123 @@
+"""FEATURES: one row per cell, built from the ETL dataset (ETL/dataset/, Spain only).
+
+  sites_static  -> used as is (one row per cell)
+  sites_yearly  -> averaged over the years available (one row per cell)
+  data/processed/feat_*.parquet -> extra blocks built here (e.g. feat_infra.py); they win over the
+  ETL
+
+Kept: numeric columns with data. Dropped, and printed so everyone sees it:
+  * LEAKAGE: columns that tell the model where the data centers already are. With them the
+    score looks great and means nothing. See LEAKAGE below and the reason for each one.
+  * empty columns (the ETL has not filled them yet) and constant columns (country-level values).
+
+Output: data/processed/features_es_3500.parquet  (site_id + numeric columns)
+When the ETL gets new columns (power grid, flood, seismic...), just run this again.
+"""
+
+import pandas as pd
+
+from cells import PROCESSED, out_file, read_elt
+
+# column -> why it is not allowed as a feature
+LEAKAGE = {
+    # the target itself, or distances / counts of data centers
+    "is_datacenter": "es la target",
+    "sample_type": "marca las celdas con data center",
+    "dist_existing_dc_km": "distancia a data centers",
+    "n_existing_dc_50km": "número de data centers cercanos",
+    "dc_capacity_50km_mw": "capacidad de data centers cercanos",
+    "dc_status": "estado del data center",
+    "dc_cancelled_flag": "data center cancelado",
+    "capacity_mw": "capacidad del data center",
+    "operator_type": "operador del data center",
+    "year_commissioned": "año del data center",
+    # PeeringDB facilities ARE data centers (colocation); IXPs live inside them
+    "dist_ixp_km": "los IXP están dentro de data centers",
+    "n_ixp_100km": "los IXP están dentro de data centers",
+    "n_networks_at_ixp": "los IXP están dentro de data centers",
+    "n_colo_facilities_100km": "las colocation son data centers",
+    "n_networks_100km": "redes presentes en data centers cercanos",
+    "n_carriers_nearest_colo": "operadores del data center más cercano",
+    # pure geography: distance to fixed cities = latitude/longitude in disguise
+    "lat": "coordenada",
+    "lon": "coordenada",
+    "h3_cell_r7": "identificador de celda",
+    "dist_major_hub_km": "distancia a Madrid (coordenada encubierta)",
+    "latency_to_hub_ms": "distancia a Madrid (coordenada encubierta)",
+    "latency_frankfurt_ms": "distancia a un punto fijo (coordenada encubierta)",
+    "latency_ashburn_ms": "distancia a un punto fijo (coordenada encubierta)",
+    "latency_singapore_ms": "distancia a un punto fijo (coordenada encubierta)",
+    "latency_tokyo_ms": "distancia a un punto fijo (coordenada encubierta)",
+    # grid artefacts: only say whether the cell is cut by the coast or the border
+    "area_ha": "artefacto de la rejilla",
+    "parcel_compactness": "artefacto de la rejilla",
+    # soil maps mask or smooth built-up land, and the aspect of flat land is noise: they told
+    # "urban / flat" apart, not suitability (removing them raised the spatial AUC 0.917 -> 0.922)
+    "bulk_density": "mapa de suelo: delata zona urbana",
+    "clay_pct": "mapa de suelo: delata zona urbana",
+    "aspect_deg": "orientación de terreno llano: ruido que delata zona urbana",
+    # read from public recordings (ETL speech collector): they only have a value where projects
+    # are already being discussed, so "has a value" would stand for "there is a data center".
+    # They feed the warnings of the exclusions and the report, not the model.
+    "permitting_months": "dato de audio: solo existe donde ya se habla de proyectos",
+    "grid_congestion_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    "grid_connection_wait_months": "dato de audio: solo existe donde ya se habla de proyectos",
+    "local_opposition_index": "dato de audio: solo existe donde ya se habla de proyectos",
+    "moratorium_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    "water_restriction_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    "dc_tax_incentive_flag": "dato de audio: solo existe donde ya se habla de proyectos",
+    # outputs of a model, not inputs
+    "viability_score": "es una salida",
+    "capex_per_mw_usd": "es una salida",
+    "foundation_overcost_pct": "es una salida",
+    "opex_per_mw_year_usd": "es una salida",
+    "time_to_power_months": "es una salida",
+}
+
+
+def numeric(df: pd.DataFrame) -> pd.DataFrame:
+    out = {}
+    for c in df.columns:
+        s = df[c]
+        if pd.api.types.is_bool_dtype(s) or pd.api.types.is_numeric_dtype(s):
+            out[c] = pd.to_numeric(s, errors="coerce").astype("float64")
+    return pd.DataFrame(out, index=df.index)
+
+
+def main():
+    static = read_elt("sites_static").set_index("site_id")
+    yearly = read_elt("sites_yearly")
+    yearly = numeric(yearly.drop(columns=["year"]).set_index("site_id")).groupby(level=0).mean()
+
+    feats = numeric(static).join(yearly, how="left")
+    # extra blocks built in this folder (feat_infra.py, ...): site_id + numeric columns
+    for f in sorted(PROCESSED.glob("feat_*.parquet")):
+        extra = numeric(pd.read_parquet(f).set_index("site_id"))
+        print(f"+ {f.name}: {', '.join(extra.columns)}")
+        feats = feats.drop(columns=[c for c in extra.columns if c in feats.columns]).join(
+            extra, how="left"
+        )
+    leak = [c for c in feats.columns if c in LEAKAGE]
+    feats = feats.drop(columns=leak)
+    empty = [c for c in feats.columns if feats[c].isna().all()]
+    feats = feats.drop(columns=empty)
+    constant = [c for c in feats.columns if feats[c].nunique(dropna=True) <= 1]
+    feats = feats.drop(columns=constant)
+
+    print(f"Quitadas por fuga de la target ({len(leak)}):")
+    for c in leak:
+        print(f"  - {c}: {LEAKAGE[c]}")
+    print(
+        f"Quitadas por vacías ({len(empty)}) y por constantes ({len(constant)}): "
+        f"{', '.join(constant)}"
+    )
+    print(f"\nVariables que entran al modelo ({feats.shape[1]}), con su cobertura:")
+    print(feats.notna().mean().mul(100).round(0).astype(int).astype(str).add(" %").to_string())
+
+    PROCESSED.mkdir(parents=True, exist_ok=True)
+    feats.reset_index().to_parquet(out_file("features"), index=False)
+    print(f"\n-> {out_file('features')}  ({len(feats):,} celdas)")
+
+
+if __name__ == "__main__":
+    main()

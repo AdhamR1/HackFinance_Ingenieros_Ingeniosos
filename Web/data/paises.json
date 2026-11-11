@@ -1,0 +1,12 @@
+{
+  "ES": {
+    "archivo": "data/ES.json",
+    "regiones": "data/ES_regiones.json",
+    "limites": [[-9.4, 35.9], [4.4, 43.8]]
+  },
+  "JP": {
+    "archivo": "data/JP.json",
+    "regiones": "data/JP_regiones.json",
+    "limites": [[129.5, 31.0], [145.9, 45.6]]
+  }
+}
