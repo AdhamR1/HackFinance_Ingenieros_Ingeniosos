@@ -320,3 +320,13 @@ speech:
   min_confidence: 0.4               # las citas menos seguras quedan como evidencia, no rellenan campos
   min_sources_region: 2             # un dato para toda una región (provincia, estado) pide dos grabaciones…
   solo_confidence: 0.7              # …o una sola cita muy clara
+
+# Azure Data Lake Gen2: `azure-setup` lo crea (o reutiliza) y `upload` sube el dataset.
+azure:
+  resource_group: rg-dclake-hackathon
+  account_prefix: stdclake          # + 6 caracteres aleatorios (el nombre es único en todo Azure)
+  regions: [spaincentral, francecentral, westeurope, northeurope, swedencentral,
+            germanywestcentral, italynorth, polandcentral, norwayeast, uksouth]   # la 1.ª permitida
+  sas_days: 90                      # validez del token de acceso que se guarda en .env
+  extra_dirs:                       # también se suben, junto a dataset/ en el contenedor
+    processed: ../pipeline/data/processed   # features, etiquetas, exclusiones y scores del modelo

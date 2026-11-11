@@ -104,6 +104,46 @@ def test_force_dry_run_and_failures(env):
     assert len(fs.uploads) == 2  # the other files were still uploaded
 
 
+def test_extra_dirs_go_next_to_the_dataset(tmp_path, monkeypatch):
+    tables, extra = tmp_path / "ELT" / "dataset", tmp_path / "pipeline" / "processed"
+    for p, data in {
+        tables / "sites.parquet": b"aa",
+        extra / "scores.parquet": b"bbb",
+        extra / "priors.csv": b"c",
+        extra / ".hidden": b"d",
+    }.items():
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+
+    class Cfg(dict):
+        root = tmp_path / "ELT"
+        secret = staticmethod(SECRETS.get)
+
+    cfg = Cfg(azure={"extra_dirs": {"processed": "../pipeline/processed", "gone": "../nope"}})
+    lake = SimpleNamespace(tables=tables, log=logging.getLogger("dclake.test"))
+    fs = FakeFS(remote={"processed/priors.csv": 1})  # already there with the same size
+    monkeypatch.setattr(
+        upload, "_client", lambda cfg: SimpleNamespace(get_file_system_client=lambda c: fs)
+    )
+    assert upload.upload_dataset(lake, cfg) == 3
+    assert sorted(fs.uploads) == ["dataset/sites.parquet", "processed/scores.parquet"]
+
+
+def test_set_env_values_keeps_other_lines(tmp_path):
+    from dclake.azure_setup import set_env_values
+
+    env = tmp_path / ".env"
+    env.write_text("# comment\nOTHER_KEY=keep\nAZURE_STORAGE_ACCOUNT=\n", encoding="utf-8")
+    set_env_values(
+        env, {"AZURE_STORAGE_ACCOUNT": "stdclakeabc123", "AZURE_STORAGE_SAS_TOKEN": "s"}
+    )
+    lines = env.read_text(encoding="utf-8").splitlines()
+    assert lines[:3] == ["# comment", "OTHER_KEY=keep", "AZURE_STORAGE_ACCOUNT=stdclakeabc123"]
+    assert lines[-1] == "AZURE_STORAGE_SAS_TOKEN=s" and len(lines) == 6
+    set_env_values(env, {"AZURE_STORAGE_SAS_TOKEN": "t"})  # renewing replaces, never duplicates
+    assert env.read_text(encoding="utf-8").count("AZURE_STORAGE_SAS_TOKEN=") == 1
+
+
 def test_dry_run_without_azure(env):
     fs = FakeFS(remote={"dataset/sites.parquet": 10})
     fs.exists = MagicMock(side_effect=Exception("DefaultAzureCredential failed\n(long details)"))

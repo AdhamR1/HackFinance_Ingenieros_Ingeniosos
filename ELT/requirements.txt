@@ -33,4 +33,7 @@ pytest
 cdsapi>=0.7.4
 azure-storage-file-datalake   # python -m dclake upload (Azure Data Lake Gen2)
 azure-identity
+azure-mgmt-resource           # python -m dclake azure-setup (crea el data lake)
+azure-mgmt-resource-subscriptions
+azure-mgmt-storage
 ruff                          # calidad de código: python -m ruff format . / check . (PEP 8)

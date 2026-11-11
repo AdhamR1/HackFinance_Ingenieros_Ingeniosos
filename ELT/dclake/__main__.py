@@ -9,7 +9,9 @@ report     informe de cobertura por campo y bloque
 all        grid + collect + assemble + report
 demo       ejecución offline con datos sintéticos (comprueba la instalación)
 export     Excel legible con las tablas de unas celdas (--sites a,b,c --out archivo.xlsx)
-upload     sube ELT/dataset/ a Azure Data Lake (credenciales en .env;
+azure-setup crea (o reutiliza) el Azure Data Lake Gen2 iniciando sesión en el navegador y
+           guarda la conexión en .env (sin mostrarla)
+upload     sube ELT/dataset/ y azure.extra_dirs a Azure Data Lake (credenciales en .env;
            --force, --dry-run, --workers N)
 qc         control de calidad del dataset del país: claves, rangos físicos y coherencia
 transcribe audio público del catálogo (ELT/audio/sources.csv) a texto con ElevenLabs Scribe
@@ -177,6 +179,7 @@ def main(argv=None):
             "all",
             "demo",
             "export",
+            "azure-setup",
             "upload",
             "qc",
             "transcribe",
@@ -291,6 +294,14 @@ def main(argv=None):
         from .qc import run_qc
 
         run_qc(lake)
+    if args.command == "azure-setup":
+        from .azure_setup import azure_setup
+
+        try:
+            azure_setup(cfg, lake.log)
+        except RuntimeError as e:
+            lake.log.error("azure-setup: %s", e)
+            return 1
     if args.command == "upload":
         from .upload import upload_dataset
 

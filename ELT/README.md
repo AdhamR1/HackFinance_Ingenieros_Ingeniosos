@@ -53,7 +53,8 @@ Siempre desde `ELT/` y con el entorno activado:
 python -m dclake grid --country JPN          # rejilla del país (ESP si no se indica)
 python -m dclake collect --country JPN       # todos los colectores, parte a parte (reanudable)
 python -m dclake assemble --country JPN      # escribe el país en ELT/dataset/
-python -m dclake upload                      # sube ELT/dataset/ a Azure Data Lake (AZURE_* en .env)
+python -m dclake azure-setup                 # crea el Azure Data Lake (login en el navegador) y rellena .env
+python -m dclake upload                      # sube ELT/dataset/ y pipeline/data/processed/ al lake
 python -m dclake status --country JPN        # claves y capas manuales que faltan
 python -m dclake qc --country JPN            # control de calidad: claves, rangos y coherencia
 python -m dclake collect --country ESP --only eobs --limit-sites 3   # probar un colector con 3 celdas

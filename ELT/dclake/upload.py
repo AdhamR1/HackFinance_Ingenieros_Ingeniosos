@@ -1,4 +1,8 @@
-"""Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year=).
+"""Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year=),
+plus the folders of azure.extra_dirs in config.yaml (e.g. the model's pipeline/data/processed).
+
+The lake itself is created by `python -m dclake azure-setup` (azure_setup.py), which also
+writes these values to .env.
 
 Configuration in .env:
   AZURE_STORAGE_ACCOUNT     storage account name (with hierarchical namespace = ADLS Gen2)
@@ -106,6 +110,17 @@ def _remote_sizes(fs, prefix: str, log) -> dict[str, int]:
         return {}
 
 
+def _sources(lake, cfg, prefix: str) -> list[tuple[Path, str, str]]:
+    """(local folder, remote folder, glob) to upload: the dataset tables, plus every folder of
+    azure.extra_dirs in config.yaml ({remote folder: path relative to ELT/}, all its files)."""
+    out = [(Path(lake.tables), prefix, "*.parquet")]
+    get = getattr(cfg, "get", None)  # tests pass a bare namespace
+    extra = ((get("azure") or {}).get("extra_dirs") or {}) if get else {}
+    for remote, local in extra.items():
+        out.append(((Path(cfg.root) / local).resolve(), str(remote).strip("/"), "*"))
+    return out
+
+
 def _upload_one(fs, local: Path, remote: str) -> None:
     for attempt in range(1, RETRIES + 1):
         try:
@@ -144,13 +159,23 @@ def upload_dataset(
         )
         fs = None
 
-    tables = Path(lake.tables)
-    files = sorted(tables.rglob("*.parquet"))
-    remote = {} if force or fs is None else _remote_sizes(fs, prefix, log)
+    files: list[tuple[Path, str]] = []
+    remote: dict[str, int] = {}
+    for folder, rprefix, pattern in _sources(lake, cfg, prefix):
+        if not folder.is_dir():
+            log.warning("No existe la carpeta %s; no se sube", folder)
+            continue
+        files += [
+            (p, f"{rprefix}/{p.relative_to(folder).as_posix()}")
+            for p in sorted(folder.rglob(pattern))
+            if p.is_file() and not p.name.startswith(".")
+        ]
+        if not force and fs is not None:
+            remote |= _remote_sizes(fs, rprefix, log)
     s = UploadSummary()
     todo: list[tuple[Path, str, int]] = []
-    for p in files:
-        name, size = f"{prefix}/{p.relative_to(tables).as_posix()}", p.stat().st_size
+    for p, name in files:
+        size = p.stat().st_size
         if remote.get(name) == size:
             s.skipped.append(name)
             s.bytes_skipped += size
