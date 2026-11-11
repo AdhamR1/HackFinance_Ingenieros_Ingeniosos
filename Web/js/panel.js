@@ -10,6 +10,8 @@ const $ = id => document.getElementById(id);
 const escaparHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const numero = (n, decimales = 0) => n.toLocaleString(idioma() === 'en' ? 'en-GB' : 'es-ES',
   { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+// Con los decimales que tenga, hasta 2 (12 → "12", 12,25 → "12,25").
+const numeroLibre = n => n.toLocaleString(idioma() === 'en' ? 'en-GB' : 'es-ES', { maximumFractionDigits: 2 });
 
 // Nombre de la categoría: "Viable", "Con condiciones"...
 export const textoCategoria = categoria => t(`categoria_${categoria}`);
@@ -145,7 +147,7 @@ export function pintarPanel(feature, meta) {
       ${c ? `<div><dt>${escaparHtml(t('coordenadas'))}</dt><dd class="mono">${coordenadas(c)}</dd></div>` : ''}
       ${tierra}
     </dl>
-    <p class="panel-nota-area">${escaparHtml(t('nota_area', { area: numero(area), lado: numero(lado, 2) }))}</p>
+    <p class="panel-nota-area">${escaparHtml(t('nota_area', { area: numeroLibre(area), lado: numero(lado, 2) }))}</p>
   `;
   return c;
 }

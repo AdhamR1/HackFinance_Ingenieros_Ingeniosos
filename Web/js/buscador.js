@@ -19,10 +19,12 @@ const escaparHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 //   input, lista              → elementos del HTML
 //   cargarRegiones()          → promesa con [{ pais, features }] de los países con datos
 //   paisesConDatos()          → ['ES', ...]
+//   paisActual()              → país abierto ('ES', 'JP'…) o null en la vista del mundo:
+//                               con un país abierto solo se sugieren lugares de ese país
 //   alElegir(resultado)       → qué hacer al elegir: { nombre, pais, caja?, punto?, region? }
-export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, alElegir }) {
+export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, paisActual = () => null, alElegir }) {
   let indice = null;       // lugares locales (comunidades y provincias)
-  let cajaBusqueda = null; // rectángulo que cubre los países con datos
+  let cajas = {};          // rectángulo que cubre cada país con datos (para Photon)
   let resultados = [];
   let activo = -1;
   let temporizador = null;
@@ -33,8 +35,8 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     if (indice) return;
     const porPais = await cargarRegiones();
     indice = [];
-    let [o, s, e, n] = [180, 90, -180, -90];
     for (const { pais, features } of porPais) {
+      let [o, s, e, n] = [180, 90, -180, -90];
       // Nombre en inglés de cada comunidad, para el "Provincia · Comunidad" de las provincias.
       const comunidadEn = new Map(features.filter(f => f.properties.tipo === 'comunidad')
         .map(f => [f.properties.nombre_es, f.properties.nombre_en]));
@@ -49,14 +51,18 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
         });
         o = Math.min(o, p.caja[0]); s = Math.min(s, p.caja[1]); e = Math.max(e, p.caja[2]); n = Math.max(n, p.caja[3]);
       }
+      if (o <= e) cajas[pais] = [o, s, e, n];
     }
-    cajaBusqueda = [o, s, e, n];
   }
 
   const nombreLocal = l => (idioma() === 'en' ? l.nombre_en : l.nombre_es);
+  // Con un país abierto, solo sus lugares; en la vista del mundo, los de todos los países con datos.
+  const delPais = l => !paisActual() || l.pais === paisActual();
+  // En Japón las regiones grandes son prefecturas (en los datos vienen como tipo "comunidad").
+  const tipoRegion = l => (l.pais === 'JP' ? t('tipo_prefectura') : t('tipo_comunidad'));
   const aResultadoLocal = l => ({
     nombre: nombreLocal(l),
-    detalle: l.tipo === 'comunidad' ? t('tipo_comunidad') : `${t('tipo_provincia')} · ${idioma() === 'en' ? l.comunidad_en : l.comunidad}`,
+    detalle: l.tipo === 'comunidad' ? tipoRegion(l) : `${t('tipo_provincia')} · ${idioma() === 'en' ? l.comunidad_en : l.comunidad}`,
     pais: l.pais, caja: l.caja, region: { tipo: l.tipo, nombre: l.nombre_es }, icono: l.tipo === 'comunidad' ? '◇' : '▫',
     local: l,
   });
@@ -68,7 +74,7 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
       if (l.claves.some(k => k.split(/[\s/-]+/).some(w => w.startsWith(q)))) return 1; // alguna palabra empieza igual
       return null;
     };
-    return indice.map(l => ({ l, p: puntos(l) })).filter(x => x.p !== null)
+    return indice.filter(delPais).map(l => ({ l, p: puntos(l) })).filter(x => x.p !== null)
       .sort((a, b) => a.p - b.p
         || (a.l.tipo === 'comunidad' ? 0 : 1) - (b.l.tipo === 'comunidad' ? 0 : 1)   // comunidades primero
         || nombreLocal(a.l).localeCompare(nombreLocal(b.l), idioma()))
@@ -83,11 +89,15 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
     url.searchParams.set('q', texto);
     url.searchParams.set('limit', '15');
     if (idioma() === 'en') url.searchParams.set('lang', 'en'); // nombres en inglés si los hay (Seville, Corunna…)
-    if (cajaBusqueda) url.searchParams.set('bbox', cajaBusqueda.join(','));
+    // Rectángulo del país abierto o, en la vista del mundo, el que cubre todos los países con datos.
+    const pais = paisActual();
+    const lista_ = pais ? [cajas[pais]].filter(Boolean) : Object.values(cajas);
+    if (lista_.length) url.searchParams.set('bbox', [Math.min(...lista_.map(c => c[0])), Math.min(...lista_.map(c => c[1])),
+      Math.max(...lista_.map(c => c[2])), Math.max(...lista_.map(c => c[3]))].join(','));
     const res = await fetch(url, { signal: peticion.signal });
     if (!res.ok) throw new Error(`Photon ${res.status}`);
     const datos = await res.json();
-    const conDatos = paisesConDatos();
+    const conDatos = pais ? [pais] : paisesConDatos();
     const vistos = new Set();
     const TIPOS = { city: 'tipo_ciudad', town: 'tipo_municipio', village: 'tipo_pueblo', hamlet: 'tipo_aldea',
       suburb: 'tipo_barrio', neighbourhood: 'tipo_barrio', quarter: 'tipo_barrio', municipality: 'tipo_municipio',
@@ -173,7 +183,7 @@ export function crearBuscador({ input, lista, cargarRegiones, paisesConDatos, al
   }
 
   // Con la caja vacía: lista de comunidades para elegir directamente.
-  const listaComunidades = () => indice.filter(l => l.tipo === 'comunidad')
+  const listaComunidades = () => indice.filter(l => l.tipo === 'comunidad' && delPais(l))
     .sort((a, b) => nombreLocal(a).localeCompare(nombreLocal(b), idioma())).map(aResultadoLocal);
 
   input.addEventListener('input', alEscribir);

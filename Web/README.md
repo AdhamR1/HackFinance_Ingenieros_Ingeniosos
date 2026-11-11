@@ -1,7 +1,7 @@
 # Can I Build Here?
 
 Mapa que estima si un terreno es viable para construir un **data center**.
-El país se divide en cuadrados de 12 km² (3,46 × 3,46 km) y cada uno se pinta verde, amarillo o rojo según su puntuación.
+El país se divide en cuadrados de 12,25 km² (3,5 × 3,5 km) y cada uno se pinta verde, amarillo o rojo según su puntuación.
 
 Publicada en **https://canibuildhere.online** (alojada en Cloudflare).
 

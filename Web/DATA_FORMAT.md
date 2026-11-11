@@ -9,7 +9,7 @@ siempre que al final se entregue un archivo con esta forma. Basta con sustituir 
 
 ## 1. La idea
 
-- El país está dividido en **cuadrados de 12 km²** (3,46 × 3,46 km). En España hay **43.213**.
+- El país está dividido en **cuadrados de 12,25 km²** (3,5 × 3,5 km). En España hay **41.296** y en Japón **30.779**.
 - Cada cuadrado tiene un **identificador** (`id`), su **forma** (coordenadas) y una serie de **datos**:
   la nota final, las 6 variables, los permisos que le afectan y, si se quiere, los motivos principales.
 - Con eso la web pinta cada cuadrado **verde, amarillo o rojo** y, al pulsarlo, enseña el detalle.
@@ -40,8 +40,8 @@ Es un archivo **GeoJSON** (formato estándar de mapas: lo leen QGIS, Python/geop
 | Campo | Obligatorio | Qué es | Ejemplo |
 |---|---|---|---|
 | `pais` | sí | Código del país (2 letras) | `"ES"` |
-| `area_cuadrado_km2` | sí | Superficie de cada cuadrado en km² (se muestra en el panel) | `12` |
-| `lado_cuadrado_km` | no | Lado del cuadrado en km | `3.464` |
+| `area_cuadrado_km2` | sí | Superficie de cada cuadrado en km² (se muestra en el panel) | `12.25` |
+| `lado_cuadrado_km` | no | Lado del cuadrado en km | `3.5` |
 | `datos_de_prueba` | no | `true` si los datos son inventados | `false` |
 | `fuente` | no | De dónde salen los datos | `"Equipo de datos"` |
 | `fecha` | no | Fecha de los datos (AAAA-MM-DD) | `"2026-12-01"` |
@@ -69,7 +69,7 @@ Es un archivo **GeoJSON** (formato estándar de mapas: lo leen QGIS, Python/geop
     "permisos": ["zona_inundable"],
     "motivos_a_favor": ["Subestación eléctrica a menos de 5 km", "Clima fresco todo el año"],
     "motivos_en_contra": ["Parte del terreno es zona inundable"],
-    "area_km2": 12,
+    "area_km2": 12.25,
     "utm_huso": 30,
     "utm_x": 443392,
     "utm_y": 4478952
@@ -87,7 +87,7 @@ Es un archivo **GeoJSON** (formato estándar de mapas: lo leen QGIS, Python/geop
 |---|---|---|---|
 | `id` | **sí** | texto: `"ES-00001"`… | Identificador único del cuadrado. Es la clave para unir cualquier dato con su cuadrado. |
 | `utm_huso`, `utm_x`, `utm_y` | no | números | Esquina suroeste del cuadrado, en metros, en coordenadas UTM (huso 30; huso 28 en Canarias). |
-| `area_km2` | no | número | Superficie de tierra del cuadrado. Los de costa y frontera son menores de 12 porque están recortados. |
+| `area_km2` | no | número | Superficie de tierra del cuadrado. Los de costa y frontera son menores de 12,25 porque están recortados. |
 
 ### 3.2. Resultado
 
@@ -219,6 +219,7 @@ Para un permiso nuevo: `config.js` → `permisos` y su nombre en los dos idiomas
 
 ## 8. Tamaño
 
-Con 43.000 cuadrados el archivo ocupa unos 19 MB, pero la web lo descarga comprimido (~1,8 MB).
-Cada campo se repite 43.000 veces, así que conviene no añadir campos que la web no use
+Con unos 41.000 cuadrados el archivo de España ocupa unos 24 MB, pero la web lo descarga comprimido (unos 2,2 MB).
+**Cloudflare no admite archivos de más de 25 MB**: si un país crece, hay que vigilarlo.
+Cada campo se repite unas 41.000 veces, así que conviene no añadir campos que la web no use
 (y que los motivos escritos sean frases cortas).

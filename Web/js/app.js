@@ -441,6 +441,7 @@ async function iniciar() {
     input: $('buscador-input'),
     lista: $('buscador-lista'),
     paisesConDatos: () => Object.keys(estado.paises),
+    paisActual: () => estado.paisAbierto,
     cargarRegiones: async () => (await Promise.all(Object.keys(estado.paises).map(async pais =>
       ({ pais, features: (await cargarRegiones(pais))?.features ?? [] })))),
     alElegir: r => irALugar(map, r),
