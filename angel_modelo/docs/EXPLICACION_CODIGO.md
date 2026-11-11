@@ -188,3 +188,41 @@ Para quien nunca ha entrenado un modelo. Los archivos aparecen en el orden en qu
 8. **¿Dónde está la IA frontera?** En la explicación de cada celda con Claude, restringida a sus datos y con plantilla de respaldo, y en los criterios de expertos extraídos de audio por el equipo.
 9. **¿Es reproducible?** Sí: un comando, semilla fija, huella de datos y una prueba de aceptación que comprueba que dos ejecuciones dan archivos idénticos.
 10. **¿Qué haríais con más tiempo?** Capacidad de acceso a red por nudo (REE), suelo industrial disponible por parcela, proyectos cancelados como negativos reales, y validar los pesos con promotores.
+
+---
+
+## Novedades del 11-nov-2026
+
+### Varios países sin `if país == ...`
+- **Perfil de país:** `config/paises/es.yaml` y `jp.yaml` dicen el código ISO, el nombre, la división administrativa, los alias de columnas, las tablas, la franja militar y las reglas legales propias.
+- **`src/configuracion.py`:**
+  - `columnas()` fusiona la configuración común con el perfil del país elegido (`MAPA_PAIS`);
+  - `crs_rejilla()` lee la proyección de igual área de `ETL/config.yaml` del equipo;
+  - `pais_tiene_datos()` deja que el orquestador salte un país sin datos.
+- **`src/actualizar.py`:** ejecuta cada paso para cada país, y la suite de sentido común y los tests una sola vez.
+- **Percentil:** se calcula dentro de cada país. *Percentil*: posición relativa (P90 = mejor que el 90 % de las celdas de **ese** país). Por eso no se mezclan países.
+
+### `src/militar.py` — instalaciones militares
+- **`descargar()`:** pide a la *API Overpass* (servicio que consulta OpenStreetMap) los polígonos `landuse=military` y `military=...` del país, y guarda un GeoJSON compacto con fuente, licencia y fecha.
+- **`por_celda()`:** con *geometría* (la librería shapely), para cada celda calcula:
+  - el % ocupado por instalaciones;
+  - la distancia a la más cercana;
+  - si toca la *franja* (un *buffer*: la zona a menos de X metros de la instalación).
+
+  Todo se mide en la proyección métrica de la rejilla. Sin archivo, no escribe nada y la rúbrica marca la regla «no verificada».
+- **Dos umbrales:** una celda de 12 km² con un 3 % militar no debe excluirse entera. Excluir exige mayoría (≥ 50 %); cualquier solape o cercanía solo **condiciona** (impide ser Candidata y avisa de la autorización necesaria).
+- **Qué podría fallar:**
+  - OSM incompleto;
+  - la huella no es el perímetro legal;
+  - una caída brusca de polígonos entre ejecuciones (hay alerta si supera el 20 %).
+
+### `src/sentido.py` — ¿tienen sentido los resultados?
+- Comprueba por país que ninguna Candidata tenga una exclusión, ni esté en agua dominante o en centro urbano denso, ni tenga NaN; también el % de Candidatas y la estabilidad con pesos ±30 %.
+- Lista las 20 mejores celdas de 5 divisiones con reglas objetivas de «sospecha» (cerca de una pista, montaña, embalse, polígono lleno o pendiente).
+- Detectó 2 embalses como Candidatas, y eso dio lugar a la regla `agua_dominante`.
+
+### Lista maestra de data centers (`src/carga.py`)
+Une datacentermap (puntos) y OSM/PeeringDB (celdas) por distancia, con una tolerancia de un lado de celda: así no se cuenta dos veces el mismo centro geolocalizado en la celda de al lado. En España, 12 duplicados.
+
+### Restricciones de monotonía (`src/evaluacion.py`)
+En el experimento de modelo, `monotonic_cst` obliga a que más distancia a la red, más pendiente o más peligrosidad sísmica nunca suban la nota. Así el modelo no puede aprender lo contrario de la física por casualidad.

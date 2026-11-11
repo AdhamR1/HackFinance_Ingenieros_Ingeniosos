@@ -48,3 +48,13 @@
 
 ## Comprobación tras la limpieza
 Ver `CAMBIOS.md`, sección 5: tests y prueba de aceptación repetidos después de la limpieza.
+
+## Limpieza del 11-nov-2026
+- **Eliminado** (generado y sustituido): `web_mapa/data/{celdas.json, dc.json, esquema.json, informe_datos.md, metricas.json, prov/}` en la raíz de `data/`. Ahora va por país en `web_mapa/data/<pais>/` más `data/paises.json`. El esquema y las métricas publicados se movieron a `data/es/` antes de borrar, para conservar la comparación.
+- **Movido:** `pagina/mapa/` → `Web/mapa/` (reorganización del equipo; commit «INTEGRACIÓN:»).
+- **Nuevo:**
+  - `config/paises/{es,jp}.yaml`, `src/militar.py`, `src/sentido.py`, `datos/militar/{esp,jpn}.geojson`;
+  - `tests/test_militar.py`, `tests/test_sentido.py`;
+  - `docs/{CAMBIOS_DATOS, AUDITORIA_BASES_MILITARES, MEJORAS_MODELO, SENTIDO_RESULTADOS, FUENTES}.md`.
+- **Nombres:** sin sufijos (`_v2`, `_final`, …), en minúsculas y snake_case. Los `.geojson` militares se nombran por ISO3 en minúsculas (`esp`, `jpn`), igual que los archivos del ETL.
+- **Restos borrados fuera de la carpeta, generados por mí:** `ELT/` y `pipeline/` con solo `__pycache__`, sin versionar.

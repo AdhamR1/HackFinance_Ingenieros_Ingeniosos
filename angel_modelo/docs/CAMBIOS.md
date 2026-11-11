@@ -115,3 +115,50 @@ Detalle de lo que se mantiene, fusiona, elimina y renombra: `docs/LIMPIEZA.md`. 
   - ningún archivo supera 50 MB (el mayor: 2,5 MB);
   - ningún secreto en el árbol ni en el historial de la rama;
   - `.gitignore` excluye `.venv/`, `salida/` y `__pycache__/`.
+
+---
+
+# Actualización del 11-nov-2026 (misma rama `angel/mapa-viabilidad`)
+
+## 0. Rama y copia de seguridad
+- Estaba en `angel/mapa-web`.
+  - La rama de trabajo es `angel/mapa-viabilidad`, que tenía ocupada el *worktree* temporal de la publicación anterior (limpio). Retiré el worktree y cambié de rama sin perder nada.
+  - Las dos ramas tenían el mismo árbol: `angel/mapa-viabilidad` (publicada) es la más reciente; `angel/mapa-web` queda solo en local.
+- **Copia:**
+  - etiqueta local `backup/pre-actualizacion-2026-11-11`;
+  - `/Users/gallego/hack/copia_seguridad_2026-11-11/repo.bundle` (`git bundle verify` → okay);
+  - resultados de España por celda antes del cambio: `es_resultados_antes.csv`.
+- `git fetch --all --prune`; `origin/angel/mapa-viabilidad` ya estaba al día.
+- La base con los datos es **`origin/main`**, que contiene `origin/pipeline`. Se fusionó con `git merge --no-ff --no-edit origin/main` (commit `b2352e3`), **sin conflictos**. No hizo falta `git lfs` (no hay punteros).
+- Restos sin versionar `ELT/` y `pipeline/` (solo cachés `__pycache__` de mis ejecuciones de tests): borrados.
+
+## Cambios en archivos de otras personas (commits «INTEGRACIÓN:»)
+| Archivo | Antes | Después | Motivo | Revisa |
+|---|---|---|---|---|
+| `pagina/mapa/` → `Web/mapa/` | Mi carpeta generada, en la ruta antigua | Misma carpeta en `Web/mapa/` (regenerada con España y Japón) | La reorganización movió la web a `Web/` y git no movió una carpeta nueva solo mía | Dani |
+| `Web/index.html`, `Web/i18n/{es,en}.json` | — | Sin cambios nuevos: el enlace «Cribado detallado» ya llegó con la fusión | — | Dani |
+
+No he tocado nada de `ETL/` ni de `Modelo/`. Tests del equipo: `Modelo/tests` y `ETL/tests` dan lo mismo antes y después de la fusión (ver sección de verificación).
+
+## Supuestos nuevos
+- **S13.** La base es `origin/main` (reorganizada por Adham). «Pipeline» era una carpeta, no la rama a seguir.
+- **S14.** Para el área de las instalaciones se usa la proyección de igual área de la rejilla del ETL (EPSG:3035 en España y LAEA de Japón), en vez de EPSG:25830 por región. Es métrica, la misma con la que se definen las celdas, y vale igual para Canarias, Baleares, Okinawa e islas remotas (lo prueban los tests).
+- **S15.** Capa militar: OSM (`landuse=military` y `military=base|airfield|naval_base|barracks|range|training_area|ammunition`). No existe una capa oficial abierta de Defensa ni de las zonas de seguridad del BOE en formato geográfico (búsqueda en el IDEE/CNIG y datos.gob.es **por verificar**).
+- **S16.** Umbrales militares: exclusión al 50 % de la celda; franja de 500 m (España) y de 1.000 m (Japón, proxy de 注視区域). Son SUPUESTOS que deben sustituirse por las delimitaciones oficiales.
+- **S17.** Reglas de sentido común nuevas (criterio de cribado, no legal): `urbano_centro` (≥ 80 % urbano) y `agua_dominante` (≥ 50 % agua) impiden ser Candidata; `cobertura_minima_candidata` = 0,85.
+- **S18.** Ninguna variante de pesos se adopta (ver `MEJORAS_MODELO.md`).
+- **S19.** Japón: la PGA del ETL (GEM) se usa como `pga475_ign_g` por alias, en g. J-SHIS y las capas de MLIT (A29, A33) quedan **PENDIENTES** (ver `FUENTES.md`).
+- **S20.** El artículo exacto de la Ley 8/1975 o del RD 689/1978 sobre autorización de obras **no se cita** (por verificar en el BOE). El proyecto de ley japonés de autorización previa **no se modela**: estado no verificado a 11-nov-2026.
+
+## Coherencia de extremo a extremo (tarea 6)
+- Los pesos suman 100 y `validar()` lo comprueba al cargar. Cada criterio apunta a una columna; si no existe en un país, se omite con aviso y queda en el informe de ese país. No hay criterios huérfanos.
+- **Percentiles:** se calculan **dentro** de cada país y se rotulan así en la ficha y en el panel. Para comparar países se usa la nota absoluta 0-100.
+- **Unidades:** PGA en g en los dos países; clima en las unidades del ETL (iguales en los dos).
+- **«Sobre el modelo»:** lee las métricas de cada país (`data/<pais>/metricas.json`), con la huella de los datos.
+- **Web del equipo:** sigue enlazando al mapa (comprobado en Chrome headless).
+- **Contradicciones encontradas y resueltas:**
+  - el subtítulo, la etiqueta sísmica («IGN») y la atribución del pie decían España en Japón: ahora salen del perfil;
+  - el verificador tenía escritos a mano `ESP_` y «30.000 celdas»: generalizado;
+  - el aviso de ordenación provisional se sobrescribía: corregido;
+  - los tests de contrato y de salida se saltaban en silencio por las rutas viejas: corregidos.
+- **Contradicción abierta (decisión del equipo):** la web principal pinta la nota del modelo de Cristóbal y «Cribado detallado» la de la rúbrica.
