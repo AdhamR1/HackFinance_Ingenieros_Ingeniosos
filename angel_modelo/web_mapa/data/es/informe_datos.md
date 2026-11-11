@@ -9,9 +9,9 @@ Huella de los datos: esquema `4f4456e13fe3` · filas `05f484a158d0`. Lector: pip
 - Columnas con tipo de texto convertidas a número: ninguna
 
 ## Cambios respecto a los datos publicados
-**Los datos han cambiado.**
+Sin cambios de esquema ni de cobertura.
 - Celdas: 41296 → 41296
-- Columnas nuevas (no cambian el mapa hasta registrarlas en config/rubrica.yaml): militar_menor
+- Columnas nuevas (no cambian el mapa hasta registrarlas en config/rubrica.yaml): ninguna
 - Columnas desaparecidas: ninguna
 - Tipo cambiado: ninguna
 - Rango cambiado: ninguna
@@ -60,7 +60,7 @@ Huella de los datos: esquema `4f4456e13fe3` · filas `05f484a158d0`. Lector: pip
 Parte del peso de criterios con capa activa: 96%.
 
 ## Experimento de modelo (no alimenta el mapa salvo que supere la regla de decisión)
-- Variables usadas: 82; de ellas nuevas: ['militar_menor'] (revisar a mano)
+- Variables usadas: 82; de ellas nuevas: ninguna (revisar a mano)
 - Descartadas por filtros automáticos: 218
 
 ## Avisos
