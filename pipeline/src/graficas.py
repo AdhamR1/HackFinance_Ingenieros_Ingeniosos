@@ -48,6 +48,22 @@ NAMES = {
     "slope_pct": "Pendiente del terreno",
     "dist_primary_road_km": "Distancia a carretera principal",
     "diurnal_range_c": "Diferencia de temperatura día-noche",
+    "population_50km": "Población a 50 km",
+    "cooling_degree_days": "Calor (grados-día de refrigeración)",
+    "dist_parque_nacional_km": "Distancia a parque nacional",
+    "renewable_capacity_50km_mw": "Renovables a 50 km",
+    "dist_substation_220kv_km": "Distancia a subestación de 220 kV",
+    "dist_railway_km": "Distancia a vía de tren",
+    "dist_substation_400kv_km": "Distancia a subestación de 400 kV",
+    "road_density_km_km2": "Densidad de carreteras",
+    "dist_infra_corridor_km": "Distancia a corredor de fibra",
+    "dist_hv_line_km": "Distancia a línea de alta tensión",
+    "n_substations_20km": "Subestaciones a 20 km",
+    "dist_motorway_junction_km": "Distancia a salida de autovía",
+    "dewpoint_mean_c": "Humedad (punto de rocío)",
+    "tropical_nights_year": "Noches tropicales al año",
+    "solar_ghi_kwh_m2": "Radiación solar",
+    "ambient_vibration_db": "Vibración ambiental",
 }
 # spatial AUC at each step (scores_es_3500_cv_report.csv of each run, 10-Nov-2026)
 EVOLUTION = [
@@ -56,6 +72,7 @@ EVOLUTION = [
     ("+ Riesgos, suelo\ny sismicidad", 0.905),
     ("+ Criterios de expertos\n(81 audios)", 0.919),
     ("− Variables que\nhacían trampa", 0.922),
+    ("Ubicaciones de\ncentro de ciudad\ncorregidas", 0.945),
 ]
 
 
@@ -172,6 +189,9 @@ def evolucion():
 
 def main():
     s = pd.read_parquet(PROCESSED / "scores_es_3500.parquet")
+    # same rule as the web (exportar_web.py): built-up urban land stays at most yellow
+    urb = s.site_id.map(pd.read_parquet(PROCESSED / "exclusions_es_3500.parquet").set_index("site_id").urbano_pct)
+    s.loc[(s.band == "alta") & (urb >= 50), "band"] = "media"
     mapa(s)
     aciertos(s)
     variables()

@@ -5,6 +5,7 @@ Uses OUR grid (EPSG:3035, 3,500 m, id = site_id), clipped to the same outline of
 
   puntuacion        model rank mapped to the web colours (config.js umbrales: verde >= 70, amarillo >= 50):
                     best 5 % -> 70-100, next 15 % -> 50-69, rest -> 0-49. 0 when excluded.
+                    Cells mostly built-up urban land (>= URBAN_CAP_PCT) are capped at yellow (69).
   descartado        exclusions_es_3500 (only what is forbidden: water, national park, floodway)
   permisos          the warnings of feat_suelo.WARN_PCT (information only, they do not change the colour)
   motivos_*         the 3 variables that weigh most in THIS cell (SHAP, from scores_es_3500.reasons),
@@ -38,6 +39,10 @@ DESCARTE = {
     "agua": {"es": "Casi toda la zona es agua (embalse, lago o marisma)",
              "en": "Almost entirely water (reservoir, lake or marsh)"},
 }
+# Built-up city land is not forbidden but needs rezoning, which the model cannot see (it rates city
+# centres high: substations, roads and fibre all around). Such cells stay at most yellow.
+URBAN_CAP_PCT = WARN_PCT["urbano"]
+URBAN_CAP_SCORE = 69
 
 
 def num(v, d=1):
@@ -112,8 +117,12 @@ def motivos(reasons: str, med: dict) -> tuple[list, list]:
             continue
         v, plus = float(val), sign.startswith("+")
         good = TEXT[feat][0]
-        if good and v != med[feat] and ((v - med[feat]) * good > 0) != plus:
-            continue                           # e.g. "substation 0.8 km away" as a point against
+        # e.g. "substation 0.8 km away" as a point against, or "0 % industrial land" as a point
+        # in favour: a value no better than the typical cell only reads well as a point against
+        if good and ((v - med[feat]) * good > 0) != plus:
+            continue
+        if plus and feat.endswith("_pct") and v < 1:       # "0 %" (really 0.3 %) as a point in favour
+            continue
         (favor if plus else contra).append({"es": phrase(feat, v, "es"), "en": phrase(feat, v, "en")})
     return favor, contra
 
@@ -184,10 +193,17 @@ def main():
         if not excl and stress.get(sid, 0) >= 4:
             contra.insert(0, {"es": "Estrés hídrico extremadamente alto en la cuenca",
                               "en": "Extremely high water stress in the basin"})
+        nota = None if pd.isna(score[sid]) else int(score[sid])
+        urb = pct.at[sid, "urbano_pct"] or 0
+        if not excl and urb >= URBAN_CAP_PCT and nota is not None and nota > URBAN_CAP_SCORE:
+            nota = URBAN_CAP_SCORE
+            favor = [m for m in favor if not m["es"].startswith("Suelo urbano")]
+            contra.insert(0, {"es": f"Suelo urbano consolidado ({urb:.0f} %): requiere recalificación",
+                              "en": f"Built-up urban land ({urb:.0f} %): needs rezoning"})
         props = {
             "id": sid,
             # 0 when excluded: with null the web would make up a provisional score from the variables
-            "puntuacion": 0 if excl else (None if pd.isna(score[sid]) else int(score[sid])),
+            "puntuacion": 0 if excl else nota,
             "descartado": excl,
             "motivo_descarte": DESCARTE.get(e.motivo_descarte.get(sid)) if excl else None,
             **{c: (None if pd.isna(ind.at[sid, c]) else int(ind.at[sid, c])) for c in ind.columns},

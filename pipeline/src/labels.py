@@ -14,20 +14,51 @@ Output: data/processed/labels_es_3500.parquet
 
 A few sites fall in coastal cells that the ELT grid drops (< 50 % land). Their location is
 approximate anyway, so they are moved to the nearest ELT cell (reported, max MAX_SNAP_CELLS away).
+
+Sites placed at a CITY CENTRE (precision `metro`, operator unknown, and the RELOCATE list) would teach
+"the historic centre is a good place". They are moved to the cell with most industrial land within
+RELOCATE_CELLS (~7 km), where city data centers usually are (needs exclusions_es_3500.parquet from
+feat_suelo.py, so run labels.py after it).
+Tested on 11-Nov-2026 on the 67 sites that are NOT moved: spatial AUC 0.927 -> 0.937, i.e. the gain
+is not just "moved to where industrial_pct is high". Dropping these sites instead gave 0.888.
 """
 
+import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
 from cells import PROCESSED, RAW, cell_index, read_grid, site_id_from_lonlat
 
 MAX_SNAP_CELLS = 2
+RELOCATE_CELLS = 2
+RELOCATE = {"Zaragoza - ciudad"}   # municipio rows that are really "somewhere in a big city"
+
+
+def relocate_city_centres(s: pd.DataFrame, grid: pd.DataFrame) -> pd.DataFrame:
+    suelo = PROCESSED / "exclusions_es_3500.parquet"
+    if not suelo.exists():
+        print("  falta exclusions_es_3500.parquet (feat_suelo.py): los de centro de ciudad se quedan en el centro")
+        return s
+    ex = pd.read_parquet(suelo).set_index("site_id")
+    g = grid[["site_id", "i", "j"]].assign(industrial_pct=lambda d: d.site_id.map(ex.industrial_pct).fillna(0))
+    g = g[~g.site_id.map(ex.excluded).fillna(False).astype(bool)]        # never into a forbidden cell
+    for k in s.index[(s.precision == "metro") | s.site.isin(RELOCATE)]:
+        c = cell_index(pd.Series([s.at[k, "site_id"]])).iloc[0]
+        near = g[(g.i - c.i).abs().le(RELOCATE_CELLS) & (g.j - c.j).abs().le(RELOCATE_CELLS)]
+        near = near.assign(dist=np.hypot(near.i - c.i, near.j - c.j))
+        best = near.sort_values(["industrial_pct", "dist"], ascending=[False, True]).iloc[0]
+        if best.industrial_pct > 0 and best.site_id != s.at[k, "site_id"]:
+            print(f"  centro de ciudad -> zona industrial: {s.at[k, 'site']} ({best.dist * 3.5:.1f} km, "
+                  f"{best.industrial_pct:.0f} % industrial)")
+            s.at[k, "site_id"] = best.site_id
+    return s
 
 
 def main():
     grid = read_grid()
     s = pd.read_csv(RAW / "dc_sites_es.csv").dropna(subset=["lat", "lon"])
     s["site_id"] = site_id_from_lonlat(s["lon"].values, s["lat"].values)
+    s = relocate_city_centres(s, grid)
 
     outside = ~s["site_id"].isin(grid["site_id"])
     if outside.any():
