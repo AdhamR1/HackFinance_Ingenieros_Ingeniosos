@@ -108,8 +108,12 @@ URBAN_CAP_SCORE = 69
 SMOOTH_W = 0.3  # weight of the mean of the 3 x 3 neighbourhood in the web score
 # The model uses them (they correlate with where data centers are) but they are not a reason a
 # person would accept: "military area 3 km away" or "national park 5 km away" as a point in favour.
-NOT_A_REASON = {"dist_military_km", "dist_parque_nacional_km", "dist_protected_area_km",
-                "dist_residential_km"}
+NOT_A_REASON = {
+    "dist_military_km",
+    "dist_parque_nacional_km",
+    "dist_protected_area_km",
+    "dist_residential_km",
+}
 # Only one side reads well: people right next to it (noise, permits, opposition) vs a city near
 # enough for staff and customers.
 ONE_SIDE = {"population_1km": "contra", "population_10km": "favor"}
@@ -289,8 +293,8 @@ def indicators(f: pd.DataFrame, agua: pd.DataFrame | None) -> pd.DataFrame:
             "gen_capacity_50km_mw": True,
         },
     )
-    # No "agua" bar: water does not enter the score, and "100/100 with water 0" read as a bug. Water
-    # stress stays as a point against (main(), Aqueduct >= 4).
+    # No "agua" bar: water does not enter the score, and "100/100 with water 0" read as a bug.
+    # Water stress stays as a point against (main(), Aqueduct >= 4).
     i["clima"] = pr(f.est_pue, False)
     # flood: official 500-year zone where it exists (Spain), the JRC 500-year depth elsewhere
     flood = (
@@ -459,7 +463,8 @@ def main():
             excl, share = True, f"{park:.0f} %" if park >= 1 else "menos del 1 %"
             motivo = {
                 "es": f"Parte de la zona está dentro de un Parque Nacional ({share})",
-                "en": f"Part of the area is inside a National Park ({share.replace('menos del', 'under')})",
+                "en": "Part of the area is inside a National Park "
+                f"({share.replace('menos del', 'under')})",
             }
         permisos = [PERMISO[c] for c, lim in warn.items() if (pct.at[sid, f"{c}_pct"] or 0) >= lim]
         favor, contra = ([], []) if excl else motivos(s.reasons.get(sid), med)
