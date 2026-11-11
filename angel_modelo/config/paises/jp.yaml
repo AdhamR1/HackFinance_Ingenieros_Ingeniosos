@@ -23,16 +23,20 @@ alias:
 militar:
   buffer_m: 1000             # PROXY de 注視区域 (área vigilada, ~1.000 m) marcado SUPUESTO: designación no verificada
   caida_alerta_pct: 20
+  # Solo las instalaciones CON ENTIDAD generan franja y bloquean la etiqueta Candidata (opción 2, 11-nov-2026):
+  # las zonas de seguridad legales se delimitan para instalaciones concretas, no para cualquier recinto de OSM.
+  tipos_entidad: [base, airfield, naval_base, range, training_area, ammunition]   # OSM military=*
+  area_min_ha: 5             # SUPUESTO: un recinto sin tipo cuenta como instalación si mide >= 5 ha
 
 reglas:
   exclusiones:
     - id: militar
       columna: militar_pct
       op: ">="
-      valor: 50
+      valor: 90
       motivo: "Dentro de instalación militar (Fuerzas de Autodefensa o fuerzas de EE. UU. en Japón)"
       tipo: legal
-      fuente: "SUPUESTO 50 % (mismo criterio que España). Capa: OpenStreetMap (huella física, no perímetro legal)."
+      fuente: "SUPUESTO 90 % (antes 50 %; mismo criterio que España y que la regla de agua). Capa: OpenStreetMap (huella física, no perímetro legal)."
       obligatoria: true
       penalizacion_confianza: 0.05
     - id: control_urbanizacion
@@ -58,6 +62,14 @@ reglas:
         El proyecto de ley de autorización previa (octubre 2026) NO se modela: vigencia no verificada.
       obligatoria: true
       penalizacion_confianza: 0.0
+    - id: militar_menor
+      columna: militar_menor
+      op: "=="
+      valor: 1
+      penalizacion: 0
+      aviso: "Recinto militar menor cerca (OSM): comprobar con la autoridad de Defensa si hay zona de seguridad"
+      tipo: legal
+      fuente: "Recintos de OSM sin tipo de instalación y de menos de 5 ha (cuarteles urbanos, oficinas...): solo aviso, no bloquean."
     - id: sedimentos
       columna: sedimentos_especial_pct
       op: ">="

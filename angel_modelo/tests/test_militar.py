@@ -60,3 +60,19 @@ def test_islas_se_procesan_en_la_proyeccion_metrica_del_pais(monkeypatch, pais, 
     g = capa((x - 1000, y - 1000, x + 1000, y + 1000))                 # SINTÉTICO: 4 km² alrededor del punto
     r = M.por_celda(pd.DataFrame({"site_id": [celda(i, j, iso)]}), g, TAM, 500)
     assert r.militar_pct.iloc[0] > 0 and r.en_franja.iloc[0] == 1
+
+
+def test_recinto_menor_solo_aviso_y_entidad_genera_franja():
+    i, j = 2000, 600
+    x0, y0 = i * TAM, j * TAM
+    g = capa((x0 + 100, y0 + 100, x0 + 200, y0 + 200),                      # 1 ha sin tipo: recinto menor
+             (x0 + 10 * TAM + 100, y0 + 100, x0 + 10 * TAM + 200, y0 + 200)) # 1 ha, pero de tipo «base»
+    g["tipo"] = ["military", "base"]                                        # SINTÉTICO
+    cells = pd.DataFrame({"site_id": [celda(i, j), celda(i + 10, j)]})
+    r = M.por_celda(cells, g, TAM, 500, ["base", "airfield"], 5).set_index("site_id")
+    assert r.loc[celda(i, j), "en_franja"] == 0 and r.loc[celda(i, j), "militar_menor"] == 1
+    assert r.loc[celda(i + 10, j), "en_franja"] == 1 and r.loc[celda(i + 10, j), "militar_menor"] == 0
+    g2 = capa((x0, y0, x0 + 300, y0 + 2000))                                # 6 ha sin tipo: cuenta como entidad
+    g2["tipo"] = ["military"]
+    r2 = M.por_celda(cells.head(1), g2, TAM, 500, ["base"], 5)
+    assert r2.en_franja.iloc[0] == 1

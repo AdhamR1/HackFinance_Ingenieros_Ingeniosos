@@ -9,18 +9,22 @@ etiqueta_division: provincia # unidad de validación espacial y de comparación 
 
 militar:
   buffer_m: 500              # SUPUESTO: franja alrededor de la huella OSM hasta tener las zonas de seguridad del BOE
-  caida_alerta_pct: 20       # alerta si el nº de polígonos o el área cae más de esto respecto a lo publicado
+  caida_alerta_pct: 20
+  # Solo las instalaciones CON ENTIDAD generan franja y bloquean la etiqueta Candidata (opción 2, 11-nov-2026):
+  # las zonas de seguridad legales se delimitan para instalaciones concretas, no para cualquier recinto de OSM.
+  tipos_entidad: [base, airfield, naval_base, range, training_area, ammunition]   # OSM military=*
+  area_min_ha: 5             # SUPUESTO: un recinto sin tipo cuenta como instalación si mide >= 5 ha       # alerta si el nº de polígonos o el área cae más de esto respecto a lo publicado
 
 reglas:
   exclusiones:
     - id: militar
       columna: militar_pct
       op: ">="
-      valor: 50
+      valor: 90
       motivo: "Dentro de instalación militar"
       tipo: legal
       fuente: >-
-        SUPUESTO 50 %: una celda de 12,25 km² ocupada en su mayoría por una instalación no tiene suelo útil.
+        SUPUESTO 90 % (antes 50 %; mismo criterio que la regla de agua del equipo): solo se excluye una celda que es físicamente casi toda instalación.
         Una celda con un 3 % militar NO se excluye entera: por eso hay dos umbrales (exclusión por ocupación
         mayoritaria + condicionante por cualquier solape o cercanía). Capa: OpenStreetMap (huella física).
       obligatoria: true           # sin capa -> «restricción militar no verificada», baja la confianza
@@ -42,6 +46,15 @@ reglas:
         del BOE no están en un formato geográfico abierto. La HUELLA FÍSICA NO ES EL PERÍMETRO LEGAL.
       obligatoria: true
       penalizacion_confianza: 0.0
+
+    - id: militar_menor
+      columna: militar_menor
+      op: "=="
+      valor: 1
+      penalizacion: 0
+      aviso: "Recinto militar menor cerca (OSM): comprobar con la autoridad de Defensa si hay zona de seguridad"
+      tipo: legal
+      fuente: "Recintos de OSM sin tipo de instalación y de menos de 5 ha (cuarteles urbanos, oficinas...): solo aviso, no bloquean."
 
 # Limitación documentada, sin modelar: zonas de acceso restringido a la propiedad por parte de extranjeros
 # (Ley 8/1975, título III). Relevante para inversores extranjeros; vigencia y delimitación POR VERIFICAR.

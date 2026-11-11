@@ -22,7 +22,7 @@ def good_cell(**kw):
             "dist_substation_220kv_km": 1.0, "dist_hv_line_km": 0.5, "dist_infra_corridor_km": 0.5,
             "latency_to_hub_ms": 2.0, "industrial_pct": 20.0, "free_cooling_hours": 7500.0, "wetbulb_p99_c": 18.0,
             "annual_precip_mm": 900.0, "water_stress": 0.0, "pga475_ign_g": 0.03, "zi_t500_pct": 0.0, "dist_motorway_junction_km": 1.0,
-            "militar_pct": 0.0, "distancia_militar_km": 20.0, "en_franja": 0}
+            "militar_pct": 0.0, "distancia_militar_km": 20.0, "en_franja": 0, "militar_menor": 0}
     base.update(kw)
     return base
 
@@ -154,7 +154,7 @@ def test_centro_urbano_denso_no_puede_ser_candidata():
 
 
 def test_militar_dentro_parcial_franja_lejos():
-    r = run(good_cell(militar_pct=60, en_franja=1, distancia_militar_km=0),      # dentro: excluida
+    r = run(good_cell(militar_pct=95, en_franja=1, distancia_militar_km=0),      # dentro (>= 90 %): excluida
             good_cell(militar_pct=3, en_franja=1, distancia_militar_km=0),       # solape parcial: condicionada
             good_cell(militar_pct=0, en_franja=1, distancia_militar_km=0.3),     # en franja: condicionada
             good_cell(militar_pct=0, en_franja=0, distancia_militar_km=12))      # lejos: sin efecto
@@ -171,3 +171,12 @@ def test_capa_militar_ausente_no_verificada_y_baja_confianza():
             del c[k]
     r = run(*cells)
     assert np.allclose(r.cobertura, 0.95) and r.capas_faltan.str.contains("militar\\(no verificada\\)").all()
+
+
+def test_militar_60_pct_ya_no_excluye_y_recinto_menor_solo_avisa():
+    r = run(good_cell(militar_pct=60, en_franja=1, distancia_militar_km=0),      # mayoría, pero < 90 %: condicionada
+            good_cell(militar_pct=0.1, en_franja=0, militar_menor=1),            # recinto menor cerca: solo aviso
+            good_cell())
+    assert list(r.excluida) == [False, False, False]
+    assert list(r.estado) == ["Dudosa", "Candidata", "Candidata"]
+    assert "C:militar_menor" in r.motivos.iloc[1]

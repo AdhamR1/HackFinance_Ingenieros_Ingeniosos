@@ -103,21 +103,26 @@ def leer_capa():
     return g, {**meta, "estado": "ok", "poligonos": int(len(g)), "area_km2": round(float(g.union_all().area) / 1e6, 1)}
 
 
-def por_celda(cells: pd.DataFrame, g, tam: float, buffer_m: float) -> pd.DataFrame:
-    """militar_pct, distancia_militar_km y en_franja para cada celda (ids con patrón de rejilla)."""
+def por_celda(cells: pd.DataFrame, g, tam: float, buffer_m: float, tipos_entidad=None, area_min_ha: float = 0.0) -> pd.DataFrame:
+    """Por celda (ids con patrón de rejilla):
+      militar_pct           % de la celda ocupado por CUALQUIER recinto militar (decide la exclusión)
+      distancia_militar_km  distancia a la instalación con entidad más cercana (si no hay, a cualquier recinto)
+      en_franja             1 si toca una instalación CON ENTIDAD o su franja (buffer_m); 0 si no
+      militar_menor         1 si solo toca un recinto MENOR (sin tipo de entidad y < area_min_ha) o su franja
+    «Con entidad» = tipo en `tipos_entidad` (base, aeródromo, base naval, campo de tiro...) o área >= area_min_ha.
+    Si la capa no trae tipo, todos los recintos cuentan como instalaciones con entidad."""
     import shapely
 
     patron = columnas()["identificador"]["patron"]
     ij = cells["site_id"].astype(str).str.extract(patron).astype(float).to_numpy()
     ok = ~np.isnan(ij).any(axis=1)
     out = pd.DataFrame({"site_id": cells["site_id"], "militar_pct": np.nan, "distancia_militar_km": np.nan,
-                        "en_franja": np.nan})
+                        "en_franja": np.nan, "militar_menor": np.nan})
     if g is None:
         return out
     boxes = shapely.box(ij[ok, 0] * tam, ij[ok, 1] * tam, (ij[ok, 0] + 1) * tam, (ij[ok, 1] + 1) * tam)
     if len(g) == 0:                         # capa vacía: no hay instalaciones registradas (dato = 0, con alerta)
-        out.loc[ok, ["militar_pct", "en_franja"]] = 0.0
-        out.loc[ok, "distancia_militar_km"] = np.nan
+        out.loc[ok, ["militar_pct", "en_franja", "militar_menor"]] = 0.0
         return out
     polys = np.array(g.geometry.values, dtype=object)
     tree = shapely.STRtree(polys)
@@ -129,11 +134,24 @@ def por_celda(cells: pd.DataFrame, g, tam: float, buffer_m: float) -> pd.DataFra
         for c, grp in df.groupby("c"):
             pct[c] = shapely.union_all(grp["g"].values).area
     pct = 100 * pct / (tam * tam)
-    idx = tree.nearest(boxes)
-    dist = shapely.distance(boxes, polys[idx]) / 1000
+    if "tipo" in g.columns and tipos_entidad is not None:
+        entidad = (g["tipo"].isin(tipos_entidad) | (g.geometry.area >= area_min_ha * 1e4)).to_numpy()
+    else:
+        entidad = np.ones(len(g), bool)
+
+    def distancia(mask):
+        if not mask.any():
+            return np.full(len(boxes), np.inf)
+        sub = polys[mask]
+        t = shapely.STRtree(sub)
+        return shapely.distance(boxes, sub[t.nearest(boxes)])
+
+    d_ent, d_men = distancia(entidad), distancia(~entidad)
+    en_franja = d_ent <= buffer_m
     out.loc[ok, "militar_pct"] = np.round(pct, 2)
-    out.loc[ok, "distancia_militar_km"] = np.round(dist, 3)
-    out.loc[ok, "en_franja"] = (dist * 1000 <= buffer_m).astype(float)
+    out.loc[ok, "distancia_militar_km"] = np.round(np.where(np.isfinite(d_ent), d_ent, d_men) / 1000, 3)
+    out.loc[ok, "en_franja"] = en_franja.astype(float)
+    out.loc[ok, "militar_menor"] = ((d_men <= buffer_m) & ~en_franja).astype(float)
     return out
 
 
@@ -149,7 +167,8 @@ def main():
     idc = columnas()["identificador"]["columna"]
     cells = st[[idc]].drop_duplicates().rename(columns={idc: "site_id"}).reset_index(drop=True)
     g, info = leer_capa()
-    res = por_celda(cells, g, float(columnas()["rejilla"]["tamano_celda_m"]), float(cfg.get("buffer_m", 500)))
+    res = por_celda(cells, g, float(columnas()["rejilla"]["tamano_celda_m"]), float(cfg.get("buffer_m", 500)),
+                    cfg.get("tipos_entidad"), float(cfg.get("area_min_ha", 0)))
     res = res.rename(columns={"site_id": idc})
     (out_dir / "capas").mkdir(exist_ok=True)
     f = out_dir / "capas" / "militar.parquet"
@@ -159,6 +178,10 @@ def main():
         res.to_parquet(f, index=False)
     info["celdas_con_instalacion"] = int((res.militar_pct > 0).sum())
     info["celdas_en_franja"] = int((res.en_franja == 1).sum())
+    info["celdas_recinto_menor"] = int((res.militar_menor == 1).sum())
+    if g is not None and len(g) and "tipo" in g.columns:
+        ent = g["tipo"].isin(cfg.get("tipos_entidad") or []) | (g.geometry.area >= float(cfg.get("area_min_ha", 0)) * 1e4)
+        info["poligonos_con_entidad"] = int(ent.sum())
     (out_dir / "capa_militar.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"capa militar: {info.get('estado')} · polígonos {info.get('poligonos', 0)} · celdas con instalación "
           f"{info['celdas_con_instalacion']} · en franja {info['celdas_en_franja']}")
