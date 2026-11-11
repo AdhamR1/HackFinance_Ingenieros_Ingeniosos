@@ -1,6 +1,6 @@
 # Informe de datos
 
-Huella de los datos: esquema `11b42a6eeb58` · filas `98666f4669fc`. Lector: pipeline/src/cells.py:read_elt.
+Huella de los datos: esquema `4f4456e13fe3` · filas `05f484a158d0`. Lector: pipeline/src/cells.py:read_elt.
 
 - Celdas: 41,296 · provincias: 52 · años agregados: [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
 - Data centers (celdas): {'datacentermap': 100, 'osm_peeringdb': 63, 'ambas': 20, 'lista_maestra': 131}
@@ -9,9 +9,9 @@ Huella de los datos: esquema `11b42a6eeb58` · filas `98666f4669fc`. Lector: pip
 - Columnas con tipo de texto convertidas a número: ninguna
 
 ## Cambios respecto a los datos publicados
-Sin cambios de esquema ni de cobertura.
+**Los datos han cambiado.**
 - Celdas: 41296 → 41296
-- Columnas nuevas (no cambian el mapa hasta registrarlas en config/rubrica.yaml): ninguna
+- Columnas nuevas (no cambian el mapa hasta registrarlas en config/rubrica.yaml): militar_menor
 - Columnas desaparecidas: ninguna
 - Tipo cambiado: ninguna
 - Rango cambiado: ninguna
@@ -19,7 +19,7 @@ Sin cambios de esquema ni de cobertura.
 
 ## Capa militar (control)
 - Estado: ok · polígonos: 1236 · área: 913.3 km² · fuente: OpenStreetMap (Overpass API) (2026-11-11)
-- Celdas con instalación: 722 · en franja: 1098
+- Celdas con instalación: 722 · en franja: 621
 - Limitación: huella física de OpenStreetMap, NO el perímetro legal; puede estar incompleta.
 
 ## Capas de la rúbrica (activa = cobertura ≥ umbral configurado)
@@ -42,6 +42,7 @@ Sin cambios de esquema ni de cobertura.
 | costa_baja | condicionantes | `in_low_elevation_coastal_zone` | 100% | sí |
 | altitud_alta | condicionantes | `elevation_m` | 100% | sí |
 | militar_franja | condicionantes | `en_franja` | 100% | sí |
+| militar_menor | condicionantes | `militar_menor` | 100% | sí |
 | subestacion | criterios | `dist_substation_220kv_km` | 100% | sí |
 | alta_tension | criterios | `dist_hv_line_km` | 100% | sí |
 | corredor_fibra | criterios | `dist_infra_corridor_km` | 100% | sí |
@@ -59,7 +60,7 @@ Sin cambios de esquema ni de cobertura.
 Parte del peso de criterios con capa activa: 96%.
 
 ## Experimento de modelo (no alimenta el mapa salvo que supere la regla de decisión)
-- Variables usadas: 81; de ellas nuevas: ninguna (revisar a mano)
+- Variables usadas: 82; de ellas nuevas: ['militar_menor'] (revisar a mano)
 - Descartadas por filtros automáticos: 218
 
 ## Avisos

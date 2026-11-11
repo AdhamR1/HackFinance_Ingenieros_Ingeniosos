@@ -276,7 +276,7 @@ def main():
                 "nota": round(float(r.score), 1), "cobertura": round(float(r.cobertura), 2),
                 "motivos": [cidx[c] for c in r.motivos.split("|") if c],
                 "mil": [None if pd.isna(r.get(c, np.nan)) else round(float(r[c]), 3)
-                        for c in ("militar_pct", "distancia_militar_km", "en_franja")]}
+                        for c in ("militar_pct", "distancia_militar_km", "en_franja", "militar_menor")]}
         (web / "prov" / f"{k}.json").write_text(json.dumps(det, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # ---------------------------------------------------------------- DC, métricas, esquema, informe

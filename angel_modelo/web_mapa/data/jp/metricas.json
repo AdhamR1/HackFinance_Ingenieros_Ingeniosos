@@ -1,13 +1,12 @@
 {
  "huella_datos": {
-  "esquema": "061cfd8e7bdd",
-  "filas": "e25d9b73b4fc"
+  "esquema": "98eddeed9e01",
+  "filas": "4fb4d7dc43d8"
  },
  "validacion": "Espacial por provincias: StratifiedGroupKFold(5, semilla 42), grupos = provincia; intervalos al 95 % por bootstrap de provincias (300 réplicas)",
  "target": "Celda con data center real (lista unificada datacentermap + OSM/PeeringDB). Aprendizaje PU: una celda sin data center no es 'no viable'",
- "variables_modelo": 51,
+ "variables_modelo": 53,
  "quitadas_por_redundantes": [
-  "flood_depth_rp500_m",
   "dist_airport_runway_km",
   "cooling_degree_days",
   "heating_degree_days",
@@ -31,6 +30,7 @@
   "fault_slip_rate_mm_yr",
   "sand_pct",
   "flood_depth_rp100_m",
+  "flood_depth_rp500_m",
   "dist_coast_km",
   "flood_depth_rp10_m",
   "in_low_elevation_coastal_zone",
@@ -71,6 +71,7 @@
   "militar_pct",
   "distancia_militar_km",
   "en_franja",
+  "militar_menor",
   "rubrica"
  ],
  "variables_descartadas": {
@@ -319,33 +320,33 @@
   "ndvi_mean": "constante"
  },
  "correlacion_rubrica_con": {
-  "urbano_pct": 0.669,
-  "industrial_pct": 0.586
+  "urbano_pct": 0.671,
+  "industrial_pct": 0.587
  },
  "variantes_rubrica": {
   "V1_industrial_5": {
-   "pr_auc_media": 0.0279,
-   "pr_auc_base": 0.0351,
+   "pr_auc_media": 0.0176,
+   "pr_auc_base": 0.0225,
    "pliegues_que_mejora": 0,
    "adoptar": false
   },
   "V2_sin_latencia": {
-   "pr_auc_media": 0.0231,
-   "pr_auc_base": 0.0351,
+   "pr_auc_media": 0.02,
+   "pr_auc_base": 0.0225,
    "pliegues_que_mejora": 2,
    "adoptar": false
   },
   "V3_subestacion_30": {
-   "pr_auc_media": 0.0327,
-   "pr_auc_base": 0.0351,
-   "pliegues_que_mejora": 2,
+   "pr_auc_media": 0.0216,
+   "pr_auc_base": 0.0225,
+   "pliegues_que_mejora": 3,
    "adoptar": false
   },
   "V4_pendiente_15": {
-   "pr_auc_media": 0.0347,
-   "pr_auc_base": 0.0351,
-   "pliegues_que_mejora": 3,
-   "adoptar": false
+   "pr_auc_media": 0.023,
+   "pr_auc_base": 0.0225,
+   "pliegues_que_mejora": 4,
+   "adoptar": true
   }
  },
  "restricciones_monotonicas": 7,
@@ -353,99 +354,99 @@
  "modelo_entra_al_mapa": false,
  "resultados": {
   "dc_real": {
-   "positivos": 83,
-   "celdas": 22690,
+   "positivos": 84,
+   "celdas": 22726,
    "pliegues_positivos": [
-    31,
-    11,
+    10,
+    33,
     16,
     14,
     11
    ],
    "rubrica": {
-    "pr_auc": 0.017,
+    "pr_auc": 0.0171,
     "pr_auc_ic95": [
-     0.0052,
-     0.0395
+     0.005,
+     0.0402
     ],
-    "auc": 0.8366,
+    "auc": 0.8287,
     "auc_ic95": [
-     0.7344,
-     0.8987
+     0.7199,
+     0.8968
     ],
-    "recall_top5": 0.2651,
+    "recall_top5": 0.2738,
     "recall_top5_ic95": [
-     0.0923,
-     0.3927
+     0.0916,
+     0.3967
     ]
    },
    "logistica_2_variables": {
-    "pr_auc": 0.0609,
+    "pr_auc": 0.0701,
     "pr_auc_ic95": [
-     0.0279,
-     0.1111
+     0.028,
+     0.1333
     ],
-    "auc": 0.9363,
+    "auc": 0.9411,
     "auc_ic95": [
-     0.8876,
-     0.9666
+     0.8846,
+     0.9705
     ],
-    "recall_top5": 0.7108,
+    "recall_top5": 0.7024,
     "recall_top5_ic95": [
-     0.4751,
-     0.8667
+     0.4594,
+     0.8565
     ],
     "calibracion": {
-     "brier": 0.0799,
-     "decil_superior_prob_media": 0.7874,
-     "decil_superior_tasa_real": 0.0322
+     "brier": 0.082,
+     "decil_superior_prob_media": 0.7901,
+     "decil_superior_tasa_real": 0.0321
     }
    },
    "modelo_equipo_replica": {
-    "pr_auc": 0.0748,
+    "pr_auc": 0.1004,
     "pr_auc_ic95": [
-     0.0219,
-     0.1564
+     0.0176,
+     0.2293
     ],
-    "auc": 0.8587,
+    "auc": 0.8582,
     "auc_ic95": [
-     0.7589,
-     0.9087
+     0.7745,
+     0.9011
     ],
-    "recall_top5": 0.6627,
+    "recall_top5": 0.5833,
     "recall_top5_ic95": [
-     0.4753,
-     0.7687
+     0.39,
+     0.697
     ],
     "calibracion": {
-     "brier": 0.0408,
-     "decil_superior_prob_media": 0.4689,
-     "decil_superior_tasa_real": 0.0264
+     "brier": 0.0364,
+     "decil_superior_prob_media": 0.4603,
+     "decil_superior_tasa_real": 0.0268
     }
    },
    "aleatorio": {
-    "pr_auc": 0.0035,
+    "pr_auc": 0.0033,
     "pr_auc_ic95": [
-     0.0015,
-     0.0075
+     0.0014,
+     0.0067
     ],
-    "auc": 0.4722,
+    "auc": 0.4727,
     "auc_ic95": [
-     0.3925,
-     0.5207
+     0.3825,
+     0.5367
     ],
-    "recall_top5": 0.0361,
+    "recall_top5": 0.0119,
     "recall_top5_ic95": [
      0.0,
-     0.0641
+     0.0342
     ]
    },
-   "prob_modelo_supera_a_ambos": 0.703,
+   "prob_modelo_supera_a_ambos": 0.677,
    "modelo_equipo_original_bloques70km": {
     "nota": "oof_spatial_pct de pipeline/src/train.py (LightGBM, bloques de 70 km, no provincias; target datacentermap)",
-    "pr_auc": 0.0451,
-    "auc": 0.8623,
-    "recall_top5": 0.5181
+    "pr_auc": 0.0448,
+    "auc": 0.8622,
+    "recall_top5": 0.5119
    }
   }
  },
