@@ -4,7 +4,7 @@ Chrome sin ventana ("headless"), controlado con el protocolo de DevTools. No nec
 
 ## Uso
 ```
-# 1) Servidor normal (desde la carpeta pagina):
+# 1) Servidor normal (desde la carpeta Web):
 python -m http.server 8000 --bind 127.0.0.1
 # 2) Lanzar una prueba (los pasos van en un .json):
 node herramientas/pruebas/probar.mjs herramientas/pruebas/ejemplos/panel_movil.json <carpeta_para_capturas>

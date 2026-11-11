@@ -1,9 +1,9 @@
 # Requiere Python >= 3.11.
 # macOS/Linux, desde la raíz del repo:
 #   python3.11 -m venv .venv && source .venv/bin/activate
-#   python -m pip install -r ELT/requirements.txt
-#   python -m ELT.dclake status        (o, desde ELT/: python -m dclake status)
-# Windows, desde la carpeta ELT:
+#   python -m pip install -r ETL/requirements.txt
+#   python -m ETL.dclake status        (o, desde ETL/: python -m dclake status)
+# Windows, desde la carpeta ETL:
 #   py -3.11 -m venv %USERPROFILE%\.venvs\dclake
 #   %USERPROFILE%\.venvs\dclake\Scripts\activate
 #   python -m pip install -r requirements.txt

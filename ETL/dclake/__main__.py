@@ -11,12 +11,12 @@ demo       ejecución offline con datos sintéticos (comprueba la instalación)
 export     Excel legible con las tablas de unas celdas (--sites a,b,c --out archivo.xlsx)
 azure-setup crea (o reutiliza) el Azure Data Lake Gen2 iniciando sesión en el navegador y
            guarda la conexión en .env (sin mostrarla)
-upload     sube ELT/dataset/ y azure.extra_dirs a Azure Data Lake (credenciales en .env;
+upload     sube ETL/dataset/ y azure.extra_dirs a Azure Data Lake (credenciales en .env;
            --force, --dry-run, --workers N)
 qc         control de calidad del dataset del país: claves, rangos físicos y coherencia
-transcribe audio público del catálogo (ELT/audio/sources.csv) a texto con ElevenLabs Scribe
+transcribe audio público del catálogo (ETL/audio/sources.csv) a texto con ElevenLabs Scribe
 excerpts   pasajes de una transcripción para leer antes de citar (--only id [--terms "a|b"])
-cite       comprueba las citas de ELT/audio/claims.csv contra las transcripciones
+cite       comprueba las citas de ETL/audio/claims.csv contra las transcripciones
 """
 
 from __future__ import annotations
@@ -190,7 +190,7 @@ def main(argv=None):
     ap.add_argument(
         "--out", help="export: archivo Excel de salida (por defecto <lake>/reports/ejemplo.xlsx)"
     )
-    ap.add_argument("--config", help="ruta a config.yaml (por defecto ELT/config.yaml)")
+    ap.add_argument("--config", help="ruta a config.yaml (por defecto ETL/config.yaml)")
     ap.add_argument("--terms", help="excerpts: expresión regular de los términos a buscar")
     ap.add_argument(
         "--static-only",

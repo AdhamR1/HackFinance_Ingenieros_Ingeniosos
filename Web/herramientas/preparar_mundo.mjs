@@ -1,5 +1,5 @@
 // Prepara data/mundo.geojson a partir de Natural Earth (escala 1:50m, dominio público).
-// Uso (desde la carpeta pagina):
+// Uso (desde la carpeta Web):
 //   1) Descargar https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson
 //   2) node herramientas/preparar_mundo.mjs ne_50m_admin_0_countries.geojson data/mundo.geojson
 // Deja solo código ISO y nombre en español/inglés, redondea coordenadas y quita la Antártida.

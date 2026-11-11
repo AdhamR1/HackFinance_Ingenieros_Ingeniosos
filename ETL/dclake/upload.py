@@ -1,5 +1,5 @@
 """Upload the dataset folder to Azure Data Lake Storage Gen2 (same layout: tables + year=),
-plus the folders of azure.extra_dirs in config.yaml (e.g. the model's pipeline/data/processed).
+plus the folders of azure.extra_dirs in config.yaml (e.g. the model's Modelo/data/processed).
 
 The lake itself is created by `python -m dclake azure-setup` (azure_setup.py), which also
 writes these values to .env.
@@ -112,7 +112,7 @@ def _remote_sizes(fs, prefix: str, log) -> dict[str, int]:
 
 def _sources(lake, cfg, prefix: str) -> list[tuple[Path, str, str]]:
     """(local folder, remote folder, glob) to upload: the dataset tables, plus every folder of
-    azure.extra_dirs in config.yaml ({remote folder: path relative to ELT/}, all its files)."""
+    azure.extra_dirs in config.yaml ({remote folder: path relative to ETL/}, all its files)."""
     out = [(Path(lake.tables), prefix, "*.parquet")]
     get = getattr(cfg, "get", None)  # tests pass a bare namespace
     extra = ((get("azure") or {}).get("extra_dirs") or {}) if get else {}

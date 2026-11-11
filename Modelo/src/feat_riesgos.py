@@ -17,7 +17,7 @@ Sources
     draws the PGA isolines (0.01 g apart) from a public GeoJSON: it is downloaded once to
     data/raw/ign/ and interpolated between isolines at every cell centre. Any other IGN file put in
     data/raw/ign/ (GeoTIFF, zones, or a mesh of points as shapefile/GPKG/CSV with lon/lat; g or
-    cm/s2) is also read. The ELT has pga_475y_g as well (GEM, same for the three countries).
+    cm/s2) is also read. The ETL has pga_475y_g as well (GEM, same for the three countries).
 
 Output: data/processed/feat_riesgos.parquet  (site_id + the columns below; NaN = layer not
 available)
@@ -286,7 +286,7 @@ def ign_pga(grid) -> pd.Series | None:
     f = files[0] if files else fetch_ign_isolines()
     if f is None:
         print(
-            f"  pga475_ign_g: no hay archivo del IGN en {IGN} (se usa pga_475y_g de GEM del ELT)"
+            f"  pga475_ign_g: no hay archivo del IGN en {IGN} (se usa pga_475y_g de GEM del ETL)"
         )
         return None
     x, y = grid["x_m"].to_numpy(), grid["y_m"].to_numpy()
@@ -367,7 +367,7 @@ def main():
     canarias = grid["admin1"].astype(str).str.contains("Canarias", case=False)
     out = pd.DataFrame({"site_id": grid["site_id"]})
 
-    if ISO == "ESP":  # official Spanish layers; other countries use the ELT's JRC flood and GEM
+    if ISO == "ESP":  # official Spanish layers; other countries use the ETL's JRC flood and GEM
         print("SNCZI (zonas inundables oficiales):", flush=True)
         out = out.join(snczi(grid, boxes, canarias))
 

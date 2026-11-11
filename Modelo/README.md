@@ -1,6 +1,6 @@
 # Pipeline: del dataset al mapa de viabilidad
 
-Coge el dataset del ELT (`ELT/dataset/`) y produce un archivo con **una fila por celda de 3,5 km de España**: su nota, su banda (alta / media / baja / excluida) y las 3 razones que la explican. Ese archivo es el que pinta la web.
+Coge el dataset del ETL (`ETL/dataset/`) y produce un archivo con **una fila por celda de 3,5 km de España**: su nota, su banda (alta / media / baja / excluida) y las 3 razones que la explican. Ese archivo es el que pinta la web.
 
 ## Las 3 capas
 
@@ -10,7 +10,7 @@ Coge el dataset del ELT (`ELT/dataset/`) y produce un archivo con **una fila por
 
 ## Cómo se ejecuta
 
-Desde `pipeline/`, con el entorno del ELT más lo del modelo (`python -m pip install -r requirements.txt`):
+Desde `Modelo/`, con el entorno del ETL más lo del modelo (`python -m pip install -r requirements.txt`):
 
 ```
 python src/labels.py      # target: celdas con data center (datacentermap)
@@ -19,8 +19,8 @@ python src/feat_riesgos.py   # zonas inundables oficiales (SNCZI), parques nacio
 python src/feat_riesgos.py --solo-pga   # solo la PGA del IGN, sobre el parquet existente
 python src/feat_infra.py  # red eléctrica y autovías (OpenStreetMap vía ohsome)
 python src/feat_suelo.py --solo-exclusiones   # rehace las exclusiones con feat_riesgos (sin descargas)
-python src/features.py    # variables desde ELT/dataset + feat_*.parquet, sin las que hacen trampa
-python src/priors_voz.py  # criterios de expertos (citas de audio del ELT) -> sentido obligado por variable
+python src/features.py    # variables desde ETL/dataset + feat_*.parquet, sin las que hacen trampa
+python src/priors_voz.py  # criterios de expertos (citas de audio del ETL) -> sentido obligado por variable
 python src/train.py --exclusions data/processed/exclusions_es_3500.parquet   # modelo -> scores
 python src/train.py --exclusions data/processed/exclusions_es_3500.parquet --priors data/processed/priors_voz.csv
 python src/finanzas.py    # capa financiera (no entra al modelo)
@@ -35,16 +35,16 @@ descargan a mano) en cualquier carpeta de `data/raw/`: `laminas-zfp-PB.zip`, `la
 (`lyr-...zip`) no sirven: solo traen la simbología.
 
 `--priors` hace que el modelo respete lo que dicen quienes eligen emplazamientos en 81 grabaciones públicas
-(`ELT/dataset/audio_evidence.parquet`): estar más cerca de una subestación, de una línea de alta tensión o de
+(`ETL/dataset/audio_evidence.parquet`): estar más cerca de una subestación, de una línea de alta tensión o de
 un corredor de fibra, o tener más suelo industrial o más generación cerca, nunca puede bajar la nota. Un
 criterio se aplica si lo sostienen al menos 3 grabaciones distintas y menos del 20 % dice lo contrario
 (12 variables hoy; `priors_voz.py` imprime cuáles y por qué no las demás).
 
 Opciones de `train.py`: `--exclusions <parquet>` (columnas `site_id, excluded`) y `--target y_operational` (entrenar solo con data centers operativos, sin los anunciados).
 
-Cuando el ELT tenga columnas nuevas, basta con volver a ejecutar `features.py` y `train.py`: las variables nuevas entran solas.
+Cuando el ETL tenga columnas nuevas, basta con volver a ejecutar `features.py` y `train.py`: las variables nuevas entran solas.
 
-### Japón (y cualquier otro país del ELT)
+### Japón (y cualquier otro país del ETL)
 
 El país se elige con la variable de entorno `DC_COUNTRY` (por defecto `ESP`, así que España no cambia). Los
 archivos de otro país van a `data/processed/<ISO>/` con su etiqueta (`*_jp_3500.parquet`): nada se mezcla.
@@ -54,17 +54,21 @@ $env:DC_COUNTRY = "JPN"          # PowerShell (bash: export DC_COUNTRY=JPN)
 python src/feat_riesgos.py       # parques nacionales (WDPA); SNCZI y PGA del IGN solo existen en España
 python src/feat_suelo_ghsl.py    # suelo industrial y urbano (GHSL) y exclusiones: CORINE solo cubre Europa
 python src/feat_infra.py         # red eléctrica y autopistas (OSM vía ohsome); Okinawa es su propio sistema
-python src/dc_sites.py           # data centers conocidos: PeeringDB (del ELT) + OSM -> data/raw/dc_sites_jp.csv
+python src/dc_sites.py           # data centers conocidos: PeeringDB (del ETL) + OSM -> data/raw/dc_sites_jp.csv
 python src/labels.py
 python src/features.py
 python src/train.py --exclusions data/processed/JPN/exclusions_jp_3500.parquet --priors data/processed/priors_voz.csv
+python src/agua.py               # WRI Aqueduct de la caja del país (indicador y aviso de la web)
+python src/exportar_web.py       # -> Web/data/JP.json; la 1.ª vez también el contorno y JP_regiones.json
 ```
 
 Diferencias con España, por falta de fuentes equivalentes:
 - Etiquetas de PeeringDB + OpenStreetMap, no de datacentermap.com.
 - `industrial_pct` y `urbano_pct` miden superficie edificada de GHSL (no residencial / residencial), no zonas de CORINE: no son comparables entre países.
-- Sin Natura 2000, zonas inundables oficiales ni PGA del IGN: quedan la inundación del JRC y la sismicidad de GEM del ELT.
-- El ELT de Japón no tiene sísmica H/V ni las capas de OSM de Overpass, así que esas variables no entran al modelo.
+- Sin Natura 2000, zonas inundables oficiales ni PGA del IGN: quedan la inundación del JRC y la sismicidad de GEM del ETL.
+- El ETL de Japón no tiene sísmica H/V ni las capas de OSM de Overpass, así que esas variables no entran al modelo.
+- En la web, una celda con al menos un 25 % de su superficie bajo viviendas (GHSL) se queda como mucho en amarillo:
+  es el equivalente al 50 % de suelo urbano de CORINE en España (ciudad consolidada, hay que recalificar).
 
 ## Archivos
 
@@ -86,7 +90,7 @@ Diferencias con España, por falta de fuentes equivalentes:
 
 ## Reglas para todos
 
-- **Una sola rejilla, la del ELT.** La clave es `site_id = ESP_<x/3500>_<y/3500>` (EPSG:3035). Para asignar un punto a su celda: `cells.site_id_from_lonlat(lon, lat)`. Nadie crea otra rejilla.
+- **Una sola rejilla, la del ETL.** La clave es `site_id = ESP_<x/3500>_<y/3500>` (EPSG:3035). Para asignar un punto a su celda: `cells.site_id_from_lonlat(lon, lat)`. Nadie crea otra rejilla.
 - **Nada de variables que digan dónde están los data centers.** Ni coordenadas ni distancias a data centers, puntos de interconexión o ciudades fijas. La lista, con el motivo de cada una, está en `LEAKAGE` de `src/features.py`.
 - Lo que falta se deja vacío (NaN), nunca a 0.
 - La métrica que se presenta es la **validación espacial** (bloques de 70 km). La aleatoria sale inflada porque el test ve a los vecinos.

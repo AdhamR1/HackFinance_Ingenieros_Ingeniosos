@@ -68,8 +68,8 @@ ENV_OVERRIDES = {
 }
 
 
-# ELT/config.yaml, located from the package so the CLI works from any working directory
-# (python -m dclake from ELT/, or python -m ELT.dclake from the repo root).
+# ETL/config.yaml, located from the package so the CLI works from any working directory
+# (python -m dclake from ETL/, or python -m ETL.dclake from the repo root).
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config.yaml"
 
 

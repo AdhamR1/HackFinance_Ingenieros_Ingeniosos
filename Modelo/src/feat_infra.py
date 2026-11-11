@@ -13,12 +13,15 @@ serves the bounding box of each element, so we use elements that are points or s
   * motorway exits                             -> exact position
 Distances only count elements inside Spain and in the cell's own electrical system (peninsula,
 Balearics, Canaries, Ceuta, Melilla): NaN = that system has none (e.g. no 400 kV in the islands).
-Spain is fetched in 2-degree tiles, cached in data/cache/ohsome/: re-running continues where it stopped.
+The country is fetched in 2-degree tiles, cached in data/cache/ohsome/: re-running
+continues where it stopped.
 
 Output: data/processed/feat_infra.parquet
   site_id, dist_substation_km, dist_substation_220kv_km, dist_substation_400kv_km,
   n_substations_20km, dist_hv_line_km, n_towers_5km, dist_motorway_km, dist_motorway_junction_km
 """
+
+import contextlib
 import json
 import time
 
@@ -42,7 +45,7 @@ URL = "https://api.ohsome.org/v1/elements/bbox"
 SNAPSHOT = "2026-07-27"
 HEADERS = {"User-Agent": "hackfinance-dc-siting/0.1 (hackathon research)"}
 TILE_DEG = 2
-LAYERS = {   # name -> (ohsome filter, keep tags)
+LAYERS = {  # name -> (ohsome filter, keep tags)
     "substation": ("power=substation", True),
     "tower": ("power=tower and type:node", False),
     "motorway": ("highway in (motorway, trunk) and type:way", False),
@@ -62,8 +65,12 @@ def fetch(layer, s, w, n, e):
     if dest.exists():
         return json.loads(dest.read_text(encoding="utf-8"))["features"]
     filt, tags = LAYERS[layer]
-    params = {"bboxes": f"{w},{s},{e},{n}", "filter": filt, "time": SNAPSHOT,
-              "properties": "tags" if tags else None}
+    params = {
+        "bboxes": f"{w},{s},{e},{n}",
+        "filter": filt,
+        "time": SNAPSHOT,
+        "properties": "tags" if tags else None,
+    }
     for attempt in range(5):
         try:
             r = requests.get(URL, params=params, headers=HEADERS, timeout=300)
@@ -75,7 +82,7 @@ def fetch(layer, s, w, n, e):
             why = f"HTTP {r.status_code}"
         except (requests.RequestException, ValueError) as ex:
             why = type(ex).__name__
-        wait = 15 * 2 ** attempt
+        wait = 15 * 2**attempt
         print(f"    {layer} {s},{w}: falló ({why}), reintento en {wait} s", flush=True)
         time.sleep(wait)
     raise RuntimeError(f"No se pudo descargar {layer} en {s},{w},{n},{e}")
@@ -83,31 +90,37 @@ def fetch(layer, s, w, n, e):
 
 def tiles(grid):
     """2-degree tiles that contain at least one cell centre."""
-    keys = set(zip(np.floor(grid.lat / TILE_DEG).astype(int), np.floor(grid.lon / TILE_DEG).astype(int)))
-    return sorted((a * TILE_DEG, b * TILE_DEG, (a + 1) * TILE_DEG, (b + 1) * TILE_DEG) for a, b in keys)
+    keys = set(
+        zip(np.floor(grid.lat / TILE_DEG).astype(int), np.floor(grid.lon / TILE_DEG).astype(int))
+    )
+    return sorted(
+        (a * TILE_DEG, b * TILE_DEG, (a + 1) * TILE_DEG, (b + 1) * TILE_DEG) for a, b in keys
+    )
 
 
 def kv(tags: dict) -> float:
     """Highest voltage in kV (voltage tags can be '400000;220000')."""
     vals = []
     for v in str(tags.get("voltage", "")).replace(",", ";").split(";"):
-        try:
+        with contextlib.suppress(ValueError):
             vals.append(float(v.strip()) / 1000)
-        except ValueError:
-            pass
     return max(vals) if vals else np.nan
 
 
 def points(features):
-    """Centre of each bounding box in the grid projection + voltage (NaN if untagged). Deduplicated by OSM id."""
+    """Centre of each bounding box in the grid projection + voltage (NaN if untagged).
+    Deduplicated by OSM id."""
     seen, rows = set(), []
     for f in features:
         p = f["properties"]
-        if p["@osmId"] in seen:          # an element crossing two tiles comes twice
+        if p["@osmId"] in seen:  # an element crossing two tiles comes twice
             continue
         seen.add(p["@osmId"])
-        ring = np.array(f["geometry"]["coordinates"][0] if f["geometry"]["type"] == "Polygon"
-                        else [f["geometry"]["coordinates"]])
+        ring = np.array(
+            f["geometry"]["coordinates"][0]
+            if f["geometry"]["type"] == "Polygon"
+            else [f["geometry"]["coordinates"]]
+        )
         rows.append((ring[:, 0].mean(), ring[:, 1].mean(), kv(p)))
     a = np.array(rows, dtype=float).reshape(-1, 3)
     x, y = TO_M.transform(a[:, 0], a[:, 1])
@@ -149,7 +162,11 @@ def main():
             t0 = time.time()
             got = fetch(layer, s, w, n, e)
             feats[layer] += got
-            print(f"  [{i}/{len(tl)}] {layer} lat {s}..{n} lon {w}..{e}: {len(got):,} ({time.time() - t0:.0f} s)", flush=True)
+            print(
+                f"  [{i}/{len(tl)}] {layer} lat {s}..{n} lon {w}..{e}: "
+                f"{len(got):,} ({time.time() - t0:.0f} s)",
+                flush=True,
+            )
 
     cell_sys = dict(zip(grid.site_id, system_of(grid.admin1)))
     cells = (grid[["x_m", "y_m"]].values, system_of(grid.admin1))
@@ -165,9 +182,11 @@ def main():
 
     pts = {k: points(v) for k, v in feats.items()}
     sub = layer("substation")
-    print(f"En {ISO}: subestaciones={len(sub[0]):,} (220 kV+: {len(layer('substation', 220)[0]):,}, "
-          f"400 kV: {len(layer('substation', 380)[0]):,})  torres={len(layer('tower')[0]):,}  "
-          f"tramos de autovía={len(layer('motorway')[0]):,}  salidas={len(layer('junction')[0]):,}")
+    print(
+        f"En {ISO}: subestaciones={len(sub[0]):,} (220 kV+: {len(layer('substation', 220)[0]):,}, "
+        f"400 kV: {len(layer('substation', 380)[0]):,})  torres={len(layer('tower')[0]):,}  "
+        f"tramos de autovía={len(layer('motorway')[0]):,}  salidas={len(layer('junction')[0]):,}"
+    )
 
     out = pd.DataFrame({"site_id": grid["site_id"]})
     out["dist_substation_km"] = nearest_km(cells, sub)

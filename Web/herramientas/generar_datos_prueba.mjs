@@ -5,7 +5,7 @@
 //  area_cuadrado_km2; 12 km² = 3,46 × 3,46 km) recortada por la costa y la frontera,
 //  con valores INVENTADOS que cambian de forma suave por zonas.
 //
-//  Uso (desde la carpeta pagina):
+//  Uso (desde la carpeta Web):
 //      cd herramientas
 //      npm install            ← solo la primera vez
 //      node generar_datos_prueba.mjs

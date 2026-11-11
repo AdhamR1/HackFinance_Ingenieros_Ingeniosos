@@ -1,17 +1,17 @@
-"""FEATURES: one row per cell, built from the ELT dataset (ELT/dataset/, Spain only).
+"""FEATURES: one row per cell, built from the ETL dataset (ETL/dataset/, Spain only).
 
   sites_static  -> used as is (one row per cell)
   sites_yearly  -> averaged over the years available (one row per cell)
   data/processed/feat_*.parquet -> extra blocks built here (e.g. feat_infra.py); they win over the
-  ELT
+  ETL
 
 Kept: numeric columns with data. Dropped, and printed so everyone sees it:
   * LEAKAGE: columns that tell the model where the data centers already are. With them the
     score looks great and means nothing. See LEAKAGE below and the reason for each one.
-  * empty columns (the ELT has not filled them yet) and constant columns (country-level values).
+  * empty columns (the ETL has not filled them yet) and constant columns (country-level values).
 
 Output: data/processed/features_es_3500.parquet  (site_id + numeric columns)
-When the ELT gets new columns (power grid, flood, seismic...), just run this again.
+When the ETL gets new columns (power grid, flood, seismic...), just run this again.
 """
 
 import pandas as pd
@@ -56,7 +56,7 @@ LEAKAGE = {
     "bulk_density": "mapa de suelo: delata zona urbana",
     "clay_pct": "mapa de suelo: delata zona urbana",
     "aspect_deg": "orientación de terreno llano: ruido que delata zona urbana",
-    # read from public recordings (ELT speech collector): they only have a value where projects
+    # read from public recordings (ETL speech collector): they only have a value where projects
     # are already being discussed, so "has a value" would stand for "there is a data center".
     # They feed the warnings of the exclusions and the report, not the model.
     "permitting_months": "dato de audio: solo existe donde ya se habla de proyectos",

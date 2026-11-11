@@ -1,4 +1,4 @@
-# Puts pipeline/src on sys.path: the pipeline scripts import each other as plain modules.
+# Puts Modelo/src on sys.path: the pipeline scripts import each other as plain modules.
 import sys
 from pathlib import Path
 

@@ -570,7 +570,7 @@ B.append(("14 Etiquetas y salidas", "sites", [
 # Una fila por cita; el segundo y el hablante se calculan localizando la cita en la transcripción.
 B.append(("16 Evidencia de audio", "audio_evidence", [
  ("evidence_id","string","-","Identificador de la cita (grabación + orden)","-","-",A,K,D),
- ("source_id","string","-","Grabación de la que sale la cita (ELT/audio/sources.csv)","-","-",A,K,R),
+ ("source_id","string","-","Grabación de la que sale la cita (ETL/audio/sources.csv)","-","-",A,K,R),
  ("country_iso3","string","ISO 3166-1","País al que se refiere lo dicho (vacío si es un criterio general)","-","-",A,K,R),
  ("place_name","string","-","Lugar al que se refiere (municipio, provincia, condado, región)","-","-",A,F,R),
  ("lat","float","grados WGS84","Latitud del lugar","-","-",A,K,R),

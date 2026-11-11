@@ -6,7 +6,7 @@ without power is worth nothing", "you want the high-voltage lines". Here that kn
 direction per variable that the model must respect (a cell closer to a substation can never score
 lower because of it).
 
-Input : ELT/dataset/audio_evidence.parquet, the citations of the ELT (speech -> text with
+Input : ETL/dataset/audio_evidence.parquet, the citations of the ETL (speech -> text with
         ElevenLabs Scribe). A citation with target_field = criterion:<name> has value +1 (the
         criterion matters in its natural sense), -1 (the speaker says it does not) or 0 (nuance).
 Output: data/processed/priors_voz.csv  one row per constrained variable, with its evidence
@@ -28,7 +28,11 @@ MAX_AGAINST = 0.20
 CRITERIA = {
     # 220 kV+, not dist_substation_km: many data centers have their own small substation in OSM,
     # so forcing "closer is better" on all substations would reward the data center itself
-    "grid_access": {"dist_substation_220kv_km": -1, "dist_hv_line_km": -1, "n_substations_20km": 1},
+    "grid_access": {
+        "dist_substation_220kv_km": -1,
+        "dist_hv_line_km": -1,
+        "n_substations_20km": 1,
+    },
     "hv_transmission": {"dist_400kv_line_km": -1, "substation_voltage_kv": 1},
     "generation_nearby": {
         "gen_capacity_50km_mw": 1,
@@ -91,7 +95,7 @@ def priors(table: pd.DataFrame) -> pd.DataFrame:
 def main():
     path = ELT_DATASET / "audio_evidence.parquet"
     if not path.exists():
-        raise SystemExit(f"Falta {path}: ejecuta en ELT/  python -m dclake collect --only speech")
+        raise SystemExit(f"Falta {path}: ejecuta en ETL/  python -m dclake collect --only speech")
     ev = pd.read_parquet(path)
     table = criteria_table(ev)
     print(f"Criterios citados en {ev['source_id'].nunique()} grabaciones:")

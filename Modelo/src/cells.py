@@ -1,7 +1,7 @@
 """Cell ids and paths shared by the whole pipeline.
 
-The grid is the ELT one (ELT/dclake/grid.py): 3.5 x 3.5 km cells in the equal-area projection of
-the country (ELT/config.yaml > country_profiles: EPSG:3035 for Spain, a Lambert azimuthal centred
+The grid is the ETL one (ETL/dclake/grid.py): 3.5 x 3.5 km cells in the equal-area projection of
+the country (ETL/config.yaml > country_profiles: EPSG:3035 for Spain, a Lambert azimuthal centred
 on Japan for Japan).
     site_id = <ISO>_{floor(x / 3500)}_{floor(y / 3500)}   (x, y in metres, lower-left corner)
 Nobody builds another grid: every point is mapped to a cell with `site_id_from_lonlat`.
@@ -28,14 +28,14 @@ TAG = TAGS[ISO]
 
 PIPELINE = Path(__file__).resolve().parents[1]
 REPO = PIPELINE.parent
-ELT_DATASET = REPO / "ELT" / "dataset"
+ELT_DATASET = REPO / "ETL" / "dataset"
 RAW = PIPELINE / "data" / "raw"
 PROCESSED = PIPELINE / "data" / "processed" / ("" if ISO == "ESP" else ISO)
 
 
 def _country_crs(iso: str) -> str:
-    """Equal-area projection of the ELT grid of the country (ELT/config.yaml)."""
-    with open(REPO / "ELT" / "config.yaml", encoding="utf-8") as f:
+    """Equal-area projection of the ETL grid of the country (ETL/config.yaml)."""
+    with open(REPO / "ETL" / "config.yaml", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     return cfg["country_profiles"][iso]["crs_equal_area"]
 
@@ -73,7 +73,7 @@ def cell_index(site_id: pd.Series) -> pd.DataFrame:
 
 
 def read_elt(table: str, columns=None) -> pd.DataFrame:
-    """One ELT table of the country (all parts), e.g. read_elt('sites_static')."""
+    """One ETL table of the country (all parts), e.g. read_elt('sites_static')."""
     files = sorted((ELT_DATASET / table).glob(f"{ISO}-p*.parquet"))
     if not files:
         raise FileNotFoundError(f"No hay archivos {ISO}-p*.parquet en {ELT_DATASET / table}")
@@ -81,6 +81,6 @@ def read_elt(table: str, columns=None) -> pd.DataFrame:
 
 
 def read_grid() -> pd.DataFrame:
-    """The ELT grid: site_id, lon, lat (cell centre), admin1, admin2 + grid indices."""
+    """The ETL grid: site_id, lon, lat (cell centre), admin1, admin2 + grid indices."""
     g = read_elt("sites_static", columns=["site_id", "lon", "lat", "admin1", "admin2"])
     return pd.concat([g, cell_index(g["site_id"])], axis=1)

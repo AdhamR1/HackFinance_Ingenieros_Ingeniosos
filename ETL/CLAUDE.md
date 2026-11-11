@@ -1,4 +1,4 @@
-# CLAUDE.md: contexto de ELT para Claude Code
+# CLAUDE.md: contexto de ETL para Claude Code
 
 ## Qué es
 Hackathon de finanzas (equipo de 5, 4 días). Herramienta de **cribado de viabilidad de parcelas para data centers**: ruido sísmico ambiental (H/V) + energía, agua, clima, riesgos, conectividad, economía, regulación y biodiversidad → puntuación, coste por MW e informe generado por Claude. Es un cribado inicial, no un estudio geotécnico.
@@ -12,20 +12,20 @@ Esta carpeta es la parte de **datos**: construye el data lake del que se entrena
 - **Windows y red corporativa.** `pathlib`, nada de `:` en nombres de archivo. Conda está bloqueado (anaconda.org): se usa venv + pip. Hay inspección TLS: `dclake/__init__.py` activa `truststore` para requests y `rasters.py` pasa a GDAL un bundle con los certificados de Windows.
 - **Reanudable e idempotente.** Toda descarga pasa por `lake.cached_get` (caché en `<lake>/raw/`, con `validate` para no guardar páginas de error). Las cachés que dependen del periodo llevan el periodo en el nombre. Un colector que falla no para a los demás.
 - **Educado con las APIs.** Pausas, reintentos con backoff, límites (Overpass, Open-Meteo), términos de uso.
-- **Todo dentro del repo y sin archivos basura.** La única salida es el dataset en `ELT/dataset/`. Descargas, staging, logs, informes y demo van en `ELT/.cache/` (ignorada en git). Nunca escribir fuera del repo ni generar Excel o informes que no se hayan pedido. Los archivos grandes intermedios (E-OBS de toda Europa) se descargan en temporal y solo se guarda el recorte de España.
+- **Todo dentro del repo y sin archivos basura.** La única salida es el dataset en `ETL/dataset/`. Descargas, staging, logs, informes y demo van en `ETL/.cache/` (ignorada en git). Nunca escribir fuera del repo ni generar Excel o informes que no se hayan pedido. Los archivos grandes intermedios (E-OBS de toda Europa) se descargan en temporal y solo se guarda el recorte de España.
 - Código y comentarios en inglés; documentación, logs y mensajes al usuario en español.
 - **PEP 8 con ruff** (configuración en `pyproject.toml` de la raíz, líneas de 99): antes de dar algo por
   terminado, `python -m ruff format .`, `python -m ruff check .` y `python -m pytest` desde la raíz. La CI de
   GitHub (`.github/workflows/ci.yml`) comprueba lo mismo. `build_dict.py` no se formatea (es una tabla).
 
-## Comandos (desde ELT/, con `%USERPROFILE%\.venvs\dclake` activado)
+## Comandos (desde ETL/, con `%USERPROFILE%\.venvs\dclake` activado)
 ```
 python -m pytest -q tests
 python -m dclake demo                       # offline, datos sintéticos
 python -m dclake grid --country ESP|JPN|USA
 python -m dclake collect --country JPN --only <nombre> --limit-sites 3   (o --sites id1,id2)
 python -m dclake collect --country JPN [--skip a,b] [--part N] [--start AAAA-MM-DD --end AAAA-MM-DD]
-python -m dclake assemble --country JPN     # dataset en ELT/dataset/ (+ .cache/JPN/reports/coverage.csv)
+python -m dclake assemble --country JPN     # dataset en ETL/dataset/ (+ .cache/JPN/reports/coverage.csv)
 python -m dclake export --sites a,b,c --out x.xlsx   # solo si lo piden
 python -m dclake qc --country JPN           # control de calidad -> .cache/JPN/reports/qc.csv
 python -m dclake assemble --country JPN --static-only   # sin rehacer la tabla semanal
@@ -45,6 +45,13 @@ python -m dclake transcribe | excerpts --only <id> | cite   # audio público -> 
 - Una parte de 25.000 celdas son ~9 millones de filas diarias por año en `assemble`: evitar `astype(object)` y operaciones columna a columna sobre el índice completo. Más celdas por parte puede agotar los 32 GB del portátil.
 - Overpass no puede con EEUU entero ni va fino con Japón: OSM está en `skip_collectors` de esos países (se lanza aparte con `--only osm`).
 
+## Estado (11 nov 2026): estructura ETL / Modelo / Web, Azure y Japón
+- El repositorio tiene tres carpetas: `ETL/` (esta, antes `ELT/`), `Modelo/` (antes `pipeline/`) y `Web/` (antes `pagina/`).
+- Data lake en Azure: `python -m dclake azure-setup` (login en el navegador; guarda cuenta, contenedor y un token SAS
+  en `.env` sin mostrarlos) y `python -m dclake upload` (incremental; sube `dataset/` y `azure.extra_dirs`,
+  hoy `../Modelo/data/processed`). Cuenta `stdclake`, contenedor `dclake`, región Spain Central.
+- El modelo y la web cubren España y Japón: en `Modelo/` el país se elige con `DC_COUNTRY` (ver su README).
+
 ## Estado (10 nov 2026, noche): datos no estructurados (audio)
 - `speech.py` + `collectors/speech.py`: 89 grabaciones públicas (39 h) transcritas con ElevenLabs Scribe v2 por
   `source_url` (ElevenLabs lee la URL; si el servidor del audio lo rechaza, p. ej. iVoox, se envía el archivo
@@ -54,12 +61,12 @@ python -m dclake transcribe | excerpts --only <id> | cite   # audio público -> 
   muletillas «eh») y calcula segundo y hablante. `tests/test_speech.py` falla si hay una cita sin verificar.
 - Tabla nueva del diccionario `audio_evidence` (aprobada por el usuario): un solo archivo, igual desde
   cualquier país; un ensamblado sin citas no lo vacía.
-- Los campos que rellena (regulación, oposición, red) son dispersos y por zona: en `pipeline/src/features.py`
+- Los campos que rellena (regulación, oposición, red) son dispersos y por zona: en `Modelo/src/features.py`
   están en `LEAKAGE` a propósito. No sacarlos de ahí sin revisar la fuga de la target.
 - `assemble --static-only`: rehace todo menos `sites_weekly` (España 10 s en vez de 40 min) y conserva el
   linaje semanal del dataset. Usarlo siempre que el cambio no toque datos diarios.
 - El SDK de ElevenLabs lee la clave al importarse: `.env` se carga después, por eso `speech._client` se la pasa.
-- No abrir ni imprimir `ELT/.env`; `elevenlabs onboard check` comprueba la clave.
+- No abrir ni imprimir `ETL/.env`; `elevenlabs onboard check` comprueba la clave.
 - Heredocs largos en bash se corrompen aquí (pierden `\n`): los parches se escriben con Write y se ejecutan.
 
 ## Estado (9 nov 2026, noche)
@@ -84,7 +91,7 @@ python -m dclake transcribe | excerpts --only <id> | cite   # audio público -> 
 - Población (GHSL): `_zonal_sum` hace una convolución de disco con FFT (segundos para 640.000 celdas).
 - Japón: temperaturas de NASA POWER corregidas por altitud (-6,5 °C/km frente a la altitud del modelo, deducida
   de su presión en superficie); el sesgo en ciudades baja de ~2 °C a ~0,5 °C.
-- Zonas inundables oficiales (SNCZI) y parques nacionales están en `pipeline/src/feat_riesgos.py` (zips del SNCZI
+- Zonas inundables oficiales (SNCZI) y parques nacionales están en `Modelo/src/feat_riesgos.py` (zips del SNCZI
   bajados a mano: MITECO pide verificación en el navegador; no automatizarla).
 
 ## Estado (9 nov 2026, tarde)
@@ -93,7 +100,7 @@ python -m dclake transcribe | excerpts --only <id> | cite   # audio público -> 
 - EMSC no es igual de completo en todos los países (ESP desde M1,5; USA ~M2; JPN ~M3). Desde el 10 nov el conteo
   usa un umbral común M≥2 (`earthquakes.count_min_magnitude`; la descarga sigue desde M1,5); en Japón sigue
   infravalorado y el linaje lo anota.
-- PGA del IGN (475 años): `pipeline/src/feat_riesgos.py` interpola las isolíneas públicas del visor de terremotos del
+- PGA del IGN (475 años): `Modelo/src/feat_riesgos.py` interpola las isolíneas públicas del visor de terremotos del
   IGN (`pga475_ign_g`, r = 0,91 con la PGA de GEM).
 - Dataset de 2025: ESP 45 MB, JPN 12 MB, USA 1,25 GB. ESP y JPN están en git; los archivos de EEUU se ignoran en `.gitignore` (van al data lake).
 

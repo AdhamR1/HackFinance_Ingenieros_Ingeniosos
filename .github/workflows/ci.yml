@@ -14,12 +14,12 @@ jobs:
         with:
           sparse-checkout: |
             pyproject.toml
-            ELT/dclake
-            ELT/tests
-            ELT/data_dictionary/build_dict.py
-            ELT/conftest.py
-            pipeline/src
-            pipeline/tests
+            ETL/dclake
+            ETL/tests
+            ETL/data_dictionary/build_dict.py
+            ETL/conftest.py
+            Modelo/src
+            Modelo/tests
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -34,18 +34,18 @@ jobs:
         with:
           sparse-checkout: |
             pyproject.toml
-            ELT/dclake
-            ELT/tests
-            ELT/data_dictionary
-            ELT/conftest.py
-            ELT/config.yaml
-            ELT/requirements.txt
-            pipeline/src
-            pipeline/tests
+            ETL/dclake
+            ETL/tests
+            ETL/data_dictionary
+            ETL/conftest.py
+            ETL/config.yaml
+            ETL/requirements.txt
+            Modelo/src
+            Modelo/tests
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: ELT/requirements.txt
-      - run: pip install -r ELT/requirements.txt
+          cache-dependency-path: ETL/requirements.txt
+      - run: pip install -r ETL/requirements.txt
       - run: python -m pytest -q

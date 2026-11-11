@@ -1,4 +1,4 @@
-# ELT: data lake de viabilidad de data centers
+# ETL: data lake de viabilidad de data centers
 
 Descarga datos públicos en una rejilla de **3,5 × 3,5 km** (12,25 km² por celda) para España, Japón y EEUU continental, y los deja en tablas Parquet **con exactamente las columnas del diccionario** (`data_dictionary/diccionario_datos_datacenters.xlsx`). De aquí sale el dataset para entrenar el modelo.
 
@@ -28,7 +28,7 @@ Las variables diarias (clima, terremotos, incendios) se calculan por día y se c
 
 ## Instalación (una vez)
 
-Desde esta carpeta (`ELT/`), en Windows:
+Desde esta carpeta (`ETL/`), en Windows:
 
 ```
 py -3 -m venv %USERPROFILE%\.venvs\dclake
@@ -47,23 +47,23 @@ En `.env` puedes poner `DCLAKE_START` y `DCLAKE_END` para limitar el periodo y `
 
 ## Uso
 
-Siempre desde `ELT/` y con el entorno activado:
+Siempre desde `ETL/` y con el entorno activado:
 
 ```
 python -m dclake grid --country JPN          # rejilla del país (ESP si no se indica)
 python -m dclake collect --country JPN       # todos los colectores, parte a parte (reanudable)
-python -m dclake assemble --country JPN      # escribe el país en ELT/dataset/
+python -m dclake assemble --country JPN      # escribe el país en ETL/dataset/
 python -m dclake azure-setup                 # crea el Azure Data Lake (login en el navegador) y rellena .env
-python -m dclake upload                      # sube ELT/dataset/ y pipeline/data/processed/ al lake
+python -m dclake upload                      # sube ETL/dataset/ y Modelo/data/processed/ al lake
 python -m dclake status --country JPN        # claves y capas manuales que faltan
 python -m dclake qc --country JPN            # control de calidad: claves, rangos y coherencia
 python -m dclake collect --country ESP --only eobs --limit-sites 3   # probar un colector con 3 celdas
 python -m dclake assemble --country ESP --static-only   # todo menos la tabla semanal (segundos, no 40 min)
 ```
 
-`--part N` procesa solo una parte del país. Las descargas e intermedios se guardan en `ELT/.cache/<país>/` (no se versiona): si algo se corta, se vuelve a lanzar el mismo comando y continúa donde lo dejó.
+`--part N` procesa solo una parte del país. Las descargas e intermedios se guardan en `ETL/.cache/<país>/` (no se versiona): si algo se corta, se vuelve a lanzar el mismo comando y continúa donde lo dejó.
 
-## El dataset (`ELT/dataset/`)
+## El dataset (`ETL/dataset/`)
 
 Una carpeta por tabla y un archivo por país (y parte): los países se suman sin tocar nada.
 
@@ -104,8 +104,8 @@ python -m dclake assemble --country ESP --static-only
   `dc_market_size_mw`, `dc_pipeline_mw` (país). Reglas en `config.yaml > speech`: confianza mínima, y dos
   grabaciones (o una cita muy clara) para dar un valor a toda una región.
 - Estos campos solo tienen valor donde ya se habla de proyectos: sirven para avisos e informes, **no como
-  variables del modelo** (`pipeline/src/features.py` los excluye). Lo que sí va al modelo son los criterios
-  de expertos (`pipeline/src/priors_voz.py`).
+  variables del modelo** (`Modelo/src/features.py` los excluye). Lo que sí va al modelo son los criterios
+  de expertos (`Modelo/src/priors_voz.py`).
 
 ## Código
 

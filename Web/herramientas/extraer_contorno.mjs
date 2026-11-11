@@ -1,5 +1,5 @@
 // Extrae el contorno de un país del archivo de Natural Earth 1:10m (dominio público).
-// Uso (desde la carpeta pagina):
+// Uso (desde la carpeta Web):
 //   1) Descargar https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson
 //   2) node herramientas/extraer_contorno.mjs ne_10m_admin_0_countries.geojson ES herramientas/fuentes/espana_contorno.geojson
 import fs from 'node:fs';

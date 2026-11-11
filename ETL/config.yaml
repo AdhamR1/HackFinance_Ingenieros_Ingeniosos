@@ -329,4 +329,4 @@ azure:
             germanywestcentral, italynorth, polandcentral, norwayeast, uksouth]   # la 1.ª permitida
   sas_days: 90                      # validez del token de acceso que se guarda en .env
   extra_dirs:                       # también se suben, junto a dataset/ en el contenedor
-    processed: ../pipeline/data/processed   # features, etiquetas, exclusiones y scores del modelo
+    processed: ../Modelo/data/processed   # features, etiquetas, exclusiones y scores del modelo

@@ -2,8 +2,8 @@
 
 Spain's dc_sites_es.csv was built by hand from datacentermap.com. For other countries the list is
 put together from two public sources, both with exact coordinates:
-  * PeeringDB facilities (colocation data centers), already downloaded by the ELT
-    (ELT/.cache/<ISO>/processed/grid/known_datacenters.parquet, `python -m dclake grid`)
+  * PeeringDB facilities (colocation data centers), already downloaded by the ETL
+    (ETL/.cache/<ISO>/processed/grid/known_datacenters.parquet, `python -m dclake grid`)
   * OpenStreetMap: telecom=data_center or building=data_center, through the ohsome API (centre
     of the bounding box of each element, same snapshot as feat_infra.py). OSM adds the big
     campuses that are not colocation (hyperscalers, telecom operators' own buildings).
@@ -11,7 +11,7 @@ Points of the two sources closer than DEDUP_M are the same building and count on
 name kept). Every site counts as `operational` (both sources map existing buildings).
 
 Same columns as dc_sites_es.csv, so labels.py reads it unchanged.
-Usage (from pipeline/):  $env:DC_COUNTRY = "JPN"; python src/dc_sites.py; python src/labels.py
+Usage (from Modelo/):  $env:DC_COUNTRY = "JPN"; python src/dc_sites.py; python src/labels.py
 """
 
 import json
@@ -96,7 +96,7 @@ def osm_datacenters(grid: pd.DataFrame) -> pd.DataFrame:
 def main():
     grid = read_grid()
     pdb = pd.read_parquet(
-        REPO / "ELT" / ".cache" / ISO / "processed" / "grid" / "known_datacenters.parquet",
+        REPO / "ETL" / ".cache" / ISO / "processed" / "grid" / "known_datacenters.parquet",
         columns=["source", "name", "lon", "lat"],
     ).dropna(subset=["lon", "lat"])
     pdb = pdb.rename(columns={"name": "site"}).assign(

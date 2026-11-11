@@ -1,6 +1,6 @@
 """Unstructured data: what is said in public recordings -> citations and regulation fields.
 
-Input: ELT/audio/claims.csv, literal quotes taken from transcripts of public recordings
+Input: ETL/audio/claims.csv, literal quotes taken from transcripts of public recordings
 (ElevenLabs Scribe v2, see dclake/speech.py). Only quotes found in their transcript are used.
 
 Output
@@ -117,7 +117,7 @@ def usable_claims(claims: pd.DataFrame, iso: str, rules: dict) -> pd.DataFrame:
 class SpeechCollector(Collector):
     name = "speech"
     description = "Citas de grabaciones públicas (ElevenLabs Scribe): evidencia y regulación"
-    source = "Grabaciones públicas (ELT/audio/sources.csv) transcritas con ElevenLabs Scribe v2"
+    source = "Grabaciones públicas (ETL/audio/sources.csv) transcritas con ElevenLabs Scribe v2"
     source_url = "https://elevenlabs.io/docs/overview/capabilities/speech-to-text"
     license = (
         "Citas breves con atribución; el audio y la transcripción completa no se redistribuyen"

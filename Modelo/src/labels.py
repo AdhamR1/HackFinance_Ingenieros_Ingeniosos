@@ -12,10 +12,11 @@ Input : data/raw/dc_sites_es.csv  (103 sites from datacentermap.com, 9-Nov-2026,
 Output: data/processed/labels_es_3500.parquet
         (site_id, y, y_operational, n_sites, n_buildings, sites)
 
-A few sites fall in coastal cells that the ELT grid drops (< 50 % land). Their location is
-approximate anyway, so they are moved to the nearest ELT cell (reported, max MAX_SNAP_CELLS away).
+A few sites fall in coastal cells that the ETL grid drops (< 50 % land). Their location is
+approximate anyway, so they are moved to the nearest ETL cell (reported, max MAX_SNAP_CELLS away).
 
-Sites placed at a CITY CENTRE (precision `metro`, operator unknown, and the RELOCATE list) would teach
+Sites placed at a CITY CENTRE (precision `metro`, operator unknown, and the RELOCATE
+list) would teach
 "the historic centre is a good place". They are moved to the cell with most industrial land within
 RELOCATE_CELLS (~7 km), where city data centers usually are (needs exclusions_es_3500.parquet from
 feat_suelo.py, so run labels.py after it).
@@ -31,25 +32,32 @@ from cells import PROCESSED, RAW, TAG, cell_index, out_file, read_grid, site_id_
 
 MAX_SNAP_CELLS = 2
 RELOCATE_CELLS = 2
-RELOCATE = {"Zaragoza - ciudad"}   # municipio rows that are really "somewhere in a big city"
+RELOCATE = {"Zaragoza - ciudad"}  # municipio rows that are really "somewhere in a big city"
 
 
 def relocate_city_centres(s: pd.DataFrame, grid: pd.DataFrame) -> pd.DataFrame:
     suelo = out_file("exclusions")
     if not suelo.exists():
-        print(f"  falta {suelo.name} (feat_suelo.py): los de centro de ciudad se quedan en el centro")
+        print(
+            f"  falta {suelo.name} (feat_suelo.py): los de centro de ciudad se quedan en el centro"
+        )
         return s
     ex = pd.read_parquet(suelo).set_index("site_id")
-    g = grid[["site_id", "i", "j"]].assign(industrial_pct=lambda d: d.site_id.map(ex.industrial_pct).fillna(0))
-    g = g[~g.site_id.map(ex.excluded).fillna(False).astype(bool)]        # never into a forbidden cell
+    g = grid[["site_id", "i", "j"]].assign(
+        industrial_pct=lambda d: d.site_id.map(ex.industrial_pct).fillna(0)
+    )
+    g = g[~g.site_id.map(ex.excluded).fillna(False).astype(bool)]  # never into a forbidden cell
     for k in s.index[(s.precision == "metro") | s.site.isin(RELOCATE)]:
         c = cell_index(pd.Series([s.at[k, "site_id"]])).iloc[0]
         near = g[(g.i - c.i).abs().le(RELOCATE_CELLS) & (g.j - c.j).abs().le(RELOCATE_CELLS)]
         near = near.assign(dist=np.hypot(near.i - c.i, near.j - c.j))
         best = near.sort_values(["industrial_pct", "dist"], ascending=[False, True]).iloc[0]
         if best.industrial_pct > 0 and best.site_id != s.at[k, "site_id"]:
-            print(f"  centro de ciudad -> zona industrial: {s.at[k, 'site']} ({best.dist * 3.5:.1f} km, "
-                  f"{best.industrial_pct:.0f} % industrial)")
+            print(
+                f"  centro de ciudad -> zona industrial: {s.at[k, 'site']} "
+                f"({best.dist * 3.5:.1f} km, "
+                f"{best.industrial_pct:.0f} % industrial)"
+            )
             s.at[k, "site_id"] = best.site_id
     return s
 

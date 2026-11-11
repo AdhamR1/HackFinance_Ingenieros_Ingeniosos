@@ -15,7 +15,7 @@ Design choices (and why):
   * Spatial block CV: positives are clustered (Madrid, Aragón). Random K-fold leaks
     neighbours into the test fold and inflates every metric. We report both; quote the spatial one.
 
-Usage (from pipeline/):
+Usage (from Modelo/):
     python src/labels.py
     python src/features.py
     python src/train.py [--exclusions data/processed/exclusions_es_3500.parquet] [--target

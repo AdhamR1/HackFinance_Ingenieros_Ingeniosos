@@ -133,7 +133,7 @@ class ControlCreditos {
   onRemove() {}
 }
 
-export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites de España', paises = 'Países',
+export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites administrativos', paises = 'Países',
   boton = 'Créditos del mapa', satelite = 'Satélite', mapa = 'Mapa', nombres = 'Nombres' } = {}) {
   if (!creditos) {
     // Orden de MapLibre: lo último que se añade abajo queda ENCIMA; así los créditos van debajo de + / −.
@@ -153,7 +153,7 @@ export function ponerCreditos(map, { busqueda = 'Búsqueda', limites = 'Límites
     + ` · ${mapa}: © ${enlace('https://www.openstreetmap.org/copyright', 'OpenStreetMap')}`
     + ` · ${nombres}: ${enlace('https://openfreemap.org', 'OpenFreeMap')}, © ${enlace('https://www.openmaptiles.org/', 'OpenMapTiles')}`
     + ` · ${busqueda}: ${enlace('https://photon.komoot.io', 'Photon')}`
-    + ` · ${limites}: ${enlace('https://www.geoboundaries.org', 'geoBoundaries')} (INE, CC BY 4.0)`
+    + ` · ${limites}: ${enlace('https://www.geoboundaries.org', 'geoBoundaries')} (CC BY 4.0)`
     + ` · ${paises}: Natural Earth`;
   creditos.boton.setAttribute('aria-label', boton);
   creditos.boton.title = boton;

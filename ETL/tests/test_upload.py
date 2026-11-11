@@ -105,7 +105,7 @@ def test_force_dry_run_and_failures(env):
 
 
 def test_extra_dirs_go_next_to_the_dataset(tmp_path, monkeypatch):
-    tables, extra = tmp_path / "ELT" / "dataset", tmp_path / "pipeline" / "processed"
+    tables, extra = tmp_path / "ETL" / "dataset", tmp_path / "Modelo" / "processed"
     for p, data in {
         tables / "sites.parquet": b"aa",
         extra / "scores.parquet": b"bbb",
@@ -116,10 +116,10 @@ def test_extra_dirs_go_next_to_the_dataset(tmp_path, monkeypatch):
         p.write_bytes(data)
 
     class Cfg(dict):
-        root = tmp_path / "ELT"
+        root = tmp_path / "ETL"
         secret = staticmethod(SECRETS.get)
 
-    cfg = Cfg(azure={"extra_dirs": {"processed": "../pipeline/processed", "gone": "../nope"}})
+    cfg = Cfg(azure={"extra_dirs": {"processed": "../Modelo/processed", "gone": "../nope"}})
     lake = SimpleNamespace(tables=tables, log=logging.getLogger("dclake.test"))
     fs = FakeFS(remote={"processed/priors.csv": 1})  # already there with the same size
     monkeypatch.setattr(

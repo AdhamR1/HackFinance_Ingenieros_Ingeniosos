@@ -1,10 +1,10 @@
 """Unstructured audio -> text: public recordings transcribed with ElevenLabs Scribe v2.
 
-Catalogue: ELT/audio/sources.csv, one public recording per row with the URL of its audio.
+Catalogue: ETL/audio/sources.csv, one public recording per row with the URL of its audio.
 Transcripts: <cache>/audio/transcripts/<source_id>.json (third-party content: never in git).
 ElevenLabs reads the audio from its URL (`source_url`), so nothing is downloaded here.
 
-Citations: ELT/audio/claims.csv holds literal quotes taken from the transcripts. `locate_quote`
+Citations: ETL/audio/claims.csv holds literal quotes taken from the transcripts. `locate_quote`
 finds each quote in the word timestamps, so the minute and the speaker of a citation are computed,
 never typed by hand; a quote that is not in the transcript is rejected.
 
@@ -255,7 +255,7 @@ CLAIM_COLUMNS = [
 
 
 def load_claims(cfg, verified_only: bool = True) -> pd.DataFrame:
-    """Curated citations (ELT/audio/claims.csv). Verified = the quote was found in its
+    """Curated citations (ETL/audio/claims.csv). Verified = the quote was found in its
     transcript, so it has a minute and a speaker."""
     p = audio_dir(cfg) / "claims.csv"
     if not p.exists():

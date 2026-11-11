@@ -16,7 +16,7 @@ country is kept in data/cache/ghsl/. Natura 2000 does not exist outside the EU. 
 warnings reuse feat_suelo.exclusions with the columns that exist (national parks come from
 feat_riesgos.py: run it first).
 
-Usage (from pipeline/):  $env:DC_COUNTRY = "JPN"; python src/feat_suelo_ghsl.py
+Usage (from Modelo/):  $env:DC_COUNTRY = "JPN"; python src/feat_suelo_ghsl.py
 Output: data/processed/<ISO>/feat_suelo.parquet and exclusions_<tag>_3500.parquet
 """
 
