@@ -16,7 +16,7 @@ When the ELT gets new columns (power grid, flood, seismic...), just run this aga
 
 import pandas as pd
 
-from cells import PROCESSED, read_elt
+from cells import PROCESSED, out_file, read_elt
 
 # column -> why it is not allowed as a feature
 LEAKAGE = {
@@ -115,8 +115,8 @@ def main():
     print(feats.notna().mean().mul(100).round(0).astype(int).astype(str).add(" %").to_string())
 
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    feats.reset_index().to_parquet(PROCESSED / "features_es_3500.parquet", index=False)
-    print(f"\n-> {PROCESSED / 'features_es_3500.parquet'}  ({len(feats):,} celdas)")
+    feats.reset_index().to_parquet(out_file("features"), index=False)
+    print(f"\n-> {out_file('features')}  ({len(feats):,} celdas)")
 
 
 if __name__ == "__main__":

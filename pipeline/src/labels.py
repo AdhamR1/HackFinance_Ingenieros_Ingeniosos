@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
-from cells import PROCESSED, RAW, cell_index, read_grid, site_id_from_lonlat
+from cells import PROCESSED, RAW, TAG, cell_index, out_file, read_grid, site_id_from_lonlat
 
 MAX_SNAP_CELLS = 2
 RELOCATE_CELLS = 2
@@ -35,9 +35,9 @@ RELOCATE = {"Zaragoza - ciudad"}   # municipio rows that are really "somewhere i
 
 
 def relocate_city_centres(s: pd.DataFrame, grid: pd.DataFrame) -> pd.DataFrame:
-    suelo = PROCESSED / "exclusions_es_3500.parquet"
+    suelo = out_file("exclusions")
     if not suelo.exists():
-        print("  falta exclusions_es_3500.parquet (feat_suelo.py): los de centro de ciudad se quedan en el centro")
+        print(f"  falta {suelo.name} (feat_suelo.py): los de centro de ciudad se quedan en el centro")
         return s
     ex = pd.read_parquet(suelo).set_index("site_id")
     g = grid[["site_id", "i", "j"]].assign(industrial_pct=lambda d: d.site_id.map(ex.industrial_pct).fillna(0))
@@ -56,7 +56,7 @@ def relocate_city_centres(s: pd.DataFrame, grid: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     grid = read_grid()
-    s = pd.read_csv(RAW / "dc_sites_es.csv").dropna(subset=["lat", "lon"])
+    s = pd.read_csv(RAW / f"dc_sites_{TAG}.csv").dropna(subset=["lat", "lon"])
     s["site_id"] = site_id_from_lonlat(s["lon"].values, s["lat"].values)
     s = relocate_city_centres(s, grid)
 
@@ -92,7 +92,7 @@ def main():
     lab = lab[["site_id", "y", "y_operational", "n_sites", "n_buildings", "sites"]]
 
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    lab.to_parquet(PROCESSED / "labels_es_3500.parquet", index=False)
+    lab.to_parquet(out_file("labels"), index=False)
     print(
         f"emplazamientos={len(s)}  edificios={s.n_buildings.sum()}  celdas "
         f"positivas={lab.y.sum()} "

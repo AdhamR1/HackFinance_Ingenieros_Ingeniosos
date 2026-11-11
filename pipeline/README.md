@@ -44,6 +44,28 @@ Opciones de `train.py`: `--exclusions <parquet>` (columnas `site_id, excluded`) 
 
 Cuando el ELT tenga columnas nuevas, basta con volver a ejecutar `features.py` y `train.py`: las variables nuevas entran solas.
 
+### Japón (y cualquier otro país del ELT)
+
+El país se elige con la variable de entorno `DC_COUNTRY` (por defecto `ESP`, así que España no cambia). Los
+archivos de otro país van a `data/processed/<ISO>/` con su etiqueta (`*_jp_3500.parquet`): nada se mezcla.
+
+```
+$env:DC_COUNTRY = "JPN"          # PowerShell (bash: export DC_COUNTRY=JPN)
+python src/feat_riesgos.py       # parques nacionales (WDPA); SNCZI y PGA del IGN solo existen en España
+python src/feat_suelo_ghsl.py    # suelo industrial y urbano (GHSL) y exclusiones: CORINE solo cubre Europa
+python src/feat_infra.py         # red eléctrica y autopistas (OSM vía ohsome); Okinawa es su propio sistema
+python src/dc_sites.py           # data centers conocidos: PeeringDB (del ELT) + OSM -> data/raw/dc_sites_jp.csv
+python src/labels.py
+python src/features.py
+python src/train.py --exclusions data/processed/JPN/exclusions_jp_3500.parquet --priors data/processed/priors_voz.csv
+```
+
+Diferencias con España, por falta de fuentes equivalentes:
+- Etiquetas de PeeringDB + OpenStreetMap, no de datacentermap.com.
+- `industrial_pct` y `urbano_pct` miden superficie edificada de GHSL (no residencial / residencial), no zonas de CORINE: no son comparables entre países.
+- Sin Natura 2000, zonas inundables oficiales ni PGA del IGN: quedan la inundación del JRC y la sismicidad de GEM del ELT.
+- El ELT de Japón no tiene sísmica H/V ni las capas de OSM de Overpass, así que esas variables no entran al modelo.
+
 ## Archivos
 
 | Archivo | Qué es |

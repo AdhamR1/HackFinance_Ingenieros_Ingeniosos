@@ -35,7 +35,7 @@ import pandas as pd
 import requests
 import shapely
 
-from cells import CELL_M, PIPELINE, PROCESSED, read_grid
+from cells import CELL_M, PIPELINE, PROCESSED, out_file, read_grid
 
 CACHE = PIPELINE / "data" / "cache" / "eea"
 HEADERS = {"User-Agent": "hackfinance-dc-siting/0.1 (hackathon research)"}
@@ -254,8 +254,9 @@ def exclusions(out: pd.DataFrame) -> pd.DataFrame:
     for n, thr in warns.items():
         print(f"  con aviso por {n} (>= {thr} %): {(ex[f'{n}_pct'] >= thr).sum():,}")
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    ex.to_parquet(PROCESSED / "exclusions_es_3500.parquet", index=False)
-    print(f"-> {PROCESSED / 'exclusions_es_3500.parquet'}")
+    dest = PROCESSED / out_file("exclusions").name  # this module's PROCESSED (tests patch it)
+    ex.to_parquet(dest, index=False)
+    print(f"-> {dest}")
     return ex
 
 

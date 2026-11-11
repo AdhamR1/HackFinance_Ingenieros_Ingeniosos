@@ -28,7 +28,14 @@ import requests
 from pyproj import Transformer
 from scipy.spatial import cKDTree
 
-from cells import PIPELINE, PROCESSED, read_grid, site_id_from_xy
+from cells import CRS, ISO, PIPELINE, PROCESSED, read_grid, site_id_from_xy
+
+try:  # corporate networks that inspect TLS: use the Windows certificate store
+    import truststore
+
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
 
 CACHE = PIPELINE / "data" / "cache" / "ohsome"
 URL = "https://api.ohsome.org/v1/elements/bbox"
@@ -41,9 +48,13 @@ LAYERS = {   # name -> (ohsome filter, keep tags)
     "motorway": ("highway in (motorway, trunk) and type:way", False),
     "junction": ("highway=motorway_junction and type:node", False),
 }
-TO_M = Transformer.from_crs("EPSG:4326", "EPSG:3035", always_xy=True)
+TO_M = Transformer.from_crs("EPSG:4326", CRS, always_xy=True)  # the country's grid projection
 # separate electrical systems: an island cell cannot connect to a substation across the sea
-ISLANDS = ["Canarias", "Illes Balears", "Ciudad Autónoma de Ceuta", "Ciudad Autónoma de Melilla"]
+# (Japan: Hokkaido, Honshu, Shikoku and Kyushu are interconnected; Okinawa is not)
+ISLANDS = {
+    "ESP": ["Canarias", "Illes Balears", "Ciudad Autónoma de Ceuta", "Ciudad Autónoma de Melilla"],
+    "JPN": ["Okinawa Prefecture"],
+}.get(ISO, [])
 
 
 def fetch(layer, s, w, n, e):
@@ -88,7 +99,7 @@ def kv(tags: dict) -> float:
 
 
 def points(features):
-    """Centre of each bounding box in EPSG:3035 + voltage (NaN if untagged). Deduplicated by OSM id."""
+    """Centre of each bounding box in the grid projection + voltage (NaN if untagged). Deduplicated by OSM id."""
     seen, rows = set(), []
     for f in features:
         p = f["properties"]
@@ -154,7 +165,7 @@ def main():
 
     pts = {k: points(v) for k, v in feats.items()}
     sub = layer("substation")
-    print(f"En España: subestaciones={len(sub[0]):,} (220 kV+: {len(layer('substation', 220)[0]):,}, "
+    print(f"En {ISO}: subestaciones={len(sub[0]):,} (220 kV+: {len(layer('substation', 220)[0]):,}, "
           f"400 kV: {len(layer('substation', 380)[0]):,})  torres={len(layer('tower')[0]):,}  "
           f"tramos de autovía={len(layer('motorway')[0]):,}  salidas={len(layer('junction')[0]):,}")
 

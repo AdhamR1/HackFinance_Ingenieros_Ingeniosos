@@ -40,7 +40,7 @@ import pandas as pd
 import requests
 import shapely
 
-from cells import CELL_M, CRS, PIPELINE, PROCESSED, RAW, read_grid
+from cells import CELL_M, CRS, ISO, PIPELINE, PROCESSED, RAW, read_grid
 from feat_suelo import HEADERS, cover_pct
 
 try:  # corporate networks that inspect TLS: use the Windows certificate store
@@ -167,16 +167,22 @@ def snczi(grid, boxes, canarias) -> pd.DataFrame:
     return out
 
 
+PARK_WHERE = {  # WDPA designation of a national park in each country
+    "ESP": "iso3='ESP' AND desig LIKE 'Parque Nacional%'",
+    "JPN": "iso3='JPN' AND desig_eng = 'National Park'",
+}
+
+
 def national_parks():
-    """Polygons of Spanish national parks (WDPA), EPSG:3035."""
+    """Polygons of the country's national parks (WDPA), in the grid projection."""
     import geopandas as gpd
 
-    dest = CACHE / "wdpa" / "parques_nacionales_esp.geojson"
+    dest = CACHE / "wdpa" / f"parques_nacionales_{ISO.lower()}.geojson"
     if not dest.exists():
         r = requests.get(
             WDPA,
             params={
-                "where": "iso3='ESP' AND desig LIKE 'Parque Nacional%'",
+                "where": PARK_WHERE[ISO],
                 "outFields": "site_id,name,desig,status",
                 "outSR": 4326,
                 "f": "geojson",
@@ -361,8 +367,9 @@ def main():
     canarias = grid["admin1"].astype(str).str.contains("Canarias", case=False)
     out = pd.DataFrame({"site_id": grid["site_id"]})
 
-    print("SNCZI (zonas inundables oficiales):", flush=True)
-    out = out.join(snczi(grid, boxes, canarias))
+    if ISO == "ESP":  # official Spanish layers; other countries use the ELT's JRC flood and GEM
+        print("SNCZI (zonas inundables oficiales):", flush=True)
+        out = out.join(snczi(grid, boxes, canarias))
 
     print("Parques nacionales (WDPA):", flush=True)
     parks = national_parks()
@@ -373,10 +380,11 @@ def main():
     )
     out["dist_parque_nacional_km"] = dist / 1000
 
-    print("Peligrosidad sísmica IGN:", flush=True)
-    pga = ign_pga(grid)
-    if pga is not None:
-        out["pga475_ign_g"] = pga.values
+    if ISO == "ESP":
+        print("Peligrosidad sísmica IGN:", flush=True)
+        pga = ign_pga(grid)
+        if pga is not None:
+            out["pga475_ign_g"] = pga.values
     save(out)
 
 

@@ -36,7 +36,7 @@ import shap
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 
-from cells import PROCESSED, read_grid
+from cells import out_file, read_grid
 
 BLOCK_KM = 70  # spatial CV block size (20 x 3.5 km cells)
 PARAMS = {
@@ -94,7 +94,7 @@ def cv(X, y, splitter, groups=None, extra=None):
 
 def main(a):
     grid = read_grid()
-    lab = pd.read_parquet(PROCESSED / "labels_es_3500.parquet")
+    lab = pd.read_parquet(out_file("labels"))
     feats = pd.read_parquet(a.features)
     df = grid.merge(lab, on="site_id").merge(feats, on="site_id", how="left")
     df["target"] = df[a.target]
@@ -194,12 +194,12 @@ def main(a):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--features", default=str(PROCESSED / "features_es_3500.parquet"))
+    ap.add_argument("--features", default=str(out_file("features")))
     ap.add_argument("--exclusions")
     ap.add_argument(
         "--priors",
         help="criterios de expertos (priors_voz.csv): sentido obligado de cada variable",
     )
     ap.add_argument("--target", default="y", choices=["y", "y_operational"])
-    ap.add_argument("--out", default=str(PROCESSED / "scores_es_3500.parquet"))
+    ap.add_argument("--out", default=str(out_file("scores")))
     main(ap.parse_args())
